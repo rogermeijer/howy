@@ -1,0 +1,16 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/nesbot/carbon/extension.neon
+
+parameters:
+    paths:
+        - app/
+        - bootstrap/app.php
+        - config/
+        - database/
+        - routes/
+        # The tenancy traits have no consumer in app/ yet, so analysing the
+        # fixtures that exercise them is what keeps them type-checked.
+        - tests/Fixtures/
+
+    level: 7

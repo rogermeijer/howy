@@ -1,0 +1,375 @@
+@import 'tailwindcss';
+
+@import 'tw-animate-css';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * cc: design system
+ * Warm ivory ground, ink text, one pink accent. Instrument Sans for UI,
+ * Idiqlat for the wordmark only.
+ */
+@theme {
+    --font-sans:
+        'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+    --font-serif: 'Idiqlat', serif;
+
+    /* Ground and ink */
+    --color-cc-bg: #f8f6f1;
+    --color-cc-panel: #ffffff;
+    --color-cc-raised: #ecebe6;
+    --color-cc-border: #e4e0d6;
+    --color-cc-border-strong: #d6d1c6;
+    --color-cc-ink: #17140f;
+    --color-cc-muted: #5c5750;
+    --color-cc-subtle: #6b655c;
+    --color-cc-faint: #8a8478;
+
+    /* Dark surfaces */
+    --color-cc-dark: #17140f;
+    --color-cc-dark-1: #211d17;
+    --color-cc-dark-2: #2e2922;
+    --color-cc-dark-border: #3a342b;
+    --color-cc-dark-text: #c4bfb5;
+
+    /* Accent */
+    --color-cc-accent: #ff2d78;
+    --color-cc-accent-tint: #ffe4ec;
+    --color-cc-accent-deep: #b8134f;
+
+    /* Interpretation labels */
+    --color-cc-question-bg: #e6eefb;
+    --color-cc-question-fg: #1f5bb8;
+    --color-cc-decision-bg: #e4f3ea;
+    --color-cc-decision-fg: #1e6e47;
+    --color-cc-action-bg: #ffe4ec;
+    --color-cc-action-fg: #b8134f;
+    --color-cc-knowledge-bg: #ede7fa;
+    --color-cc-knowledge-fg: #5b39a8;
+    --color-cc-noise-bg: #ecebe6;
+    --color-cc-noise-fg: #5c5750;
+    --color-cc-pending-bg: #fff2dc;
+    --color-cc-pending-fg: #8a5a0c;
+
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* shadcn/ui semantic tokens mapped onto the brand, so every UI primitive
+   (Button, Input, Card, Dialog…) is on-brand without per-component styling. */
+:root {
+    --background: #f8f6f1;
+    --foreground: #17140f;
+    --card: #ffffff;
+    --card-foreground: #17140f;
+    --popover: #ffffff;
+    --popover-foreground: #17140f;
+    --primary: #17140f;
+    --primary-foreground: #f8f6f1;
+    --secondary: #ecebe6;
+    --secondary-foreground: #17140f;
+    --muted: #ecebe6;
+    --muted-foreground: #6b655c;
+    --accent: #ecebe6;
+    --accent-foreground: #17140f;
+    --destructive: #b8134f;
+    --destructive-foreground: #ffffff;
+    --border: #e4e0d6;
+    --input: #d6d1c6;
+    --ring: #ff2d78;
+    --chart-1: #ff2d78;
+    --chart-2: #1f5bb8;
+    --chart-3: #1e6e47;
+    --chart-4: #5b39a8;
+    --chart-5: #c47d0e;
+    --radius: 0.625rem;
+    --sidebar: #f8f6f1;
+    --sidebar-foreground: #17140f;
+    --sidebar-primary: #17140f;
+    --sidebar-primary-foreground: #f8f6f1;
+    --sidebar-accent: #ecebe6;
+    --sidebar-accent-foreground: #17140f;
+    --sidebar-border: #e4e0d6;
+    --sidebar-ring: #ff2d78;
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+@layer components {
+    /* ---- Type scale ---------------------------------------------------- */
+    .cc-title {
+        @apply text-[30px] leading-[1.15] font-semibold tracking-[-0.025em];
+    }
+    .cc-subtitle {
+        @apply text-[20px] leading-[1.25] font-semibold tracking-[-0.015em];
+    }
+    .cc-row-title {
+        @apply text-[15px] leading-[1.4] font-medium;
+    }
+    .cc-body {
+        @apply text-[14px] leading-[1.55];
+    }
+    .cc-caption {
+        @apply text-[13px] leading-[1.5] text-cc-subtle;
+    }
+    .cc-label {
+        @apply text-[11px] font-semibold tracking-[0.08em] text-cc-subtle uppercase;
+    }
+
+    /* ---- Surfaces ------------------------------------------------------ */
+    .cc-panel {
+        @apply rounded-2xl border border-cc-border bg-cc-panel;
+    }
+    .cc-panel-dark {
+        @apply rounded-2xl bg-cc-dark text-cc-bg;
+    }
+
+    /* ---- Interpretation labels ----------------------------------------- */
+    .cc-tag {
+        @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap;
+    }
+    .cc-tag::before {
+        @apply size-1.5 shrink-0 rounded-full bg-current content-[''];
+    }
+    .cc-tag-question {
+        @apply bg-cc-question-bg text-cc-question-fg;
+    }
+    .cc-tag-decision {
+        @apply bg-cc-decision-bg text-cc-decision-fg;
+    }
+    .cc-tag-action {
+        @apply bg-cc-action-bg text-cc-action-fg;
+    }
+    .cc-tag-knowledge {
+        @apply bg-cc-knowledge-bg text-cc-knowledge-fg;
+    }
+    .cc-tag-noise {
+        @apply bg-cc-noise-bg text-cc-noise-fg;
+    }
+    .cc-tag-pending {
+        @apply bg-cc-pending-bg text-cc-pending-fg;
+    }
+
+    /* ---- Data rows ------------------------------------------------------
+       Table-like on desktop, stacked on narrow screens. Children claim a slot
+       with [grid-area:…]; a cell with no slot on mobile hides itself. */
+    .cc-row-inbox {
+        display: grid;
+        grid-template-columns: 16px minmax(0, 1fr) auto;
+        grid-template-areas:
+            'dot sender time'
+            '.   subject subject'
+            '.   tag tag';
+        gap: 6px 12px;
+        align-items: center;
+    }
+
+    .cc-row-file {
+        display: grid;
+        grid-template-columns: 20px minmax(0, 1fr) auto;
+        grid-template-areas:
+            'icon name name'
+            '.    thread thread'
+            '.    type updated';
+        gap: 6px 12px;
+        align-items: center;
+    }
+
+    @media (min-width: 1024px) {
+        .cc-row-inbox {
+            grid-template-columns: 24px 220px minmax(0, 1fr) 170px 150px 72px;
+            grid-template-areas: 'dot sender subject tag confidence time';
+            gap: 20px;
+        }
+
+        .cc-row-file {
+            grid-template-columns: 28px minmax(0, 1fr) 240px 120px 130px 40px;
+            grid-template-areas: 'icon name thread type updated actions';
+            gap: 20px;
+        }
+    }
+
+    /* ---- Filter pills --------------------------------------------------- */
+    .cc-pill {
+        @apply h-[34px] cursor-pointer rounded-full border-[1.5px] border-cc-border bg-cc-panel px-3.5 text-[13px] font-medium text-cc-ink transition-colors hover:border-cc-border-strong;
+    }
+    .cc-pill-active {
+        @apply border-transparent bg-cc-ink font-semibold text-cc-bg hover:border-cc-ink;
+    }
+
+    /* ---- Marketing / welcome page --------------------------------------- */
+    .cc-nav-link {
+        @apply text-sm font-medium text-cc-ink no-underline transition-colors hover:text-cc-accent;
+    }
+
+    .cc-btn-nav {
+        @apply rounded-lg bg-cc-ink px-4 py-2.5 text-sm font-semibold text-cc-bg no-underline transition-opacity hover:opacity-85;
+    }
+
+    .cc-btn-pink {
+        @apply inline-block rounded-[10px] bg-cc-accent px-7 py-4 text-base font-semibold text-cc-ink no-underline transition-opacity hover:opacity-88;
+    }
+
+    .cc-btn-outline {
+        @apply inline-block rounded-[10px] border-[1.5px] border-cc-border-strong bg-transparent px-6 py-[15px] text-base font-semibold text-cc-ink no-underline transition-colors hover:border-cc-ink;
+    }
+
+    .cc-btn-dark-outline {
+        @apply inline-block rounded-[10px] border-[1.5px] border-cc-dark-border bg-transparent px-5 py-3 text-[15px] font-semibold text-cc-bg no-underline transition-colors hover:border-cc-bg;
+    }
+
+    .cc-input-dark {
+        @apply min-w-0 flex-[1_1_260px] rounded-[10px] border-[1.5px] border-cc-dark-border bg-cc-dark-1 px-[18px] py-4 text-center text-base text-cc-bg transition-colors outline-none placeholder:text-cc-faint focus:border-cc-accent;
+    }
+
+    .cc-submit-btn {
+        @apply cursor-pointer rounded-[10px] border-none bg-cc-accent px-7 py-[17px] text-base font-semibold text-cc-ink transition-opacity hover:opacity-88;
+    }
+}
+
+/*
+ * Auth dark card. These rules sit OUTSIDE @layer components on purpose:
+ * unlayered CSS outranks Tailwind's utilities layer, which is what lets them
+ * beat the Input primitive's own `bg-transparent` / `border-input` classes.
+ */
+.cc-auth-card {
+    background: #17140f;
+    color: #f8f6f1;
+
+    --foreground: #f8f6f1;
+    --card: #211d17;
+    --card-foreground: #f8f6f1;
+    --primary: #ff2d78;
+    --primary-foreground: #17140f;
+    --secondary: #2e2922;
+    --secondary-foreground: #f8f6f1;
+    --muted: #2e2922;
+    --muted-foreground: #8a8478;
+    --accent: #2e2922;
+    --accent-foreground: #f8f6f1;
+    --border: #3a342b;
+    --input: #3a342b;
+    --ring: #ff2d78;
+
+    --color-foreground: #f8f6f1;
+    --color-card: #211d17;
+    --color-card-foreground: #f8f6f1;
+    --color-primary: #ff2d78;
+    --color-primary-foreground: #17140f;
+    --color-secondary: #2e2922;
+    --color-secondary-foreground: #f8f6f1;
+    --color-muted: #2e2922;
+    --color-muted-foreground: #8a8478;
+    --color-accent: #2e2922;
+    --color-accent-foreground: #f8f6f1;
+    --color-border: #3a342b;
+    --color-input: #3a342b;
+    --color-ring: #ff2d78;
+    --color-background: #17140f;
+}
+
+/* Solid ivory fields — readable on the dark card, never dark-on-dark. */
+.cc-auth-card [data-slot='input'],
+.cc-auth-card input:not([type='checkbox']):not([type='radio']) {
+    height: 48px;
+    background-color: #f8f6f1;
+    border: 1.5px solid #f8f6f1;
+    border-radius: 10px;
+    color: #17140f;
+    font-size: 15px;
+    padding-inline: 16px;
+    box-shadow: none;
+}
+
+.cc-auth-card [data-slot='input']::placeholder,
+.cc-auth-card input:not([type='checkbox']):not([type='radio'])::placeholder {
+    color: #6b655c;
+}
+
+.cc-auth-card [data-slot='input']:focus-visible,
+.cc-auth-card input:not([type='checkbox']):not([type='radio']):focus-visible {
+    border-color: #ff2d78;
+    box-shadow: 0 0 0 3px rgba(255, 45, 120, 0.28);
+    outline: none;
+}
+
+.cc-auth-card [data-slot='label'],
+.cc-auth-card label {
+    color: #f8f6f1;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.cc-auth-card [data-slot='checkbox'] {
+    border-color: #3a342b;
+    background-color: #211d17;
+}
+
+/* Password reveal toggle sits inside the ivory field. */
+.cc-auth-card .relative > button[type='button'] {
+    color: #6b655c;
+}
+
+.cc-auth-card a {
+    color: #c4bfb5;
+}
+.cc-auth-card a:hover {
+    color: #ff2d78;
+}
