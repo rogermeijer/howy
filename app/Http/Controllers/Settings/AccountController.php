@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Enums\Locale;
 use App\Enums\MailboxStatus;
+use App\Enums\SendPolicy;
 use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\AccountUpdateRequest;
@@ -38,6 +39,10 @@ class AccountController extends Controller
                 'lastMessageAt' => $mailbox->last_message_at?->toIso8601String(),
                 'emailsCount' => $mailbox->emails_count,
                 'import' => $importer->progress($mailbox),
+                'domain' => $mailbox->domain(),
+                'sendPolicy' => $mailbox->send_policy->value,
+                'sendWhitelist' => $mailbox->send_whitelist ?? [],
+                'sendBlacklist' => $mailbox->send_blacklist ?? [],
             ]);
 
         return Inertia::render('settings', [
@@ -58,6 +63,10 @@ class AccountController extends Controller
                 Locale::cases(),
             ),
             'timezones' => DateTimeZone::listIdentifiers(),
+            'sendPolicies' => array_map(
+                fn (SendPolicy $policy): array => ['value' => $policy->value, 'label' => $policy->label()],
+                SendPolicy::cases(),
+            ),
         ]);
     }
 

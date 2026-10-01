@@ -78,6 +78,10 @@ return [
             'facts' => env('KNOWLEDGE_MODEL_FACTS', 'gpt-6-luna'),
             'topics' => env('KNOWLEDGE_MODEL_TOPICS', 'gpt-6-luna'),
             'topic_summary' => env('KNOWLEDGE_MODEL_TOPIC_SUMMARY', 'gpt-6-luna'),
+            // Mail to a mailbox: a light model sorts it, the others act on it.
+            'mail_classify' => env('KNOWLEDGE_MODEL_MAIL_CLASSIFY', 'gpt-6-luna'),
+            'mail_answer' => env('KNOWLEDGE_MODEL_MAIL_ANSWER', 'gpt-6-luna'),
+            'mail_conflicts' => env('KNOWLEDGE_MODEL_MAIL_CONFLICTS', 'gpt-6-luna'),
         ],
     ],
 
@@ -102,6 +106,21 @@ return [
         // scores ~0.38 against them, while real answers score ~0.47 and up.
         'min_similarity_vector_only' => 0.45,
         'query_embedding_cache_hours' => 24,
+    ],
+
+    /*
+    | Mail addressed to a mailbox is answered or filed. See docs/knowledge-base.md.
+    */
+    'mail' => [
+        // Tokens of knowledge given to the model that answers a question.
+        'answer_max_tokens' => 3000,
+        // Existing facts a new statement is compared with.
+        'conflict_candidates' => 5,
+        // When the mailbox is only copied, an answer is suggested to whoever
+        // was asked only when the answering model is at least this sure.
+        'suggestion_min_confidence' => (float) env('KNOWLEDGE_MAIL_SUGGESTION_MIN_CONFIDENCE', 0.75),
+        // Characters of the message a reply answers, given as context.
+        'context_max_chars' => 3000,
     ],
 
     'topics' => [

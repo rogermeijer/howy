@@ -6,6 +6,7 @@ use App\Enums\MailboxStatus;
 use App\Facades\Tenancy;
 use App\Models\Email;
 use App\Models\Mailbox;
+use App\Services\Mail\Interpretation\InterpretationPresenter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection as BaseCollection;
@@ -19,7 +20,7 @@ class InboxController extends Controller
      * The inbox lists conversations, not messages: one row per thread, ordered
      * by its latest message.
      */
-    public function index(Request $request): Response
+    public function index(Request $request, InterpretationPresenter $presenter): Response
     {
         $threads = Email::query()
             ->select(['mailbox_id', 'provider_thread_id'])
@@ -32,11 +33,13 @@ class InboxController extends Controller
 
         $messages = $this->messagesOf($threads->getCollection());
 
-        $threads->through(function (Email $thread) use ($messages): array {
+        $threads->through(function (Email $thread) use ($messages, $presenter): array {
             /** @var Collection<int, Email> $items */
             $items = $messages->get($thread->mailbox_id.'|'.$thread->provider_thread_id, new Collection);
             $first = $items->first();
             $latest = $items->last();
+            // The thread shows how its latest interpreted message was read.
+            $interpreted = $items->last(fn (Email $email): bool => $email->interpretation !== null)?->interpretation;
 
             return [
                 // The row opens the conversation at its latest message.
@@ -53,6 +56,7 @@ class InboxController extends Controller
                 'lastReceivedAt' => $latest?->received_at?->toIso8601String(),
                 'messagesCount' => (int) $thread->getAttribute('messages_count'),
                 'hasAttachments' => (bool) $thread->getAttribute('any_attachments'),
+                'interpretation' => $interpreted !== null ? $presenter->brief($interpreted) : null,
             ];
         });
 
@@ -78,6 +82,7 @@ class InboxController extends Controller
         return Email::query()
             ->whereIn('provider_thread_id', $threads->pluck('provider_thread_id')->unique()->values())
             ->whereIn('mailbox_id', $threads->pluck('mailbox_id')->unique()->values())
+            ->with('interpretation')
             ->oldest('received_at')
             ->oldest('id')
             ->get(['id', 'mailbox_id', 'provider_thread_id', 'subject', 'from_name', 'from_email', 'snippet', 'content_text', 'received_at'])

@@ -30,8 +30,21 @@ class MailboxFactory extends Factory
             'status' => MailboxStatus::Active,
             'history_id' => '1000',
             'watch_expires_at' => now()->addDays(7),
-            'send_policy' => SendPolicy::Off,
+            'send_policy' => SendPolicy::Always,
         ];
+    }
+
+    /**
+     * @param  list<string>  $whitelist
+     * @param  list<string>  $blacklist
+     */
+    public function sendPolicy(SendPolicy $policy, array $whitelist = [], array $blacklist = []): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'send_policy' => $policy,
+            'send_whitelist' => $whitelist,
+            'send_blacklist' => $blacklist,
+        ]);
     }
 
     public function needsReauth(): static

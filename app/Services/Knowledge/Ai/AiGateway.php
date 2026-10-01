@@ -17,8 +17,9 @@ use RuntimeException;
  * accounted to the account and the step that spent it.
  *
  * What is sent: document text (chunks, sections, whole documents for context
- * lines) and, for scanned pages, the pages themselves. Never account or user
- * names, email addresses or ids. With OPENAI_STORE=false OpenAI keeps no copy
+ * lines), for scanned pages the pages themselves, and for mail addressed to a
+ * mailbox its subject and new text, with any addresses in it masked. Never the
+ * envelope (senders, recipients), account or user names, email addresses or ids. With OPENAI_STORE=false OpenAI keeps no copy
  * for later retrieval; OpenAI does not train on API data.
  */
 class AiGateway

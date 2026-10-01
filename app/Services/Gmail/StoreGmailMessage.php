@@ -3,22 +3,27 @@
 namespace App\Services\Gmail;
 
 use App\Enums\EmailSource;
+use App\Jobs\Mail\InterpretEmail;
 use App\Models\Email;
+use App\Models\EmailInterpretation;
 use App\Models\Mailbox;
 use App\Services\Mail\EmailContentExtractor;
+use App\Services\Mail\Interpretation\EmailEligibility;
 
 /**
  * Stores one Gmail message as an Email, idempotently.
  *
  * Push, poll and import all funnel through here, so a message that arrives twice
  * (Pub/Sub redelivers, a poll overlaps a push, someone imports what already came
- * in) updates the same row instead of duplicating it.
+ * in) updates the same row instead of duplicating it. A new message is queued
+ * for interpretation.
  */
 class StoreGmailMessage
 {
     public function __construct(
         private readonly GmailMessageParser $parser,
         private readonly EmailContentExtractor $extractor,
+        private readonly EmailEligibility $eligibility,
     ) {}
 
     /**
@@ -48,6 +53,15 @@ class StoreGmailMessage
         }
 
         $email->save();
+
+        // New mail gets read and acted on, once: answered when written to the
+        // mailbox, listened to when the mailbox is only copied.
+        $mode = $email->wasRecentlyCreated ? $this->eligibility->mode($email, $mailbox) : null;
+
+        if ($mode !== null) {
+            EmailInterpretation::query()->firstOrCreate(['email_id' => $email->id], ['mode' => $mode]);
+            InterpretEmail::dispatch($email->id);
+        }
 
         if ($email->received_at !== null
             && ($mailbox->last_message_at === null || $email->received_at->isAfter($mailbox->last_message_at))) {

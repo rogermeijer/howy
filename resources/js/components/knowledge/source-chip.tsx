@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { FileText, Mail } from 'lucide-react';
 import { useTranslations } from '@/hooks/use-translations';
+import emailRoutes from '@/routes/emails';
 import documentRoutes from '@/routes/knowledge/documents';
 
 type Props = {
@@ -55,11 +56,35 @@ export function SourceChip({
     );
 }
 
-export function EmailSourceChip({ subject }: { subject: string }) {
-    return (
-        <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-cc-border bg-cc-panel px-2 py-1 text-[12px] font-medium text-cc-muted">
+/**
+ * A mail as a source; links to its thread when the id is known.
+ */
+export function EmailSourceChip({
+    subject,
+    emailId,
+}: {
+    subject: string;
+    emailId?: number | null;
+}) {
+    const className =
+        'inline-flex max-w-full items-center gap-1.5 rounded-md border border-cc-border bg-cc-panel px-2 py-1 text-[12px] font-medium text-cc-muted';
+    const content = (
+        <>
             <Mail className="size-3.5 shrink-0" />
             <span className="truncate">{subject}</span>
-        </span>
+        </>
+    );
+
+    if (emailId === undefined || emailId === null) {
+        return <span className={className}>{content}</span>;
+    }
+
+    return (
+        <Link
+            href={emailRoutes.show(emailId)}
+            className={`${className} transition-colors hover:border-cc-border-strong hover:text-cc-ink`}
+        >
+            {content}
+        </Link>
     );
 }

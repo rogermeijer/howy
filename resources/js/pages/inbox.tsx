@@ -2,13 +2,14 @@ import { Head, Link } from '@inertiajs/react';
 import { Copy, Inbox as InboxIcon, Paperclip } from 'lucide-react';
 import { WithCcLogo } from '@/components/cc/with-cc-logo';
 import { PageHeader } from '@/components/cc/page-header';
-import { Tag } from '@/components/cc/tag';
+import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { MailboxBanner } from '@/components/mailboxes/mailbox-banner';
 import { Button } from '@/components/ui/button';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { show } from '@/routes/emails';
+import type { InterpretationBrief } from '@/types';
 
 type InboxThread = {
     id: number;
@@ -18,6 +19,7 @@ type InboxThread = {
     lastReceivedAt: string | null;
     messagesCount: number;
     hasAttachments: boolean;
+    interpretation: InterpretationBrief | null;
 };
 
 type Paginated<T> = {
@@ -158,9 +160,8 @@ export default function Inbox({
                                 </div>
 
                                 <div className="[grid-area:tag]">
-                                    <Tag
-                                        kind="pending"
-                                        label={t('Not processed yet')}
+                                    <InterpretationTag
+                                        interpretation={thread.interpretation}
                                     />
                                 </div>
 

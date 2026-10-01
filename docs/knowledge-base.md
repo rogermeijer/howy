@@ -72,6 +72,65 @@ names, ids or addresses. `OPENAI_STORE=false` is the default.
 | `KNOWLEDGE_MODEL_*`                                      | `gpt-6-luna` for every LLM step                    |
 | `KNOWLEDGE_PDFTOHTML`, `…_PDFINFO`, `…_QPDF`, `…_PANDOC` | the bare command name                              |
 
+## Mail to a mailbox
+
+Every new mail to a connected mailbox is read and acted on, in one of two roles. `StoreGmailMessage` decides with
+`EmailEligibility`: push or poll only (never an import), not from the mailbox itself, and not automated
+(`Auto-Submitted`, `Precedence: bulk|list|junk|auto_reply`, `List-Id`). The role follows where the mailbox is:
+
+- **addressed** — the mailbox is in `To`: cc: is asked, and answers the sender.
+- **copied** — the mailbox is only in `Cc`: cc: listens. It never writes to the sender. A question to someone
+  else gets a suggested answer, sent to the people in `To` only, when the answering model is at least
+  `knowledge.mail.suggestion_min_confidence` (0.75) sure; otherwise the answer is kept on the mail as
+  `unsure`. What people answer in the thread is filed as information, read with the message it replies to
+  (`In-Reply-To`, else the quoted text) so that "yes, up to three days" becomes a claim of its own. A
+  conflict is flagged, without a mail.
+
+It creates an `email_interpretations` row with the role (`mode`) and queues `InterpretEmail` (the email id,
+`knowledge` queue).
+
+`EmailInterpreter` then:
+
+1. **Classifies** with `EmailClassifier` on the light model (step `mail_classify`): `question`,
+   `information` or `other`, a one-line summary, the language, and the standalone question or the atomic
+   statements. Only the subject and the mail's new text are sent, with addresses masked.
+2. **Question** → hybrid search; `QuestionAnswerer` (step `mail_answer`) answers only from the sources it
+   gets, citing them, with a confidence. A partial answer is given as far as the sources go, with what they
+   do not tell (`answer_gaps`) stated in the reply. A reply in the thread that fills that gap is read with it
+   as context, and filed. No sources or no answer → `not_found`; addressed, the sender is told
+   so. Copied: `suggested` (sent to the people asked) or `unsure` (kept, not sent).
+3. **Information** → per statement: an identical fact (same `content_hash`) is a duplicate; otherwise the most
+   similar facts go to `FactConflictChecker` (step `mail_conflicts`) in one call. New statements become
+   `supplementary` facts with `source_type = email`, embedded right away, so search cites the mail.
+   Contradicting statements are **held** (only in `email_interpretations.statements`); addressed, the sender
+   gets a reply that sets each against the fact it contradicts and that fact's source.
+4. **Other** → `no_action`.
+
+The row records `status` (`queued → processing → done | skipped | failed`), `intent`, `outcome`
+(`answered`, `not_found`, `suggested`, `unsure`, `added`, `duplicate`, `conflict`, `no_action`), the question and answer with
+citations, every statement with its verdict, and the reply. The inbox shows the outcome per thread; the thread
+page shows the whole interpretation.
+
+**Replies** are designed HTML (`resources/views/mail/cc/`, composed by `ReplyComposer`) with the same message as
+plain text, which is also what the thread page shows. The `[cc]:` wordmark is embedded as an inline image
+(`resources/images/mail/cc-logo@3x.png`, Idiqlat rendered at 3×, shown at 56×30), since mail clients load no web
+fonts; re-render it with headless Chrome if the wordmark changes. They go out in the Gmail thread (`GmailClient::sendMessage`, `In-Reply-To`/`References`,
+`Auto-Submitted: auto-replied`) from the mailbox, in the mail's language when we ship it. Each mailbox has a
+send policy, set under _Settings → Mailboxes → Reply settings_:
+
+| Policy      | Replies to                                    |
+| ----------- | --------------------------------------------- |
+| `off`       | nobody                                        |
+| `domain`    | the mailbox's own domain, minus the blacklist |
+| `whitelist` | only addresses and domains on the whitelist   |
+| `always`    | everyone, minus the blacklist (default)       |
+
+A blocked or failed reply is kept with its text (`reply_status` `blocked` / `failed`). A reply that went out
+is never sent again, also not when the mail is interpreted again.
+
+`php artisan mail:interpret {account} {email}` interprets a mail on demand (again, or one that was never
+queued, such as an import); `--queue` queues it instead.
+
 ## Folders
 
 `TopicOrganizer` proposes the first tree (5–8 domains, max three levels) once an account has processed

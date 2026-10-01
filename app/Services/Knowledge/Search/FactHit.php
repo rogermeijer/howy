@@ -17,5 +17,8 @@ final readonly class FactHit
         public ?string $headingPath,
         public ?int $pageFrom,
         public float $score,
+        /** Set when the fact came from a mail rather than a document. */
+        public ?int $emailId = null,
+        public ?string $emailSubject = null,
     ) {}
 }

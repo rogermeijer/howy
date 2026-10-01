@@ -1,5 +1,7 @@
 export type MailboxStatus = 'active' | 'needs_reauth' | 'disconnected';
 
+export type SendPolicy = 'off' | 'domain' | 'whitelist' | 'always';
+
 export type Mailbox = {
     id: number;
     emailAddress: string;
@@ -8,6 +10,10 @@ export type Mailbox = {
     lastMessageAt: string | null;
     emailsCount: number;
     import: { processed: number; total: number } | null;
+    domain: string;
+    sendPolicy: SendPolicy;
+    sendWhitelist: string[];
+    sendBlacklist: string[];
 };
 
 export type MailboxSearchResult = {

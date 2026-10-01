@@ -75,7 +75,7 @@ class ConnectGmailTest extends TestCase
 
         $this->assertSame('support@noordkade.nl', $mailbox->email_address);
         $this->assertSame(MailboxStatus::Active, $mailbox->status);
-        $this->assertSame(SendPolicy::Off, $mailbox->send_policy);
+        $this->assertSame(SendPolicy::Always, $mailbox->send_policy);
         $this->assertSame('access-token', $mailbox->access_token);
         $this->assertSame('refresh-token', $mailbox->refresh_token);
         $this->assertSame($this->admin->id, $mailbox->connected_by_user_id);

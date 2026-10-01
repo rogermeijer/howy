@@ -4,3 +4,4 @@ export type * from './navigation';
 export type * from './mailboxes';
 export type * from './ui';
 export type * from './knowledge';
+export type * from './interpretations';

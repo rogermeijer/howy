@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Email;
+use App\Services\Mail\Interpretation\InterpretationPresenter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -15,9 +16,10 @@ class EmailController extends Controller
      *
      * Typed binding, so another account's email 404s through the tenant scope.
      */
-    public function show(Email $email): Response
+    public function show(Email $email, InterpretationPresenter $presenter): Response
     {
         $thread = Email::query()
+            ->with('interpretation')
             ->where('mailbox_id', $email->mailbox_id)
             ->where('provider_thread_id', $email->provider_thread_id)
             ->latest('received_at')
@@ -46,6 +48,7 @@ class EmailController extends Controller
                 'contentHtml' => $item->content_html,
                 // Mail without HTML, or stored before extraction existed.
                 'contentText' => $item->content_text ?? $item->body_text,
+                'interpretation' => $item->interpretation !== null ? $presenter->full($item->interpretation) : null,
                 'excerpt' => Str::limit(Str::squish($item->content_text ?? $item->snippet ?? ''), 160),
                 'attachments' => array_map(
                     fn (array $a): array => ['filename' => $a['filename'], 'size' => $a['size']],

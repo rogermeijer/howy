@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mailboxes;
 
 use App\Enums\EmailSource;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Mailboxes\MailboxSendPolicyRequest;
 use App\Jobs\SyncGmailMailbox;
 use App\Models\Mailbox;
 use App\Services\Gmail\MailboxConnector;
@@ -19,6 +20,18 @@ class MailboxController extends Controller
         SyncGmailMailbox::dispatch($mailbox->id, EmailSource::Poll);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Checking for new mail.')]);
+
+        return back();
+    }
+
+    /**
+     * Who cc: may reply to from this mailbox.
+     */
+    public function updateSendPolicy(MailboxSendPolicyRequest $request, Mailbox $mailbox): RedirectResponse
+    {
+        $mailbox->fill($request->validated())->save();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Reply settings saved.')]);
 
         return back();
     }

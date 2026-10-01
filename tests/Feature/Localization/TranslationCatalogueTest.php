@@ -121,16 +121,21 @@ class TranslationCatalogueTest extends TestCase
     }
 
     /**
+     * PHP under app/ and the Blade views, which translate with __() too.
+     *
      * @return list<string>
      */
     private function phpFiles(): array
     {
         $files = [];
-        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(app_path()));
 
-        foreach ($iterator as $file) {
-            if ($file->isFile() && $file->getExtension() === 'php') {
-                $files[] = $file->getPathname();
+        foreach ([app_path(), resource_path('views')] as $root) {
+            $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root));
+
+            foreach ($iterator as $file) {
+                if ($file->isFile() && $file->getExtension() === 'php') {
+                    $files[] = $file->getPathname();
+                }
             }
         }
 

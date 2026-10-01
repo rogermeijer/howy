@@ -24,6 +24,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('gmail/callback', [GmailOAuthController::class, 'callback'])->name('gmail.callback');
 
             Route::post('{mailbox}/sync', [MailboxController::class, 'sync'])->name('sync');
+            Route::patch('{mailbox}/send-policy', [MailboxController::class, 'updateSendPolicy'])->name('send-policy.update');
             Route::delete('{mailbox}', [MailboxController::class, 'destroy'])->name('destroy');
 
             Route::get('{mailbox}/import/search', [MailboxImportController::class, 'search'])->name('import.search');

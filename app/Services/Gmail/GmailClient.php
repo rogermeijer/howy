@@ -157,6 +157,24 @@ class GmailClient
     }
 
     /**
+     * Send a raw RFC 2822 message from the mailbox. With a thread id Gmail files
+     * it in that thread; the In-Reply-To and References headers in the message
+     * thread it for the recipient.
+     *
+     * @return array{id: string, threadId: string}
+     */
+    public function sendMessage(string $raw, ?string $threadId = null): array
+    {
+        $body = array_filter([
+            'raw' => rtrim(strtr(base64_encode($raw), '+/', '-_'), '='),
+            'threadId' => $threadId,
+        ], fn (?string $value): bool => $value !== null);
+
+        /** @var array{id: string, threadId: string} */
+        return $this->send(fn (PendingRequest $http) => $http->post(self::BASE_URL.'/messages/send', $body))->json();
+    }
+
+    /**
      * Revoke the grant at Google. Best effort: a token that is already dead is fine.
      */
     public function revoke(): void

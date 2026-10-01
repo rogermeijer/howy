@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -44,6 +45,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Account $account
  * @property-read Mailbox|null $mailbox
+ * @property-read EmailInterpretation|null $interpretation
  */
 #[Fillable([
     'mailbox_id', 'provider_message_id', 'provider_thread_id', 'message_id_header',
@@ -64,6 +66,28 @@ class Email extends Model
     public function mailbox(): BelongsTo
     {
         return $this->belongsTo(Mailbox::class);
+    }
+
+    /**
+     * @return HasOne<EmailInterpretation, $this>
+     */
+    public function interpretation(): HasOne
+    {
+        return $this->hasOne(EmailInterpretation::class);
+    }
+
+    /**
+     * The value of a header, matched case-insensitively; the first one wins.
+     */
+    public function header(string $name): ?string
+    {
+        foreach ($this->headers ?? [] as $header) {
+            if (strcasecmp($header['name'], $name) === 0) {
+                return $header['value'];
+            }
+        }
+
+        return null;
     }
 
     /**

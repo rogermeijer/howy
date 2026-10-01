@@ -1,19 +1,14 @@
 import { Head, Link } from '@inertiajs/react';
-import {
-    ChevronLeft,
-    FileText,
-    Paperclip,
-    Quote,
-    Sparkles,
-} from 'lucide-react';
-import { useState } from 'react';
-import { Tag } from '@/components/cc/tag';
-import { WithCcLogo } from '@/components/cc/with-cc-logo';
+import { ChevronLeft, FileText, Paperclip, Quote } from 'lucide-react';
+import { Fragment, useState } from 'react';
+import { CcReply, hasCcReply } from '@/components/mail/cc-reply';
+import { InterpretationPanel } from '@/components/mail/interpretation-panel';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useInitials } from '@/hooks/use-initials';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { inbox } from '@/routes';
+import type { Interpretation } from '@/types';
 
 type Address = { name: string | null; email: string };
 
@@ -37,6 +32,7 @@ type Message = {
     excerpt: string;
     attachments: { filename: string; size: number }[];
     quotes: QuotedMessage[];
+    interpretation: Interpretation | null;
 };
 
 type Props = {
@@ -82,6 +78,12 @@ export default function EmailShow({
         () => new Set([messages[0]?.id, currentId]),
     );
     const [quotesOpen, setQuotesOpen] = useState<Set<number>>(new Set());
+
+    // The opened message's interpretation, else the newest one in the thread.
+    const interpreted =
+        messages.find(
+            (message) => message.id === currentId && message.interpretation,
+        ) ?? messages.find((message) => message.interpretation);
 
     const jumpTo = (id: number) => {
         setExpanded((current) => toggled(current, id, true));
@@ -136,67 +138,76 @@ export default function EmailShow({
                         </div>
 
                         <ol className="cc-panel flex flex-col overflow-hidden">
-                            {messages.map((message) =>
-                                expanded.has(message.id) ? (
-                                    <OpenMessage
-                                        key={message.id}
-                                        message={message}
-                                        quotesOpen={quotesOpen.has(message.id)}
-                                        onCollapse={() =>
-                                            setExpanded((current) =>
-                                                toggled(
-                                                    current,
-                                                    message.id,
-                                                    false,
-                                                ),
-                                            )
-                                        }
-                                        onToggleQuotes={() =>
-                                            setQuotesOpen((current) =>
-                                                toggled(current, message.id),
-                                            )
-                                        }
-                                        onJump={jumpTo}
-                                    />
-                                ) : (
-                                    <ClosedMessage
-                                        key={message.id}
-                                        message={message}
-                                        onOpen={() =>
-                                            setExpanded((current) =>
-                                                toggled(
-                                                    current,
-                                                    message.id,
-                                                    true,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                ),
-                            )}
+                            {messages.map((message) => (
+                                <Fragment key={message.id}>
+                                    {message.interpretation &&
+                                        hasCcReply(message.interpretation) && (
+                                            <CcReply
+                                                messageId={message.id}
+                                                interpretation={
+                                                    message.interpretation
+                                                }
+                                            />
+                                        )}
+                                    {expanded.has(message.id) ? (
+                                        <OpenMessage
+                                            key={message.id}
+                                            message={message}
+                                            quotesOpen={quotesOpen.has(
+                                                message.id,
+                                            )}
+                                            onCollapse={() =>
+                                                setExpanded((current) =>
+                                                    toggled(
+                                                        current,
+                                                        message.id,
+                                                        false,
+                                                    ),
+                                                )
+                                            }
+                                            onToggleQuotes={() =>
+                                                setQuotesOpen((current) =>
+                                                    toggled(
+                                                        current,
+                                                        message.id,
+                                                    ),
+                                                )
+                                            }
+                                            onJump={jumpTo}
+                                        />
+                                    ) : (
+                                        <ClosedMessage
+                                            key={message.id}
+                                            message={message}
+                                            onOpen={() =>
+                                                setExpanded((current) =>
+                                                    toggled(
+                                                        current,
+                                                        message.id,
+                                                        true,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    )}
+                                </Fragment>
+                            ))}
                         </ol>
                     </div>
 
-                    <aside className="cc-panel-dark flex flex-col gap-4 p-7">
-                        <div className="cc-label text-cc-faint">
-                            {t('Interpretation')}
-                        </div>
-                        <Tag
-                            kind="pending"
-                            label={t('Not processed yet')}
-                            className="self-start"
-                        />
-                        <p className="flex gap-2.5 text-[14px] leading-[1.55] text-cc-dark-text">
-                            <Sparkles className="mt-0.5 size-4 shrink-0 text-cc-accent" />
-                            <span>
-                                <WithCcLogo
-                                    text={t(
-                                        '[cc]: has stored this conversation. Its interpretation will appear here.',
-                                    )}
-                                />
-                            </span>
-                        </p>
-                    </aside>
+                    <InterpretationPanel
+                        interpretation={interpreted?.interpretation ?? null}
+                        about={
+                            interpreted && messages.length > 1
+                                ? t('Email from :sender', {
+                                      sender:
+                                          interpreted.fromName ??
+                                          interpreted.fromEmail ??
+                                          '',
+                                  })
+                                : null
+                        }
+                    />
                 </div>
             </div>
         </>

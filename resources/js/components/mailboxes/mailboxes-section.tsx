@@ -3,6 +3,7 @@ import {
     AlertTriangle,
     Download,
     Mail,
+    MessageSquareReply,
     MoreHorizontal,
     Plus,
     RefreshCw,
@@ -16,6 +17,7 @@ import { WithCcLogo } from '@/components/cc/with-cc-logo';
 import { ConnectMailboxDialog } from '@/components/mailboxes/connect-mailbox-dialog';
 import { DisconnectMailboxDialog } from '@/components/mailboxes/disconnect-mailbox-dialog';
 import { ImportMailboxDialog } from '@/components/mailboxes/import-mailbox-dialog';
+import { SendPolicyDialog } from '@/components/mailboxes/send-policy-dialog';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -28,19 +30,26 @@ import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
 import { settings } from '@/routes';
 import mailboxRoutes from '@/routes/mailboxes';
-import type { Mailbox } from '@/types';
+import type { LocaleOption, Mailbox } from '@/types';
 
 type Props = {
     mailboxes: Mailbox[];
     canManage: boolean;
     openConnect: boolean;
+    sendPolicies: LocaleOption[];
 };
 
-export function MailboxesSection({ mailboxes, canManage, openConnect }: Props) {
+export function MailboxesSection({
+    mailboxes,
+    canManage,
+    openConnect,
+    sendPolicies,
+}: Props) {
     const t = useTranslations();
     const [connecting, setConnecting] = useState(openConnect);
     const [importing, setImporting] = useState<number | null>(null);
     const [disconnecting, setDisconnecting] = useState<Mailbox | null>(null);
+    const [replySettings, setReplySettings] = useState<Mailbox | null>(null);
 
     // Opened from the inbox banner via ?connect=mailbox: drop the query so a
     // reload or a later visit does not reopen it.
@@ -130,7 +139,9 @@ export function MailboxesSection({ mailboxes, canManage, openConnect }: Props) {
                             key={mailbox.id}
                             mailbox={mailbox}
                             canManage={canManage}
+                            sendPolicies={sendPolicies}
                             onImport={() => setImporting(mailbox.id)}
+                            onReplySettings={() => setReplySettings(mailbox)}
                             onDisconnect={() => setDisconnecting(mailbox)}
                         />
                     ))}
@@ -142,7 +153,7 @@ export function MailboxesSection({ mailboxes, canManage, openConnect }: Props) {
                 <span>
                     <WithCcLogo
                         text={t(
-                            '[cc]: only sends email when you set it up, and never changes or deletes anything in the mailbox.',
+                            '[cc]: only replies as the reply settings of a mailbox allow, and never changes or deletes anything in the mailbox.',
                         )}
                     />
                 </span>
@@ -159,6 +170,11 @@ export function MailboxesSection({ mailboxes, canManage, openConnect }: Props) {
                         mailboxId={importing}
                         onOpenChange={(open) => !open && setImporting(null)}
                     />
+                    <SendPolicyDialog
+                        mailbox={replySettings}
+                        policies={sendPolicies}
+                        onOpenChange={(open) => !open && setReplySettings(null)}
+                    />
                     <DisconnectMailboxDialog
                         mailbox={disconnecting}
                         onOpenChange={(open) => !open && setDisconnecting(null)}
@@ -172,12 +188,16 @@ export function MailboxesSection({ mailboxes, canManage, openConnect }: Props) {
 function MailboxRow({
     mailbox,
     canManage,
+    sendPolicies,
     onImport,
+    onReplySettings,
     onDisconnect,
 }: {
     mailbox: Mailbox;
     canManage: boolean;
+    sendPolicies: LocaleOption[];
     onImport: () => void;
+    onReplySettings: () => void;
     onDisconnect: () => void;
 }) {
     const t = useTranslations();
@@ -198,6 +218,12 @@ function MailboxRow({
                 })
               : t('no emails yet'),
         t(':count emails stored', { count: mailbox.emailsCount }),
+        t('replies: :policy', {
+            policy:
+                sendPolicies
+                    .find((policy) => policy.value === mailbox.sendPolicy)
+                    ?.label.toLowerCase() ?? mailbox.sendPolicy,
+        }),
     ];
 
     return (
@@ -283,6 +309,10 @@ function MailboxRow({
                                         {t('Sync now')}
                                     </DropdownMenuItem>
                                 )}
+                                <DropdownMenuItem onSelect={onReplySettings}>
+                                    <MessageSquareReply />
+                                    {t('Reply settings')}
+                                </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                     <a href={reconnectUrl}>
                                         <ShieldCheck />

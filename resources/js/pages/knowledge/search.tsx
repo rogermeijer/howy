@@ -3,7 +3,10 @@ import { Bug, Search as SearchIcon } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeader } from '@/components/cc/page-header';
 import { RichText } from '@/components/knowledge/rich-text';
-import { SourceChip } from '@/components/knowledge/source-chip';
+import {
+    EmailSourceChip,
+    SourceChip,
+} from '@/components/knowledge/source-chip';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -44,6 +47,8 @@ type FactHitView = {
     sectionId: number | null;
     headingPath: string | null;
     pageFrom: number | null;
+    emailId: number | null;
+    emailSubject: string | null;
 };
 
 type Props = {
@@ -199,13 +204,25 @@ export default function KnowledgeSearchPage({
                                             <span className="cc-body">
                                                 {fact.statement}
                                             </span>
-                                            <SourceChip
-                                                documentId={fact.documentId}
-                                                title={fact.documentTitle}
-                                                headingPath={fact.headingPath}
-                                                pageFrom={fact.pageFrom}
-                                                sectionId={fact.sectionId}
-                                            />
+                                            {fact.emailId !== null ? (
+                                                <EmailSourceChip
+                                                    subject={
+                                                        fact.emailSubject ||
+                                                        t('(no subject)')
+                                                    }
+                                                    emailId={fact.emailId}
+                                                />
+                                            ) : (
+                                                <SourceChip
+                                                    documentId={fact.documentId}
+                                                    title={fact.documentTitle}
+                                                    headingPath={
+                                                        fact.headingPath
+                                                    }
+                                                    pageFrom={fact.pageFrom}
+                                                    sectionId={fact.sectionId}
+                                                />
+                                            )}
                                         </li>
                                     ))}
                                 </ul>

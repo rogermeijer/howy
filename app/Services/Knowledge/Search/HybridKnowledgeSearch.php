@@ -6,6 +6,7 @@ use App\Enums\DocumentType;
 use App\Enums\FactStatus;
 use App\Facades\Tenancy;
 use App\Models\DocumentVersion;
+use App\Models\Email;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeFact;
 use App\Models\KnowledgeTopic;
@@ -281,6 +282,11 @@ class HybridKnowledgeSearch implements KnowledgeSearch
 
         $facts = KnowledgeFact::query()->with(['document', 'section'])->whereKey(array_keys($ranked))->get()->keyBy('id');
 
+        // Facts taken from mail cite the mail; everything else cites a document.
+        $emails = Email::query()
+            ->whereKey($facts->where('source_type', 'email')->pluck('source_id')->all())
+            ->pluck('subject', 'id');
+
         $hits = [];
 
         foreach ($ranked as $id => $rank) {
@@ -298,6 +304,8 @@ class HybridKnowledgeSearch implements KnowledgeSearch
                     $fact->section?->heading_path,
                     $fact->page_from,
                     $rank['score'],
+                    $fact->source_type === 'email' ? $fact->source_id : null,
+                    $fact->source_type === 'email' ? (string) ($emails[$fact->source_id] ?? '') : null,
                 );
             }
         }

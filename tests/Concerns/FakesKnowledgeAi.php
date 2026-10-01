@@ -4,10 +4,14 @@ namespace Tests\Concerns;
 
 use App\Services\Knowledge\Ai\Agents\ContextLineWriter;
 use App\Services\Knowledge\Ai\Agents\DocumentSummarizer;
+use App\Services\Knowledge\Ai\Agents\EmailClassifier;
+use App\Services\Knowledge\Ai\Agents\FactConflictChecker;
+use App\Services\Knowledge\Ai\Agents\QuestionAnswerer;
 use App\Services\Knowledge\Ai\Agents\SectionEnricher;
 use App\Services\Knowledge\Ai\Agents\TopicAssigner;
 use App\Services\Knowledge\Ai\Agents\TopicSummarizer;
 use App\Services\Knowledge\Ai\Agents\TopicTreeProposer;
+use Closure;
 use Laravel\Ai\Embeddings;
 use Laravel\Ai\Prompts\EmbeddingsPrompt;
 use Laravel\Ai\Responses\Data\Meta;
@@ -90,6 +94,36 @@ trait FakesKnowledgeAi
         })->preventStrayPrompts();
 
         TopicSummarizer::fake(fn (string $prompt): array => ['summary' => 'Overzicht: '.strtok(substr($prompt, 8), "\n")])->preventStrayPrompts();
+    }
+
+    /**
+     * Fakes the agents that read mail. The classifier returns $reading over a
+     * question-shaped default; the answerer and the conflict checker answer
+     * with the closures given, or say "not answered" and "new" by default.
+     *
+     * @param  array<string, mixed>  $reading
+     * @param  (Closure(string): array<string, mixed>)|null  $answer
+     * @param  (Closure(string): array<string, mixed>)|null  $verdicts
+     */
+    protected function fakeMailAi(array $reading = [], ?Closure $answer = null, ?Closure $verdicts = null): void
+    {
+        EmailClassifier::fake(fn (): array => [
+            'intent' => 'question',
+            'confidence' => 0.9,
+            'summary' => 'Een vraag over vakantiedagen.',
+            'language' => 'nl',
+            'question' => 'Hoeveel vakantiedagen heb ik per jaar?',
+            'statements' => [],
+            ...$reading,
+        ])->preventStrayPrompts();
+
+        QuestionAnswerer::fake($answer ?? fn (): array => ['answered' => false, 'answer' => '', 'sources' => []])->preventStrayPrompts();
+
+        FactConflictChecker::fake($verdicts ?? function (string $prompt): array {
+            preg_match_all('/<statement id="(N\d+)"/', $prompt, $ids);
+
+            return ['verdicts' => array_map(fn (string $id): array => ['id' => $id, 'verdict' => 'new', 'existing_fact_id' => null, 'explanation' => ''], $ids[1])];
+        })->preventStrayPrompts();
     }
 
     /**

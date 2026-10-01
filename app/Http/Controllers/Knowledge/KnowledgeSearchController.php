@@ -68,6 +68,8 @@ class KnowledgeSearchController extends Controller
                     'sectionId' => $fact->sectionId,
                     'headingPath' => $fact->headingPath,
                     'pageFrom' => $fact->pageFrom,
+                    'emailId' => $fact->emailId,
+                    'emailSubject' => $fact->emailSubject,
                 ], $result->facts),
             ],
             'canDebug' => $request->user()->isAdminOf(Tenancy::account()),
