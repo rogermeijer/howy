@@ -3,6 +3,9 @@
 use App\Http\Controllers\CurrentAccountController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\InboxController;
+use App\Http\Controllers\Knowledge\DocumentController;
+use App\Http\Controllers\Knowledge\DocumentVersionController;
+use App\Http\Controllers\Knowledge\KnowledgeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Webhooks\GmailWebhookController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -29,7 +32,23 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
 
     Route::get('emails/{email}', [EmailController::class, 'show'])->name('emails.show');
 
-    Route::inertia('knowledge', 'knowledge')->name('knowledge');
+    Route::get('knowledge', [KnowledgeController::class, 'index'])->name('knowledge');
+
+    Route::prefix('knowledge')->name('knowledge.')->group(function () {
+        Route::get('documents', [DocumentController::class, 'index'])->name('documents.index');
+        Route::get('documents/{document}/versions/{version}/file', [DocumentVersionController::class, 'file'])
+            ->scopeBindings()
+            ->name('documents.versions.file');
+
+        // Everyone in the account reads the knowledge base; its admins curate it.
+        Route::middleware('account.admin')->group(function () {
+            Route::post('documents', [DocumentController::class, 'store'])->name('documents.store');
+            Route::patch('documents/{document}', [DocumentController::class, 'update'])->name('documents.update');
+            Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+            Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('documents.reprocess');
+            Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store'])->name('documents.versions.store');
+        });
+    });
 });
 
 // Not tenant-gated: someone healing out of a bad account state still needs to

@@ -1,0 +1,921 @@
+{
+    "pandoc-api-version": [1, 23, 1, 2],
+    "meta": {},
+    "blocks": [
+        {
+            "t": "Header",
+            "c": [
+                1,
+                ["personeelshandboek-noordkade", [], []],
+                [
+                    { "t": "Str", "c": "Personeelshandboek" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "Noordkade" }
+                ]
+            ]
+        },
+        {
+            "t": "Para",
+            "c": [
+                { "t": "Str", "c": "Dit" },
+                { "t": "Space" },
+                { "t": "Str", "c": "handboek" },
+                { "t": "Space" },
+                { "t": "Str", "c": "beschrijft" },
+                { "t": "Space" },
+                { "t": "Str", "c": "de" },
+                { "t": "Space" },
+                { "t": "Str", "c": "afspraken" },
+                { "t": "Space" },
+                { "t": "Str", "c": "die" },
+                { "t": "Space" },
+                { "t": "Str", "c": "gelden" },
+                { "t": "Space" },
+                { "t": "Str", "c": "voor" },
+                { "t": "Space" },
+                { "t": "Str", "c": "alle" },
+                { "t": "Space" },
+                { "t": "Str", "c": "medewerkers" },
+                { "t": "Space" },
+                { "t": "Str", "c": "van" },
+                { "t": "Space" },
+                { "t": "Str", "c": "Noordkade" },
+                { "t": "Space" },
+                { "t": "Str", "c": "Installatietechniek" },
+                { "t": "Space" },
+                { "t": "Str", "c": "B.V." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Het" },
+                { "t": "Space" },
+                { "t": "Str", "c": "handboek" },
+                { "t": "Space" },
+                { "t": "Str", "c": "geldt" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vanaf" },
+                { "t": "Space" },
+                { "t": "Str", "c": "1" },
+                { "t": "Space" },
+                { "t": "Str", "c": "januari" },
+                { "t": "Space" },
+                { "t": "Str", "c": "2026" },
+                { "t": "Space" },
+                { "t": "Str", "c": "en" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vervangt" },
+                { "t": "Space" },
+                { "t": "Str", "c": "alle" },
+                { "t": "Space" },
+                { "t": "Str", "c": "eerdere" },
+                { "t": "Space" },
+                { "t": "Str", "c": "versies." }
+            ]
+        },
+        {
+            "t": "Header",
+            "c": [
+                2,
+                ["werktijden", [], []],
+                [
+                    { "t": "Str", "c": "1" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "Werktijden" }
+                ]
+            ]
+        },
+        {
+            "t": "Para",
+            "c": [
+                { "t": "Str", "c": "De" },
+                { "t": "Space" },
+                { "t": "Str", "c": "normale" },
+                { "t": "Space" },
+                { "t": "Str", "c": "werkweek" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bestaat" },
+                { "t": "Space" },
+                { "t": "Str", "c": "uit" },
+                { "t": "Space" },
+                { "t": "Str", "c": "38" },
+                { "t": "Space" },
+                { "t": "Str", "c": "uur," },
+                { "t": "Space" },
+                { "t": "Str", "c": "verdeeld" },
+                { "t": "Space" },
+                { "t": "Str", "c": "over" },
+                { "t": "Space" },
+                { "t": "Str", "c": "maandag" },
+                { "t": "Space" },
+                { "t": "Str", "c": "tot" },
+                { "t": "Space" },
+                { "t": "Str", "c": "en" },
+                { "t": "Space" },
+                { "t": "Str", "c": "met" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vrijdag." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Werktijden" },
+                { "t": "Space" },
+                { "t": "Str", "c": "liggen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "tussen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "07:30" },
+                { "t": "Space" },
+                { "t": "Str", "c": "en" },
+                { "t": "Space" },
+                { "t": "Str", "c": "18:00" },
+                { "t": "Space" },
+                { "t": "Str", "c": "uur." },
+                { "t": "Space" },
+                { "t": "Str", "c": "In" },
+                { "t": "Space" },
+                { "t": "Str", "c": "overleg" },
+                { "t": "Space" },
+                { "t": "Str", "c": "met" },
+                { "t": "Space" },
+                { "t": "Str", "c": "de" },
+                { "t": "Space" },
+                { "t": "Str", "c": "leidinggevende" },
+                { "t": "Space" },
+                { "t": "Str", "c": "kan" },
+                { "t": "Space" },
+                { "t": "Str", "c": "een" },
+                { "t": "Space" },
+                { "t": "Str", "c": "medewerker" },
+                { "t": "Space" },
+                { "t": "Str", "c": "zijn" },
+                { "t": "Space" },
+                { "t": "Str", "c": "werktijden" },
+                { "t": "Space" },
+                { "t": "Str", "c": "binnen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "deze" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bandbreedte" },
+                { "t": "Space" },
+                { "t": "Str", "c": "zelf" },
+                { "t": "Space" },
+                { "t": "Str", "c": "indelen." }
+            ]
+        },
+        {
+            "t": "Header",
+            "c": [
+                3,
+                ["weekendwerk", [], []],
+                [
+                    { "t": "Str", "c": "1.1" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "Weekendwerk" }
+                ]
+            ]
+        },
+        {
+            "t": "Para",
+            "c": [
+                { "t": "Str", "c": "In" },
+                { "t": "Space" },
+                { "t": "Str", "c": "het" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vierde" },
+                { "t": "Space" },
+                { "t": "Str", "c": "kwartaal" },
+                { "t": "Space" },
+                { "t": "Str", "c": "wordt" },
+                { "t": "Space" },
+                { "t": "Str", "c": "in" },
+                { "t": "Space" },
+                { "t": "Str", "c": "principe" },
+                { "t": "Space" },
+                { "t": "Str", "c": "niet" },
+                { "t": "Space" },
+                { "t": "Str", "c": "in" },
+                { "t": "Space" },
+                { "t": "Str", "c": "het" },
+                { "t": "Space" },
+                { "t": "Str", "c": "weekend" },
+                { "t": "Space" },
+                { "t": "Str", "c": "gewerkt." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Uitzonderingen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "zijn" },
+                { "t": "Space" },
+                { "t": "Str", "c": "alleen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "mogelijk" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bij" },
+                { "t": "Space" },
+                { "t": "Str", "c": "storingen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "aan" },
+                { "t": "Space" },
+                { "t": "Str", "c": "installaties" },
+                { "t": "Space" },
+                { "t": "Str", "c": "van" },
+                { "t": "Space" },
+                { "t": "Str", "c": "klanten" },
+                { "t": "Space" },
+                { "t": "Str", "c": "met" },
+                { "t": "Space" },
+                { "t": "Str", "c": "een" },
+                { "t": "Space" },
+                { "t": "Str", "c": "servicecontract." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Weekendwerk" },
+                { "t": "Space" },
+                { "t": "Str", "c": "wordt" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vergoed" },
+                { "t": "Space" },
+                { "t": "Str", "c": "tegen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "150" },
+                { "t": "Space" },
+                { "t": "Str", "c": "procent" },
+                { "t": "Space" },
+                { "t": "Str", "c": "van" },
+                { "t": "Space" },
+                { "t": "Str", "c": "het" },
+                { "t": "Space" },
+                { "t": "Str", "c": "uurloon." }
+            ]
+        },
+        {
+            "t": "Header",
+            "c": [
+                3,
+                ["overwerk", [], []],
+                [
+                    { "t": "Str", "c": "1.2" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "Overwerk" }
+                ]
+            ]
+        },
+        {
+            "t": "Para",
+            "c": [
+                { "t": "Str", "c": "Overwerk" },
+                { "t": "Space" },
+                { "t": "Str", "c": "moet" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vooraf" },
+                { "t": "Space" },
+                { "t": "Str", "c": "door" },
+                { "t": "Space" },
+                { "t": "Str", "c": "de" },
+                { "t": "Space" },
+                { "t": "Str", "c": "leidinggevende" },
+                { "t": "Space" },
+                { "t": "Str", "c": "worden" },
+                { "t": "Space" },
+                { "t": "Str", "c": "goedgekeurd." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Overuren" },
+                { "t": "Space" },
+                { "t": "Str", "c": "worden" },
+                { "t": "Space" },
+                { "t": "Str", "c": "gecompenseerd" },
+                { "t": "Space" },
+                { "t": "Str", "c": "in" },
+                { "t": "Space" },
+                { "t": "Str", "c": "tijd" },
+                { "t": "Space" },
+                { "t": "Str", "c": "of" },
+                { "t": "Space" },
+                { "t": "Str", "c": "uitbetaald" },
+                { "t": "Space" },
+                { "t": "Str", "c": "aan" },
+                { "t": "Space" },
+                { "t": "Str", "c": "het" },
+                { "t": "Space" },
+                { "t": "Str", "c": "einde" },
+                { "t": "Space" },
+                { "t": "Str", "c": "van" },
+                { "t": "Space" },
+                { "t": "Str", "c": "het" },
+                { "t": "Space" },
+                { "t": "Str", "c": "kwartaal," },
+                { "t": "Space" },
+                { "t": "Str", "c": "naar" },
+                { "t": "Space" },
+                { "t": "Str", "c": "keuze" },
+                { "t": "Space" },
+                { "t": "Str", "c": "van" },
+                { "t": "Space" },
+                { "t": "Str", "c": "de" },
+                { "t": "Space" },
+                { "t": "Str", "c": "medewerker." }
+            ]
+        },
+        {
+            "t": "Header",
+            "c": [
+                2,
+                ["verlof", [], []],
+                [
+                    { "t": "Str", "c": "2" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "Verlof" }
+                ]
+            ]
+        },
+        {
+            "t": "Header",
+            "c": [
+                3,
+                ["vakantiedagen", [], []],
+                [
+                    { "t": "Str", "c": "2.1" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "Vakantiedagen" }
+                ]
+            ]
+        },
+        {
+            "t": "Para",
+            "c": [
+                { "t": "Str", "c": "Medewerkers" },
+                { "t": "Space" },
+                { "t": "Str", "c": "met" },
+                { "t": "Space" },
+                { "t": "Str", "c": "een" },
+                { "t": "Space" },
+                { "t": "Str", "c": "fulltime" },
+                { "t": "Space" },
+                { "t": "Str", "c": "dienstverband" },
+                { "t": "Space" },
+                { "t": "Str", "c": "hebben" },
+                { "t": "Space" },
+                { "t": "Str", "c": "recht" },
+                { "t": "Space" },
+                { "t": "Str", "c": "op" },
+                { "t": "Space" },
+                { "t": "Str", "c": "25" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vakantiedagen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "per" },
+                { "t": "Space" },
+                { "t": "Str", "c": "kalenderjaar." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Parttimers" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bouwen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "naar" },
+                { "t": "Space" },
+                { "t": "Str", "c": "rato" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vakantiedagen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "op." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Vakantie" },
+                { "t": "Space" },
+                { "t": "Str", "c": "wordt" },
+                { "t": "Space" },
+                { "t": "Str", "c": "minimaal" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vier" },
+                { "t": "Space" },
+                { "t": "Str", "c": "weken" },
+                { "t": "Space" },
+                { "t": "Str", "c": "van" },
+                { "t": "Space" },
+                { "t": "Str", "c": "tevoren" },
+                { "t": "Space" },
+                { "t": "Str", "c": "aangevraagd" },
+                { "t": "Space" },
+                { "t": "Str", "c": "via" },
+                { "t": "Space" },
+                { "t": "Str", "c": "het" },
+                { "t": "Space" },
+                { "t": "Str", "c": "verlofsysteem." }
+            ]
+        },
+        {
+            "t": "Table",
+            "c": [
+                ["", [], []],
+                [null, []],
+                [
+                    [
+                        { "t": "AlignDefault" },
+                        { "t": "ColWidth", "c": 0.4235294117647059 }
+                    ],
+                    [
+                        { "t": "AlignDefault" },
+                        { "t": "ColWidth", "c": 0.4235294117647059 }
+                    ]
+                ],
+                [
+                    ["", [], []],
+                    [
+                        [
+                            ["", [], []],
+                            [
+                                [
+                                    ["", [], []],
+                                    { "t": "AlignDefault" },
+                                    1,
+                                    1,
+                                    [
+                                        {
+                                            "t": "Plain",
+                                            "c": [
+                                                {
+                                                    "t": "Str",
+                                                    "c": "Dienstjaren"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                ],
+                                [
+                                    ["", [], []],
+                                    { "t": "AlignDefault" },
+                                    1,
+                                    1,
+                                    [
+                                        {
+                                            "t": "Plain",
+                                            "c": [
+                                                { "t": "Str", "c": "Extra" },
+                                                { "t": "Space" },
+                                                {
+                                                    "t": "Str",
+                                                    "c": "vakantiedagen"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ],
+                [
+                    [
+                        ["", [], []],
+                        0,
+                        [],
+                        [
+                            [
+                                ["", [], []],
+                                [
+                                    [
+                                        ["", [], []],
+                                        { "t": "AlignDefault" },
+                                        1,
+                                        1,
+                                        [
+                                            {
+                                                "t": "Plain",
+                                                "c": [
+                                                    { "t": "Str", "c": "5" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "tot" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "10" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "jaar" }
+                                                ]
+                                            }
+                                        ]
+                                    ],
+                                    [
+                                        ["", [], []],
+                                        { "t": "AlignDefault" },
+                                        1,
+                                        1,
+                                        [
+                                            {
+                                                "t": "Plain",
+                                                "c": [
+                                                    { "t": "Str", "c": "1" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "dag" }
+                                                ]
+                                            }
+                                        ]
+                                    ]
+                                ]
+                            ],
+                            [
+                                ["", [], []],
+                                [
+                                    [
+                                        ["", [], []],
+                                        { "t": "AlignDefault" },
+                                        1,
+                                        1,
+                                        [
+                                            {
+                                                "t": "Plain",
+                                                "c": [
+                                                    { "t": "Str", "c": "10" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "tot" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "20" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "jaar" }
+                                                ]
+                                            }
+                                        ]
+                                    ],
+                                    [
+                                        ["", [], []],
+                                        { "t": "AlignDefault" },
+                                        1,
+                                        1,
+                                        [
+                                            {
+                                                "t": "Plain",
+                                                "c": [
+                                                    { "t": "Str", "c": "2" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "dagen" }
+                                                ]
+                                            }
+                                        ]
+                                    ]
+                                ]
+                            ],
+                            [
+                                ["", [], []],
+                                [
+                                    [
+                                        ["", [], []],
+                                        { "t": "AlignDefault" },
+                                        1,
+                                        1,
+                                        [
+                                            {
+                                                "t": "Plain",
+                                                "c": [
+                                                    { "t": "Str", "c": "20" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "jaar" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "of" },
+                                                    { "t": "Space" },
+                                                    {
+                                                        "t": "Str",
+                                                        "c": "langer"
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    ],
+                                    [
+                                        ["", [], []],
+                                        { "t": "AlignDefault" },
+                                        1,
+                                        1,
+                                        [
+                                            {
+                                                "t": "Plain",
+                                                "c": [
+                                                    { "t": "Str", "c": "3" },
+                                                    { "t": "Space" },
+                                                    { "t": "Str", "c": "dagen" }
+                                                ]
+                                            }
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ],
+                [["", [], []], []]
+            ]
+        },
+        {
+            "t": "Header",
+            "c": [
+                3,
+                ["bijzonder-verlof", [], []],
+                [
+                    { "t": "Str", "c": "2.2" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "Bijzonder" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "verlof" }
+                ]
+            ]
+        },
+        {
+            "t": "Para",
+            "c": [
+                { "t": "Str", "c": "Bij" },
+                { "t": "Space" },
+                { "t": "Str", "c": "een" },
+                { "t": "Space" },
+                { "t": "Str", "c": "huwelijk" },
+                { "t": "Space" },
+                { "t": "Str", "c": "heeft" },
+                { "t": "Space" },
+                { "t": "Str", "c": "de" },
+                { "t": "Space" },
+                { "t": "Str", "c": "medewerker" },
+                { "t": "Space" },
+                { "t": "Str", "c": "recht" },
+                { "t": "Space" },
+                { "t": "Str", "c": "op" },
+                { "t": "Space" },
+                { "t": "Str", "c": "twee" },
+                { "t": "Space" },
+                { "t": "Str", "c": "dagen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bijzonder" },
+                { "t": "Space" },
+                { "t": "Str", "c": "verlof." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Bij" },
+                { "t": "Space" },
+                { "t": "Str", "c": "het" },
+                { "t": "Space" },
+                { "t": "Str", "c": "overlijden" },
+                { "t": "Space" },
+                { "t": "Str", "c": "van" },
+                { "t": "Space" },
+                { "t": "Str", "c": "een" },
+                { "t": "Space" },
+                { "t": "Str", "c": "partner," },
+                { "t": "Space" },
+                { "t": "Str", "c": "ouder" },
+                { "t": "Space" },
+                { "t": "Str", "c": "of" },
+                { "t": "Space" },
+                { "t": "Str", "c": "kind" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bestaat" },
+                { "t": "Space" },
+                { "t": "Str", "c": "recht" },
+                { "t": "Space" },
+                { "t": "Str", "c": "op" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vier" },
+                { "t": "Space" },
+                { "t": "Str", "c": "dagen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "verlof." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Verhuizing" },
+                { "t": "Space" },
+                { "t": "Str", "c": "geeft" },
+                { "t": "Space" },
+                { "t": "Str", "c": "recht" },
+                { "t": "Space" },
+                { "t": "Str", "c": "op" },
+                { "t": "Space" },
+                { "t": "Str", "c": "één" },
+                { "t": "Space" },
+                { "t": "Str", "c": "dag" },
+                { "t": "Space" },
+                { "t": "Str", "c": "verlof" },
+                { "t": "Space" },
+                { "t": "Str", "c": "per" },
+                { "t": "Space" },
+                { "t": "Str", "c": "jaar." }
+            ]
+        },
+        {
+            "t": "Header",
+            "c": [
+                2,
+                ["ziekmelding", [], []],
+                [
+                    { "t": "Str", "c": "3" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "Ziekmelding" }
+                ]
+            ]
+        },
+        {
+            "t": "Para",
+            "c": [
+                { "t": "Str", "c": "Een" },
+                { "t": "Space" },
+                { "t": "Str", "c": "medewerker" },
+                { "t": "Space" },
+                { "t": "Str", "c": "die" },
+                { "t": "Space" },
+                { "t": "Str", "c": "ziek" },
+                { "t": "Space" },
+                { "t": "Str", "c": "is," },
+                { "t": "Space" },
+                { "t": "Str", "c": "meldt" },
+                { "t": "Space" },
+                { "t": "Str", "c": "zich" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vóór" },
+                { "t": "Space" },
+                { "t": "Str", "c": "09:00" },
+                { "t": "Space" },
+                { "t": "Str", "c": "uur" },
+                { "t": "Space" },
+                { "t": "Str", "c": "telefonisch" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bij" },
+                { "t": "Space" },
+                { "t": "Str", "c": "de" },
+                { "t": "Space" },
+                { "t": "Str", "c": "eigen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "leidinggevende." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Een" },
+                { "t": "Space" },
+                { "t": "Str", "c": "ziekmelding" },
+                { "t": "Space" },
+                { "t": "Str", "c": "per" },
+                { "t": "Space" },
+                { "t": "Str", "c": "e-mail" },
+                { "t": "Space" },
+                { "t": "Str", "c": "of" },
+                { "t": "Space" },
+                { "t": "Str", "c": "WhatsApp" },
+                { "t": "Space" },
+                { "t": "Str", "c": "is" },
+                { "t": "Space" },
+                { "t": "Str", "c": "niet" },
+                { "t": "Space" },
+                { "t": "Str", "c": "voldoende." },
+                { "t": "Space" },
+                { "t": "Str", "c": "De" },
+                { "t": "Space" },
+                { "t": "Str", "c": "leidinggevende" },
+                { "t": "Space" },
+                { "t": "Str", "c": "neemt" },
+                { "t": "Space" },
+                { "t": "Str", "c": "binnen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "twee" },
+                { "t": "Space" },
+                { "t": "Str", "c": "werkdagen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "contact" },
+                { "t": "Space" },
+                { "t": "Str", "c": "op" },
+                { "t": "Space" },
+                { "t": "Str", "c": "over" },
+                { "t": "Space" },
+                { "t": "Str", "c": "het" },
+                { "t": "Space" },
+                { "t": "Str", "c": "verwachte" },
+                { "t": "Space" },
+                { "t": "Str", "c": "herstel." }
+            ]
+        },
+        {
+            "t": "Header",
+            "c": [
+                3,
+                ["bereikbaarheid-tijdens-ziekte", [], []],
+                [
+                    { "t": "Str", "c": "3.1" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "Bereikbaarheid" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "tijdens" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "ziekte" }
+                ]
+            ]
+        },
+        {
+            "t": "Para",
+            "c": [
+                { "t": "Str", "c": "Tijdens" },
+                { "t": "Space" },
+                { "t": "Str", "c": "ziekte" },
+                { "t": "Space" },
+                { "t": "Str", "c": "blijft" },
+                { "t": "Space" },
+                { "t": "Str", "c": "de" },
+                { "t": "Space" },
+                { "t": "Str", "c": "medewerker" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bereikbaar" },
+                { "t": "Space" },
+                { "t": "Str", "c": "op" },
+                { "t": "Space" },
+                { "t": "Str", "c": "het" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bij" },
+                { "t": "Space" },
+                { "t": "Str", "c": "HR" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bekende" },
+                { "t": "Space" },
+                { "t": "Str", "c": "telefoonnummer." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Bij" },
+                { "t": "Space" },
+                { "t": "Str", "c": "afwezigheid" },
+                { "t": "Space" },
+                { "t": "Str", "c": "langer" },
+                { "t": "Space" },
+                { "t": "Str", "c": "dan" },
+                { "t": "Space" },
+                { "t": "Str", "c": "een" },
+                { "t": "Space" },
+                { "t": "Str", "c": "week" },
+                { "t": "Space" },
+                { "t": "Str", "c": "wordt" },
+                { "t": "Space" },
+                { "t": "Str", "c": "de" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bedrijfsarts" },
+                { "t": "Space" },
+                { "t": "Str", "c": "ingeschakeld." }
+            ]
+        },
+        {
+            "t": "Header",
+            "c": [
+                2,
+                ["onkosten", [], []],
+                [
+                    { "t": "Str", "c": "4" },
+                    { "t": "Space" },
+                    { "t": "Str", "c": "Onkosten" }
+                ]
+            ]
+        },
+        {
+            "t": "Para",
+            "c": [
+                { "t": "Str", "c": "Zakelijke" },
+                { "t": "Space" },
+                { "t": "Str", "c": "onkosten" },
+                { "t": "Space" },
+                { "t": "Str", "c": "worden" },
+                { "t": "Space" },
+                { "t": "Str", "c": "binnen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "dertig" },
+                { "t": "Space" },
+                { "t": "Str", "c": "dagen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "gedeclareerd" },
+                { "t": "Space" },
+                { "t": "Str", "c": "met" },
+                { "t": "Space" },
+                { "t": "Str", "c": "een" },
+                { "t": "Space" },
+                { "t": "Str", "c": "bon." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Kilometers" },
+                { "t": "Space" },
+                { "t": "Str", "c": "met" },
+                { "t": "Space" },
+                { "t": "Str", "c": "de" },
+                { "t": "Space" },
+                { "t": "Str", "c": "eigen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "auto" },
+                { "t": "Space" },
+                { "t": "Str", "c": "worden" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vergoed" },
+                { "t": "Space" },
+                { "t": "Str", "c": "tegen" },
+                { "t": "Space" },
+                { "t": "Str", "c": "€" },
+                { "t": "Space" },
+                { "t": "Str", "c": "0,23" },
+                { "t": "Space" },
+                { "t": "Str", "c": "per" },
+                { "t": "Space" },
+                { "t": "Str", "c": "kilometer." },
+                { "t": "Space" },
+                { "t": "Str", "c": "Declaraties" },
+                { "t": "Space" },
+                { "t": "Str", "c": "boven" },
+                { "t": "Space" },
+                { "t": "Str", "c": "€" },
+                { "t": "Space" },
+                { "t": "Str", "c": "250" },
+                { "t": "Space" },
+                { "t": "Str", "c": "worden" },
+                { "t": "Space" },
+                { "t": "Str", "c": "vooraf" },
+                { "t": "Space" },
+                { "t": "Str", "c": "afgestemd" },
+                { "t": "Space" },
+                { "t": "Str", "c": "met" },
+                { "t": "Space" },
+                { "t": "Str", "c": "de" },
+                { "t": "Space" },
+                { "t": "Str", "c": "leidinggevende." }
+            ]
+        }
+    ]
+}

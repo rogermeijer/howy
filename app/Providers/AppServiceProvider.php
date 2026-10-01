@@ -2,8 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\Account;
+use App\Models\Document;
+use App\Models\DocumentSection;
+use App\Models\DocumentVersion;
+use App\Models\Email;
+use App\Models\KnowledgeFact;
+use App\Models\KnowledgeTopic;
+use App\Models\User;
 use App\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\DevCommands;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Date;
@@ -38,6 +47,19 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+
+        // Short, stable names in *_type columns instead of class names, so a
+        // renamed class never orphans knowledge rows.
+        Relation::enforceMorphMap([
+            'account' => Account::class,
+            'user' => User::class,
+            'email' => Email::class,
+            'document' => Document::class,
+            'document_version' => DocumentVersion::class,
+            'document_section' => DocumentSection::class,
+            'knowledge_fact' => KnowledgeFact::class,
+            'knowledge_topic' => KnowledgeTopic::class,
+        ]);
 
         // Local tunnels (ngrok) sit in front of the app; trust them so URLs keep
         // their https scheme. Set here rather than in bootstrap/app.php, where

@@ -38,6 +38,17 @@ return [
             'report' => false,
         ],
 
+        // Knowledge base originals. Never served directly: downloads go through a
+        // controller with a tenant-scoped binding. Point at an S3-compatible
+        // (EU) bucket in production by setting KNOWLEDGE_DISK=s3.
+        'knowledge' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/knowledge'),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

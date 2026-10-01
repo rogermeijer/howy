@@ -27,6 +27,18 @@ enum Locale: string
     }
 
     /**
+     * The Postgres full-text configuration (stemmer and stop words) for text in
+     * this language.
+     */
+    public function searchConfiguration(): string
+    {
+        return match ($this) {
+            self::English => 'english',
+            self::Dutch => 'dutch',
+        };
+    }
+
+    /**
      * @return list<string>
      */
     public static function values(): array
