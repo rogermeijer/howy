@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->registerDevCommands();
     }
 
     /**
@@ -49,5 +51,25 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null,
         );
+    }
+
+    protected function registerDevCommands(): void
+    {
+        if (! app()->runningInConsole()) {
+            return;
+        }
+
+        $domain = config('services.ngrok.domain');
+
+        if (! is_string($domain) || $domain === '') {
+            return;
+        }
+
+        $port = config('services.ngrok.port');
+
+        DevCommands::register(
+            sprintf('ngrok http %d --url=%s --log=stdout', $port, $domain),
+            'ngrok',
+        )->green();
     }
 }

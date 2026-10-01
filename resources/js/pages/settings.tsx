@@ -1,15 +1,15 @@
 import { Form, Head } from '@inertiajs/react';
-import { SlidersHorizontal } from 'lucide-react';
 import AccountController from '@/actions/App/Http/Controllers/Settings/AccountController';
 import { PageHeader } from '@/components/cc/page-header';
 import { Section } from '@/components/cc/section';
 import InputError from '@/components/input-error';
 import { LocaleFields } from '@/components/locale-fields';
+import { MailboxesSection } from '@/components/mailboxes/mailboxes-section';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslations } from '@/hooks/use-translations';
-import type { LocaleOption } from '@/types';
+import type { LocaleOption, Mailbox } from '@/types';
 
 type Props = {
     account: {
@@ -19,6 +19,9 @@ type Props = {
         timezone: string;
     };
     canManageAccount: boolean;
+    canManageMailboxes: boolean;
+    mailboxes: Mailbox[];
+    openConnect: boolean;
     locales: LocaleOption[];
     timezones: string[];
 };
@@ -26,6 +29,9 @@ type Props = {
 export default function Settings({
     account,
     canManageAccount,
+    canManageMailboxes,
+    mailboxes,
+    openConnect,
     locales,
     timezones,
 }: Props) {
@@ -39,6 +45,12 @@ export default function Settings({
                 <PageHeader
                     title={t('Settings')}
                     description={t('Settings for your workspace.')}
+                />
+
+                <MailboxesSection
+                    mailboxes={mailboxes}
+                    canManage={canManageMailboxes}
+                    openConnect={openConnect}
                 />
 
                 <Section
@@ -94,22 +106,6 @@ export default function Settings({
                             )}
                         </p>
                     )}
-                </Section>
-
-                <Section
-                    title={t('Inbox and knowledge base')}
-                    description={t(
-                        'This is where your inbox address, your knowledge base folder structure and when cc: asks for confirmation will live.',
-                    )}
-                >
-                    <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-                        <div className="flex size-14 items-center justify-center rounded-2xl bg-cc-raised text-cc-subtle">
-                            <SlidersHorizontal className="size-7" />
-                        </div>
-                        <p className="text-[15px] font-semibold">
-                            {t('Nothing to configure yet')}
-                        </p>
-                    </div>
                 </Section>
             </div>
         </>

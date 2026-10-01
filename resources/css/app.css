@@ -246,6 +246,43 @@
         }
     }
 
+    /* ---- Email body ---------------------------------------------------
+       Sanitised sender HTML. Inline styles are stripped on the server, so the
+       mail reads in our type and spacing whatever client wrote it. */
+    .cc-email-body {
+        @apply text-[15px] leading-[1.65] break-words text-cc-ink;
+    }
+    .cc-email-body :where(p, ul, ol, pre, table, blockquote) {
+        @apply my-3 first:mt-0 last:mb-0;
+    }
+    .cc-email-body :where(ul) {
+        @apply list-disc pl-6;
+    }
+    .cc-email-body :where(ol) {
+        @apply list-decimal pl-6;
+    }
+    .cc-email-body :where(a) {
+        @apply font-medium underline underline-offset-[3px] hover:text-cc-accent-deep;
+    }
+    .cc-email-body :where(h1, h2, h3, h4) {
+        @apply mt-4 mb-2 text-[16px] font-semibold;
+    }
+    .cc-email-body :where(table) {
+        @apply block max-w-full overflow-x-auto;
+    }
+    .cc-email-body :where(td, th) {
+        @apply px-2 py-1 align-top;
+    }
+    .cc-email-body :where(pre, code) {
+        @apply font-mono text-[13px] whitespace-pre-wrap;
+    }
+    .cc-email-body :where(blockquote) {
+        @apply rounded-xl bg-cc-bg px-4 py-3 text-cc-muted;
+    }
+    .cc-email-body :where(hr) {
+        @apply my-4 border-cc-border;
+    }
+
     /* ---- Filter pills --------------------------------------------------- */
     .cc-pill {
         @apply h-[34px] cursor-pointer rounded-full border-[1.5px] border-cc-border bg-cc-panel px-3.5 text-[13px] font-medium text-cc-ink transition-colors hover:border-cc-border-strong;

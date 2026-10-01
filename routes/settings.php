@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Mailboxes\GmailOAuthController;
+use App\Http\Controllers\Mailboxes\MailboxController;
+use App\Http\Controllers\Mailboxes\MailboxImportController;
 use App\Http\Controllers\Settings\AccountController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
@@ -14,6 +17,18 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('tenant')->group(function () {
         Route::get('settings', [AccountController::class, 'edit'])->name('settings');
         Route::patch('settings', [AccountController::class, 'update'])->name('account.update');
+
+        // Mailboxes belong to the account, so only its administrators manage them.
+        Route::middleware('account.admin')->prefix('settings/mailboxes')->name('mailboxes.')->group(function () {
+            Route::get('gmail/redirect', [GmailOAuthController::class, 'redirect'])->name('gmail.redirect');
+            Route::get('gmail/callback', [GmailOAuthController::class, 'callback'])->name('gmail.callback');
+
+            Route::post('{mailbox}/sync', [MailboxController::class, 'sync'])->name('sync');
+            Route::delete('{mailbox}', [MailboxController::class, 'destroy'])->name('destroy');
+
+            Route::get('{mailbox}/import/search', [MailboxImportController::class, 'search'])->name('import.search');
+            Route::post('{mailbox}/imports', [MailboxImportController::class, 'store'])->name('import.store');
+        });
     });
 });
 

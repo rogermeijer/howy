@@ -122,6 +122,23 @@ Account::query()->each(fn (Account $a) => Tenancy::for($a, fn () => /* ... */));
 Tenancy::withoutTenancy(fn () => Email::query()->count());
 ```
 
+### The one request-path exception: the Gmail webhook
+
+`GmailWebhookController` is the only code in a request path allowed to call `withoutTenancy()`. A Gmail
+push arrives through Cloud Pub/Sub with no session, carrying only the mailbox's email address. Working out
+which account owns that address has to look across accounts, just like the membership lookup that makes
+`account_user` unscoped.
+
+The bypass is kept as small as possible:
+
+- It is one read of `[id, account_id]` pairs from `mailboxes`, and nothing else.
+- Every pair is then handled inside `Tenancy::for($accountId, …)`, which loads the mailbox again through
+  the normal scope.
+- The request is authenticated first, by the Google-signed OIDC token on the push.
+
+`tests/Feature/Tenancy/WithoutTenancyGuardTest.php` pins the exception to that single file, so any other
+call under `app/` fails CI. Adding a second exception needs a written reason in that test and in CLAUDE.md.
+
 A queued job:
 
 ```php
@@ -137,9 +154,13 @@ class SyncInbox implements ShouldQueue, TenantAware
 ```
 
 `$tenantAccountId` is typed non-nullable and uninitialised, so a job that forgets `rememberTenant()`
-fails at serialisation rather than running unscoped. Note that a job using `SerializesModels` with a
-tenant model re-fetches it on unserialize, _before_ `handle()` — with the trait the context is restored
-first; without it the fetch throws. That is the intended behaviour.
+fails at serialisation rather than running unscoped.
+
+**Pass ids, not tenant models.** `Queueable` includes `SerializesModels`, and the worker unserialises
+the job (re-fetching any models) _before_ job middleware runs. So a tenant model in a job property is
+fetched with no account set, and throws `TenantContextMissingException`. Store the id and load the model
+in `handle()`, where `RunInTenantContext` has already set the account. The mailbox jobs in `app/Jobs/`
+do exactly this.
 
 In tests, `Tests\TestCase::actingAsMember()` gives you a signed-in user with an account.
 
@@ -152,6 +173,9 @@ someone forgot to update. It asserts:
 - every table with an `account_id` column has a model that uses the trait (exempting `account_user`);
 - every model using the trait sits on a table that has the column;
 - nothing under `app/` contains `withoutGlobalScope`.
+
+`WithoutTenancyGuardTest` separately asserts that the only `withoutTenancy()` call under `app/` is the one
+in the Gmail webhook.
 
 It does **not** catch a tenant column named anything other than `account_id`, a hand-written
 `Route::bind()` closure, an overridden `resolveRouteBinding()`, or raw SQL. Those are covered by rules,

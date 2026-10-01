@@ -11,8 +11,7 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/cc/page-header';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { knowledge } from '@/routes';
-import { show } from '@/routes/emails';
+import { inbox, knowledge } from '@/routes';
 import { useTranslations } from '@/hooks/use-translations';
 
 const folders = [
@@ -33,6 +32,8 @@ type File = {
     threadDot: string;
     type: string;
     updated: string;
+    // Demo data: emails are real now, but these files are not, so their
+    // source links go to the inbox until the knowledge base is built.
     emailId: string;
 };
 
@@ -200,7 +201,7 @@ export default function Knowledge() {
                         {files.map((file) => (
                             <Link
                                 key={file.name}
-                                href={show(file.emailId)}
+                                href={inbox()}
                                 className="cc-row-file border-b border-cc-border px-6 py-3.5 transition-colors last:border-b-0 hover:bg-cc-bg"
                             >
                                 <FileText
@@ -245,7 +246,7 @@ export default function Knowledge() {
                         {files.map((file) => (
                             <Link
                                 key={file.name}
-                                href={show(file.emailId)}
+                                href={inbox()}
                                 className="cc-panel flex flex-col gap-3 p-5 transition-colors hover:border-cc-border-strong"
                             >
                                 <FileText
