@@ -10,12 +10,14 @@ import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import documentRoutes from '@/routes/knowledge/documents';
+import topicRoutes from '@/routes/knowledge/topics';
 import type { KnowledgeDocument, TopicFolder } from '@/types';
 
 type Props = {
     topics: TopicFolder[];
     recent: KnowledgeDocument[];
     documentsCount: number;
+    newTopicsCount: number;
     canManage: boolean;
 };
 
@@ -26,6 +28,7 @@ export default function Knowledge({
     topics,
     recent,
     documentsCount,
+    newTopicsCount,
     canManage,
 }: Props) {
     const t = useTranslations();
@@ -64,13 +67,38 @@ export default function Knowledge({
                     }
                 />
 
+                {canManage && newTopicsCount > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-cc-accent-tint/60 px-5 py-4">
+                        <p className="text-[14px]">
+                            <WithCcLogo
+                                text={t(
+                                    '[cc]: proposed :count new folders. Look them over and approve, rename or merge them.',
+                                    { count: newTopicsCount },
+                                )}
+                            />
+                        </p>
+                        <Button
+                            variant="outline"
+                            className="h-9 bg-cc-panel"
+                            asChild
+                        >
+                            <Link href={topicRoutes.index()}>
+                                {t('Review folders')}
+                            </Link>
+                        </Button>
+                    </div>
+                )}
+
                 {topics.length > 0 ? (
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {topics.map((topic) => (
                             <TopicFolderCard
                                 key={topic.id}
                                 topic={topic}
-                                href={documentRoutes.index()}
+                                href={topicRoutes.show(topic.id)}
+                                meta={t(':count sources', {
+                                    count: topic.sourcesCount ?? 0,
+                                })}
                             />
                         ))}
                     </div>

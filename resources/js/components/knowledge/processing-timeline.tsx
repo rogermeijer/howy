@@ -8,7 +8,8 @@ export const stepLabels: Record<string, string> = {
     structure: 'Sections and chunks',
     contextualize: 'Context lines',
     embed: 'Index (embeddings)',
-    enrich: 'Summaries, facts and folders',
+    enrich: 'Summaries and facts',
+    topics: 'Folders',
     embed_facts: 'Index facts',
 };
 
@@ -28,6 +29,11 @@ const metaLabels: Record<string, string> = {
     facts: 'Facts',
     summaries: 'Summaries',
     topics: 'Folder links',
+    new_folders: 'New folders',
+    carried_summaries: 'Summaries carried over',
+    carried_facts: 'Facts carried over',
+    expired_facts: 'Facts expired',
+    failed_requests: 'Failed requests',
     reason: 'Reason',
 };
 

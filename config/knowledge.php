@@ -77,7 +77,17 @@ return [
             'summary' => env('KNOWLEDGE_MODEL_SUMMARY', 'gpt-6-luna'),
             'facts' => env('KNOWLEDGE_MODEL_FACTS', 'gpt-6-luna'),
             'topics' => env('KNOWLEDGE_MODEL_TOPICS', 'gpt-6-luna'),
+            'topic_summary' => env('KNOWLEDGE_MODEL_TOPIC_SUMMARY', 'gpt-6-luna'),
         ],
+    ],
+
+    /*
+    | Summaries and facts per section: "batch" sends them to the provider's
+    | batch API (half price, results within 24 hours, collected by
+    | knowledge:poll-batches); "sync" runs them right away, e.g. locally.
+    */
+    'enrichment' => [
+        'mode' => env('KNOWLEDGE_ENRICHMENT_MODE', 'batch'),
     ],
 
     'search' => [

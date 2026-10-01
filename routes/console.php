@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('mailboxes:renew-watches')->daily()->withoutOverlapping();
 Schedule::command('mailboxes:poll')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('knowledge:poll-batches')->everyFiveMinutes()->withoutOverlapping();

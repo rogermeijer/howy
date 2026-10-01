@@ -8,6 +8,7 @@ use App\Http\Controllers\Knowledge\DocumentInspectorController;
 use App\Http\Controllers\Knowledge\DocumentVersionController;
 use App\Http\Controllers\Knowledge\KnowledgeController;
 use App\Http\Controllers\Knowledge\KnowledgeSearchController;
+use App\Http\Controllers\Knowledge\KnowledgeTopicController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Webhooks\GmailWebhookController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -38,6 +39,8 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
 
     Route::prefix('knowledge')->name('knowledge.')->group(function () {
         Route::get('search', [KnowledgeSearchController::class, 'index'])->name('search');
+        Route::get('folders', [KnowledgeTopicController::class, 'index'])->name('topics.index');
+        Route::get('folders/{topic}', [KnowledgeTopicController::class, 'show'])->name('topics.show');
         Route::get('documents', [DocumentController::class, 'index'])->name('documents.index');
         Route::get('documents/{document}', [DocumentInspectorController::class, 'show'])->name('documents.show');
         Route::get('documents/{document}/versions/{version}/file', [DocumentVersionController::class, 'file'])
@@ -51,6 +54,16 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
             Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
             Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('documents.reprocess');
             Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store'])->name('documents.versions.store');
+
+            Route::post('folders', [KnowledgeTopicController::class, 'store'])->name('topics.store');
+            Route::post('folders/approve', [KnowledgeTopicController::class, 'approveAll'])->name('topics.approve-all');
+            Route::patch('folders/{topic}', [KnowledgeTopicController::class, 'update'])->name('topics.update');
+            Route::post('folders/{topic}/approve', [KnowledgeTopicController::class, 'approve'])->name('topics.approve');
+            Route::post('folders/{topic}/move', [KnowledgeTopicController::class, 'move'])->name('topics.move');
+            Route::post('folders/{topic}/merge', [KnowledgeTopicController::class, 'merge'])->name('topics.merge');
+            Route::delete('folders/{topic}', [KnowledgeTopicController::class, 'destroy'])->name('topics.destroy');
+            Route::post('folders/{topic}/links', [KnowledgeTopicController::class, 'link'])->name('topics.links.store');
+            Route::delete('folders/{topic}/links/{link}', [KnowledgeTopicController::class, 'unlink'])->scopeBindings()->name('topics.links.destroy');
         });
     });
 });

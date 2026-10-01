@@ -21,6 +21,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { knowledge } from '@/routes';
 import documentRoutes from '@/routes/knowledge/documents';
+import topicRoutes from '@/routes/knowledge/topics';
 import type {
     KnowledgeDocument,
     ProcessingStepView,
@@ -318,12 +319,15 @@ export default function DocumentInspector({
                                         <div className="flex flex-wrap items-center gap-2">
                                             <FolderOpen className="size-4 text-cc-subtle" />
                                             {section.topics.map((topic) => (
-                                                <span
+                                                <Link
                                                     key={topic.id}
-                                                    className="rounded-md bg-cc-raised px-2 py-1 text-[12px] font-semibold"
+                                                    href={topicRoutes.show(
+                                                        topic.id,
+                                                    )}
+                                                    className="rounded-md bg-cc-raised px-2 py-1 text-[12px] font-semibold transition-colors hover:bg-cc-border"
                                                 >
                                                     {topic.name}
-                                                </span>
+                                                </Link>
                                             ))}
                                         </div>
                                     )}

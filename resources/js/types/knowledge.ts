@@ -129,3 +129,53 @@ export type VersionOption = {
     createdAt: string | null;
     isPdf: boolean;
 };
+
+export type TopicFact = {
+    id: number;
+    statement: string;
+    status: FactStatus;
+    validFrom: string | null;
+    validUntil: string | null;
+    documentId: number | null;
+    documentTitle: string | null;
+    versionNumber: number | null;
+    sectionId: number | null;
+    headingPath: string | null;
+    pageFrom: number | null;
+};
+
+export type TopicSource = {
+    linkId: number;
+    origin: 'ai' | 'manual';
+    via: string | null;
+    sectionId: number;
+    documentId: number;
+    documentTitle: string;
+    versionNumber: number;
+    headingPath: string;
+    pageFrom: number | null;
+    summary: string | null;
+};
+
+export type FolderOption = {
+    id: number;
+    name: string;
+    depth: number;
+    path: string;
+};
+
+export type TopicDetail = TopicFolder & {
+    description: string | null;
+    summary: string | null;
+    summaryStale: boolean;
+    origin: 'ai' | 'manual';
+    depth: number;
+    parentId: number | null;
+};
+
+export type TopicTreeNode = TopicFolder & {
+    parentId: number | null;
+    depth: number;
+    description: string | null;
+    origin: 'ai' | 'manual';
+};

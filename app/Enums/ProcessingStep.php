@@ -12,5 +12,6 @@ enum ProcessingStep: string
     case Contextualize = 'contextualize';
     case Embed = 'embed';
     case Enrich = 'enrich';
+    case Topics = 'topics';
     case EmbedFacts = 'embed_facts';
 }

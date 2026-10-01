@@ -47,6 +47,41 @@ class StepRecorder
         ]);
     }
 
+    /**
+     * Open a step that finishes later, e.g. when a batch comes back.
+     *
+     * @param  array<string, mixed>  $meta
+     */
+    public function start(DocumentVersion $version, ProcessingStep $step, ?string $batchId = null, array $meta = []): DocumentProcessingStep
+    {
+        $record = DocumentProcessingStep::query()->firstOrNew(['document_version_id' => $version->id, 'step' => $step]);
+
+        $record->fill([
+            'status' => StepStatus::Running,
+            'attempts' => $record->exists ? $record->attempts + 1 : 1,
+            'started_at' => now(),
+            'finished_at' => null,
+            'error' => null,
+            'provider_batch_id' => $batchId,
+            'meta' => $meta,
+        ])->save();
+
+        return $record;
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     */
+    public function finish(DocumentProcessingStep $record, ?string $error = null, array $meta = []): void
+    {
+        $record->update([
+            'status' => $error === null ? StepStatus::Succeeded : StepStatus::Failed,
+            'finished_at' => now(),
+            'error' => $error,
+            'meta' => [...($record->meta ?? []), ...$meta],
+        ]);
+    }
+
     public function skip(DocumentVersion $version, ProcessingStep $step, string $reason): void
     {
         DocumentProcessingStep::query()->updateOrCreate(

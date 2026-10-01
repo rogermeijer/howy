@@ -11,6 +11,8 @@ use App\Models\KnowledgeFact;
 use App\Models\KnowledgeTopic;
 use App\Models\User;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\Ai\Batch\BatchRunner;
+use App\Services\Knowledge\Ai\Batch\OpenAiBatchRunner;
 use App\Services\Knowledge\Extraction\LlmScannedPageReader;
 use App\Services\Knowledge\Extraction\NullScannedPageReader;
 use App\Services\Knowledge\Extraction\ScannedPageReader;
@@ -38,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(TenantContext::class);
 
         $this->app->bind(KnowledgeSearch::class, HybridKnowledgeSearch::class);
+        $this->app->bind(BatchRunner::class, OpenAiBatchRunner::class);
 
         // Scanned pages go to the LLM only when a provider is configured.
         $this->app->bind(ScannedPageReader::class, fn ($app) => $app->make(AiGateway::class)->enabled()

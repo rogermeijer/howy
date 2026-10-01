@@ -56,7 +56,8 @@ class KnowledgeIndexingTest extends TestCase
 
         Tenancy::for($this->account, function () {
             $version = DocumentVersion::query()->sole();
-            $this->assertSame(ProcessingStatus::Searchable, $version->status);
+            // Enrichment ran after indexing (KnowledgeEnrichmentTest covers it).
+            $this->assertSame(ProcessingStatus::Ready, $version->status);
             $this->assertNotNull($version->processed_at);
 
             $chunks = KnowledgeChunk::query()->get();
@@ -71,8 +72,8 @@ class KnowledgeIndexingTest extends TestCase
             $this->assertSame(StepStatus::Succeeded, $steps[ProcessingStep::Embed->value]);
 
             // Usage is accounted per step and to this version.
-            $this->assertSame(['context', 'embed'], AiUsageRecord::query()->distinct()->orderBy('step')->pluck('step')->all());
-            $this->assertTrue(AiUsageRecord::query()->get()->every(fn (AiUsageRecord $record) => $record->subject_id === $version->id));
+            $this->assertSame(['context', 'embed'], AiUsageRecord::query()->whereIn('step', ['context', 'embed'])->distinct()->orderBy('step')->pluck('step')->all());
+            $this->assertTrue(AiUsageRecord::query()->where('subject_type', 'document_version')->get()->every(fn (AiUsageRecord $record) => $record->subject_id === $version->id));
         });
 
         // The embedded text carries the document title and heading path.
@@ -117,7 +118,7 @@ class KnowledgeIndexingTest extends TestCase
         $this->upload('no ai');
 
         Tenancy::for($this->account, function () {
-            $this->assertSame(ProcessingStatus::Searchable, DocumentVersion::query()->sole()->status);
+            $this->assertSame(ProcessingStatus::Ready, DocumentVersion::query()->sole()->status);
             $this->assertTrue(KnowledgeChunk::query()->get()->every(fn (KnowledgeChunk $chunk) => $chunk->is_current && $chunk->embedding === null));
             $this->assertSame(
                 [StepStatus::Skipped, StepStatus::Skipped],
