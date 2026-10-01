@@ -102,6 +102,17 @@ sudo -u postgres psql -d cc -c 'CREATE EXTENSION IF NOT EXISTS vector; CREATE EX
   long job is picked up twice.
 - Store originals on an EU S3-compatible bucket with `KNOWLEDGE_DISK=s3` (configure the `s3` disk).
 
+## Seed data
+
+`php artisan knowledge:export-seed` snapshots every account's processed knowledge base — originals, extracted
+text, sections, chunks with context lines and embeddings (packed float32), summaries, facts, folders, links,
+processing steps and usage — into `database/seeders/data/knowledge/{account}.json.gz` plus `files/`.
+`KnowledgeSeeder` (called from `DatabaseSeeder`) restores each snapshot into the account with the same name,
+with new ids and every reference remapped, so `php artisan migrate:fresh --seed` gives back a ready knowledge
+base in seconds without a single AI call. An account that already has documents is skipped.
+
+Export again after changing documents; a snapshot is tied to the embedding model and dimensions it was made with.
+
 ## Measuring
 
 - `php artisan knowledge:eval {account} --set=database/eval/kennisbank.json --label=…` — hit@k, MRR, recall,

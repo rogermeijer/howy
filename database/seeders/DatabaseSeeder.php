@@ -4,16 +4,13 @@ namespace Database\Seeders;
 
 use App\Actions\Accounts\CreateAccount;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    // Careful: this disables model events, which is where BelongsToAccount fills
-    // account_id. Nothing seeded here is tenant-scoped yet — the moment something
-    // is, drop this trait or wrap the work in Tenancy::for().
-    use WithoutModelEvents;
+    // No WithoutModelEvents: BelongsToAccount fills account_id in a model event,
+    // and the knowledge base seed relies on that (CLAUDE.md, tenancy rule 14).
 
     /**
      * Seed the application's database.
@@ -49,5 +46,8 @@ class DatabaseSeeder extends Seeder
 
         $roger->active_account_id = $cc->id;
         $roger->save();
+
+        // Processed knowledge bases exported with `php artisan knowledge:export-seed`.
+        $this->call(KnowledgeSeeder::class);
     }
 }
