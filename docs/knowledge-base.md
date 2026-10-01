@@ -112,6 +112,7 @@ with new ids and every reference remapped, so `php artisan migrate:fresh --seed`
 base in seconds without a single AI call. An account that already has documents is skipped.
 
 Export again after changing documents; a snapshot is tied to the embedding model and dimensions it was made with.
+The directory is gitignored: snapshots contain the documents themselves and stay on the machine that made them.
 
 ## Measuring
 
