@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Facades\Tenancy;
 use App\Models\Email;
 use App\Services\Mail\Interpretation\InterpretationPresenter;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,7 +18,7 @@ class EmailController extends Controller
      *
      * Typed binding, so another account's email 404s through the tenant scope.
      */
-    public function show(Email $email, InterpretationPresenter $presenter): Response
+    public function show(Request $request, Email $email, InterpretationPresenter $presenter): Response
     {
         $thread = Email::query()
             ->with('interpretation')
@@ -35,6 +37,8 @@ class EmailController extends Controller
 
         return Inertia::render('emails/show', [
             'currentId' => $email->id,
+            // Only the account's admins decide what goes into the knowledge base.
+            'canReview' => $request->user()->isAdminOf(Tenancy::account()),
             'subject' => $oldest->subject ?? $email->subject,
             'mailbox' => $email->mailbox?->email_address,
             'participants' => $participants,

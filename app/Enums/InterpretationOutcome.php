@@ -19,7 +19,7 @@ enum InterpretationOutcome: string
     /** A question to someone else; the answer found was not sure enough to suggest. */
     case Unsure = 'unsure';
 
-    /** Information, of which at least one new statement was added. */
+    /** Information with at least one new statement, proposed for the knowledge base. */
     case Added = 'added';
 
     /** Information the knowledge base already held. */
@@ -38,7 +38,7 @@ enum InterpretationOutcome: string
             self::NotFound => __('No answer found'),
             self::Suggested => __('Answer suggested'),
             self::Unsure => __('Not sure enough to suggest'),
-            self::Added => __('Added to knowledge base'),
+            self::Added => __('Proposed for the knowledge base'),
             self::Duplicate => __('Already known'),
             self::Conflict => __('Conflict'),
             self::NoAction => __('No action'),

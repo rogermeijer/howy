@@ -52,6 +52,12 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
           claims self-contained ("Medewerkers mogen maximaal drie dagen per week thuiswerken."
           for "Ja, tot drie dagen." to "Hoeveel dagen mogen we thuiswerken?"). subject: a short lowercase topic label;
           valid_from: an ISO date (YYYY-MM-DD) if the mail says from when it applies, else null.
+          flag: empty when the statement is a fact about how this organisation works, has decided
+          or has agreed. Otherwise one short sentence, in the mail's language, saying why someone
+          should look before it goes into the knowledge base: general advice or best practice
+          rather than how the organisation does it ("Algemeen advies over TLS, niet hoe wij het
+          geregeld hebben."), an opinion or a guess, or it does not answer what the earlier
+          message asked.
           Otherwise an empty list.
         TEXT;
     }
@@ -69,6 +75,7 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
                     'statement' => $schema->string()->required(),
                     'subject' => $schema->string()->required(),
                     'valid_from' => $schema->string()->nullable()->required(),
+                    'flag' => $schema->string()->required(),
                 ])->withoutAdditionalProperties()
             )->required(),
         ];

@@ -31,6 +31,18 @@ class EmailContentExtractorTest extends TestCase
         $this->assertSame('Ik vraag ze op bij de architect.', $result['quotes'][1]['text']);
     }
 
+    public function test_a_stale_charset_in_the_markup_does_not_garble_the_text(): void
+    {
+        // Outlook for iOS declares Windows-1252 while the body arrives as UTF-8.
+        $html = '<html><head><meta http-equiv="Content-Type" content="text/html; charset=Windows-1252"></head>'
+            .'<body><div>Hier de kern:</div><ul><li>Dwing TLS 1.2+ af – ook intern.</li><li>Gebruik certificaten van een vertrouwde CA.</li></ul></body></html>';
+
+        $text = (string) (new EmailContentExtractor)->extract($html, null)['content_text'];
+
+        $this->assertStringContainsString('• Dwing TLS 1.2+ af – ook intern.', $text);
+        $this->assertStringNotContainsString('â€', $text);
+    }
+
     public function test_dutch_gmail_attribution_lines_are_understood(): void
     {
         $html = '<div>Prima!</div><div class="gmail_quote"><div class="gmail_attr">Op di 29 sep 2026 om 14:12 schreef Tom Bakker &lt;tom@haarlem.nl&gt;:<br></div>'

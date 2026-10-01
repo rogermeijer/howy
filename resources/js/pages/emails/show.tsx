@@ -3,6 +3,7 @@ import { ChevronLeft, FileText, Paperclip, Quote } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { CcReply, hasCcReply } from '@/components/mail/cc-reply';
 import { InterpretationPanel } from '@/components/mail/interpretation-panel';
+import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useInitials } from '@/hooks/use-initials';
 import { useTranslations } from '@/hooks/use-translations';
@@ -37,6 +38,7 @@ type Message = {
 
 type Props = {
     currentId: number;
+    canReview: boolean;
     subject: string | null;
     mailbox: string | null;
     participants: string[];
@@ -64,6 +66,7 @@ const toggled = (set: Set<number>, id: number, on?: boolean) => {
 
 export default function EmailShow({
     currentId,
+    canReview,
     subject,
     mailbox,
     participants,
@@ -79,11 +82,26 @@ export default function EmailShow({
     );
     const [quotesOpen, setQuotesOpen] = useState<Set<number>>(new Set());
 
-    // The opened message's interpretation, else the newest one in the thread.
-    const interpreted =
-        messages.find(
-            (message) => message.id === currentId && message.interpretation,
-        ) ?? messages.find((message) => message.interpretation);
+    // The panel shows one message's interpretation: the opened one, else one
+    // waiting for review, else the newest. Each message can switch it.
+    const interpretedMessages = messages.filter(
+        (message) => message.interpretation,
+    );
+    const [selectedId, setSelectedId] = useState<number | null>(
+        () =>
+            (
+                interpretedMessages.find(
+                    (message) => message.id === currentId,
+                ) ??
+                interpretedMessages.find(
+                    (message) => message.interpretation?.needsReview,
+                ) ??
+                interpretedMessages[0]
+            )?.id ?? null,
+    );
+    const interpreted = interpretedMessages.find(
+        (message) => message.id === selectedId,
+    );
 
     const jumpTo = (id: number) => {
         setExpanded((current) => toggled(current, id, true));
@@ -174,6 +192,13 @@ export default function EmailShow({
                                                 )
                                             }
                                             onJump={jumpTo}
+                                            selectable={
+                                                interpretedMessages.length > 1
+                                            }
+                                            selected={message.id === selectedId}
+                                            onSelect={() =>
+                                                setSelectedId(message.id)
+                                            }
                                         />
                                     ) : (
                                         <ClosedMessage
@@ -197,6 +222,8 @@ export default function EmailShow({
 
                     <InterpretationPanel
                         interpretation={interpreted?.interpretation ?? null}
+                        emailId={interpreted?.id ?? null}
+                        canReview={canReview}
                         about={
                             interpreted && messages.length > 1
                                 ? t('Email from :sender', {
@@ -235,12 +262,19 @@ function OpenMessage({
     onCollapse,
     onToggleQuotes,
     onJump,
+    selectable,
+    selected,
+    onSelect,
 }: {
     message: Message;
     quotesOpen: boolean;
     onCollapse: () => void;
     onToggleQuotes: () => void;
     onJump: (id: number) => void;
+    /** More than one message in the thread was interpreted: each can be picked. */
+    selectable: boolean;
+    selected: boolean;
+    onSelect: () => void;
 }) {
     const t = useTranslations();
     const formatDate = useFormatDate();
@@ -295,6 +329,26 @@ function OpenMessage({
             </button>
 
             <div className="flex flex-col gap-3.5 px-7 pb-6 sm:pl-[82px]">
+                {selectable && message.interpretation && (
+                    <button
+                        type="button"
+                        onClick={onSelect}
+                        aria-pressed={selected}
+                        className={cn(
+                            'flex min-h-10 cursor-pointer items-center gap-2.5 self-start rounded-[10px] border-[1.5px] px-3 text-[13px] font-medium transition-colors',
+                            selected
+                                ? 'border-cc-ink text-cc-ink'
+                                : 'border-cc-border-strong text-cc-muted hover:border-cc-ink hover:text-cc-ink',
+                        )}
+                    >
+                        <InterpretationTag
+                            interpretation={message.interpretation}
+                        />
+                        {selected
+                            ? t('Shown alongside')
+                            : t('Show interpretation')}
+                    </button>
+                )}
                 {message.contentHtml ? (
                     <div
                         className="cc-email-body"

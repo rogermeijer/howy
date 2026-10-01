@@ -19,9 +19,11 @@ use Illuminate\Support\Carbon;
  * How cc: read one mail to a mailbox, and what it did about it: answered a
  * question (or suggested an answer to whoever was asked), added what was new,
  * held what contradicts the knowledge base, and whether a reply went out.
+ * Whatever it would add or change waits for someone to review it
+ * (needs_review) before it reaches the knowledge base.
  *
  * @phpstan-type Citation array{type: 'document'|'email', id: int, title: string, section_id: int|null, heading_path: string|null, page: int|null}
- * @phpstan-type Statement array{statement: string, subject: string|null, valid_from: string|null, verdict: 'new'|'duplicate'|'conflict', fact_id: int|null, existing_fact_id: int|null, existing_statement: string|null, explanation: string|null}
+ * @phpstan-type Statement array{statement: string, subject: string|null, valid_from: string|null, verdict: 'new'|'duplicate'|'conflict', fact_id: int|null, existing_fact_id: int|null, existing_statement: string|null, explanation: string|null, flag: string|null, review: 'pending'|'approved'|'rejected'|null, reviewed_by: int|null, reviewed_at: string|null}
  *
  * @property int $id
  * @property int $account_id
@@ -31,6 +33,7 @@ use Illuminate\Support\Carbon;
  * @property EmailIntent|null $intent
  * @property float|null $intent_confidence
  * @property InterpretationOutcome|null $outcome
+ * @property bool $needs_review
  * @property string|null $summary
  * @property string|null $language
  * @property string|null $question
@@ -52,7 +55,7 @@ use Illuminate\Support\Carbon;
  * @property-read Email $email
  */
 #[Fillable([
-    'email_id', 'status', 'mode', 'intent', 'intent_confidence', 'outcome', 'summary', 'language',
+    'email_id', 'status', 'mode', 'intent', 'intent_confidence', 'outcome', 'needs_review', 'summary', 'language',
     'question', 'answer', 'answer_confidence', 'answer_gaps', 'citations', 'statements', 'reply_status', 'reply_text',
     'reply_recipients',
     'reply_provider_message_id', 'replied_at', 'error', 'processed_at',
@@ -73,6 +76,7 @@ class EmailInterpretation extends Model
         'status' => 'queued',
         'mode' => 'addressed',
         'reply_status' => 'none',
+        'needs_review' => false,
     ];
 
     /**
@@ -94,6 +98,7 @@ class EmailInterpretation extends Model
             'intent' => EmailIntent::class,
             'intent_confidence' => 'float',
             'outcome' => InterpretationOutcome::class,
+            'needs_review' => 'boolean',
             'answer_confidence' => 'float',
             'citations' => 'array',
             'reply_recipients' => 'array',

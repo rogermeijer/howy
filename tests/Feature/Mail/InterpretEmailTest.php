@@ -18,6 +18,7 @@ use App\Models\Email;
 use App\Models\EmailInterpretation;
 use App\Models\KnowledgeFact;
 use App\Models\Mailbox;
+use App\Models\User;
 use App\Services\Gmail\GmailClient;
 use App\Services\Gmail\StoreGmailMessage;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
@@ -181,6 +182,48 @@ class InterpretEmailTest extends TestCase
         $this->assertStringContainsString('Nog niet in de kennisbank: Of je ze mag meenemen', (string) $interpretation->reply_text);
     }
 
+    public function test_a_reply_copies_in_everyone_else_the_mail_was_addressed_to(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fakeMailAi();
+
+        $interpretation = $this->interpret($this->email([
+            'to' => [['name' => null, 'email' => 'kennis@noordkade.nl'], ['name' => 'Anna', 'email' => 'Anna@noordkade.nl']],
+            'cc' => [['name' => null, 'email' => 'piet@extern.nl'], ['name' => null, 'email' => 'tom@haarlem.nl']],
+        ]));
+
+        $this->assertSame(['tom@haarlem.nl', 'anna@noordkade.nl', 'piet@extern.nl'], $interpretation->reply_recipients);
+
+        Http::assertSent(function (Request $request): bool {
+            $raw = $this->decodedRaw($request);
+
+            return str_contains($raw, 'To: tom@haarlem.nl')
+                && str_contains($raw, 'Cc: anna@noordkade.nl, piet@extern.nl')
+                && ! str_contains($raw, 'kennis@noordkade.nl, ');
+        });
+    }
+
+    public function test_only_the_people_the_send_policy_allows_are_copied_in(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fakeMailAi();
+        $this->mailbox->update(['send_policy' => SendPolicy::Always, 'send_blacklist' => ['extern.nl']]);
+
+        $interpretation = $this->interpret($this->email([
+            'cc' => [['name' => null, 'email' => 'anna@noordkade.nl'], ['name' => null, 'email' => 'piet@extern.nl']],
+        ]));
+
+        $this->assertSame(['tom@haarlem.nl', 'anna@noordkade.nl'], $interpretation->reply_recipients);
+        Http::assertSent(fn (Request $request): bool => ! str_contains($this->decodedRaw($request), 'piet@extern.nl'));
+
+        // The sender blocked: nothing goes out, not even to those copied in.
+        $this->mailbox->update(['send_blacklist' => ['haarlem.nl']]);
+        $blocked = $this->interpret($this->email(['cc' => [['name' => null, 'email' => 'anna@noordkade.nl']]]));
+
+        $this->assertSame(ReplyStatus::Blocked, $blocked->reply_status);
+        Http::assertSentCount(1);
+    }
+
     public function test_a_question_without_an_answer_gets_a_not_found_reply(): void
     {
         $this->fakeKnowledgeAi();
@@ -196,11 +239,11 @@ class InterpretEmailTest extends TestCase
         QuestionAnswerer::assertNeverPrompted();
     }
 
-    public function test_new_information_is_added_as_a_fact_that_cites_the_mail(): void
+    public function test_new_information_waits_for_review_and_once_approved_is_found_citing_the_mail(): void
     {
         $this->fakeKnowledgeAi();
         $this->fakeMailAi(['intent' => 'information', 'question' => '', 'statements' => [
-            ['statement' => 'De thuiswerkvergoeding is vanaf 1 januari 2027 3 euro per dag.', 'subject' => 'Thuiswerken', 'valid_from' => '2027-01-01'],
+            ['statement' => 'De thuiswerkvergoeding is vanaf 1 januari 2027 3 euro per dag.', 'subject' => 'Thuiswerken', 'valid_from' => '2027-01-01', 'flag' => ''],
         ]]);
 
         $email = $this->email(['subject' => 'Thuiswerkvergoeding']);
@@ -208,21 +251,45 @@ class InterpretEmailTest extends TestCase
 
         $this->assertSame(InterpretationOutcome::Added, $interpretation->outcome);
         $this->assertSame(ReplyStatus::None, $interpretation->reply_status);
+        $this->assertTrue($interpretation->needs_review);
         $this->assertSame('new', $interpretation->statements[0]['verdict'] ?? null);
+        $this->assertSame('pending', $interpretation->statements[0]['review'] ?? null);
+        $this->assertNull($interpretation->statements[0]['flag'] ?? null);
 
         $fact = Tenancy::for($this->account, fn () => KnowledgeFact::query()->sole());
         $this->assertSame($interpretation->statements[0]['fact_id'] ?? null, $fact->id);
         $this->assertSame('email', $fact->source_type);
         $this->assertSame($email->id, $fact->source_id);
-        $this->assertSame(FactStatus::Supplementary, $fact->status);
+        $this->assertSame(FactStatus::Proposed, $fact->status);
         $this->assertSame('thuiswerken', $fact->subject);
         $this->assertSame('2027-01-01', $fact->valid_from?->toDateString());
         $this->assertNotNull($fact->embedding);
 
-        $result = Tenancy::for($this->account, fn () => app(KnowledgeSearch::class)->search(new SearchQuery('thuiswerkvergoeding per dag')));
-        $this->assertSame($email->id, $result->facts[0]->emailId ?? null);
-        $this->assertSame('Thuiswerkvergoeding', $result->facts[0]->emailSubject ?? null);
+        // Proposed: kept, but not found until someone approves it.
+        $search = fn () => Tenancy::for($this->account, fn () => app(KnowledgeSearch::class)->search(new SearchQuery('thuiswerkvergoeding per dag')));
+        $this->assertSame([], $search()->facts);
+
+        $admin = User::factory()->withAccount($this->account)->create();
+        $this->actingAs($admin)
+            ->post(route('emails.statements.approve', ['email' => $email, 'statement' => 0]))
+            ->assertRedirect();
+
+        $this->assertSame($email->id, $search()->facts[0]->emailId ?? null);
+        $this->assertSame('Thuiswerkvergoeding', $search()->facts[0]->emailSubject ?? null);
         Http::assertNothingSent();
+    }
+
+    public function test_interpreting_again_replaces_what_was_proposed_before(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fakeMailAi(['intent' => 'information', 'statements' => [['statement' => 'Eerste lezing.', 'subject' => null, 'valid_from' => null]]]);
+        $email = $this->email();
+        $this->interpret($email);
+
+        $this->fakeMailAi(['intent' => 'information', 'statements' => [['statement' => 'Tweede lezing.', 'subject' => null, 'valid_from' => null]]]);
+        $this->interpret($email, force: true);
+
+        $this->assertSame(['Tweede lezing.'], Tenancy::for($this->account, fn () => KnowledgeFact::query()->pluck('statement')->all()));
     }
 
     public function test_information_the_knowledge_base_already_holds_is_not_added_again(): void

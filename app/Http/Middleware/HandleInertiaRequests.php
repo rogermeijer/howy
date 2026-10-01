@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\Locale;
 use App\Facades\Tenancy;
 use App\Models\Account;
+use App\Models\EmailInterpretation;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Lang;
@@ -57,6 +58,13 @@ class HandleInertiaRequests extends Middleware
                     ? ['id' => Tenancy::account()->id, 'name' => Tenancy::account()->name]
                     : null,
                 'accounts' => $this->accountsFor($request->user()),
+            ],
+            // How many mails wait for someone to review what they would add:
+            // the inbox's count in the top bar, for those who can act on it.
+            'inbox' => fn (): array => [
+                'needsReview' => Tenancy::check() && $request->user()?->isAdminOf(Tenancy::account())
+                    ? EmailInterpretation::query()->where('needs_review', true)->count()
+                    : 0,
             ],
             'locale' => app()->getLocale(),
             'locales' => array_map(

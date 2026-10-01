@@ -78,7 +78,8 @@ Every new mail to a connected mailbox is read and acted on, in one of two roles.
 `EmailEligibility`: push or poll only (never an import), not from the mailbox itself, and not automated
 (`Auto-Submitted`, `Precedence: bulk|list|junk|auto_reply`, `List-Id`). The role follows where the mailbox is:
 
-- **addressed** — the mailbox is in `To`: cc: is asked, and answers the sender.
+- **addressed** — the mailbox is in `To`: cc: is asked, and answers the sender, copying in everyone else the mail
+  was addressed or copied to (reply to all), so they see cc: has picked it up.
 - **copied** — the mailbox is only in `Cc`: cc: listens. It never writes to the sender. A question to someone
   else gets a suggested answer, sent to the people in `To` only, when the answering model is at least
   `knowledge.mail.suggestion_min_confidence` (0.75) sure; otherwise the answer is kept on the mail as
@@ -101,10 +102,17 @@ It creates an `email_interpretations` row with the role (`mode`) and queues `Int
    so. Copied: `suggested` (sent to the people asked) or `unsure` (kept, not sent).
 3. **Information** → per statement: an identical fact (same `content_hash`) is a duplicate; otherwise the most
    similar facts go to `FactConflictChecker` (step `mail_conflicts`) in one call. New statements become
-   `supplementary` facts with `source_type = email`, embedded right away, so search cites the mail.
+   `proposed` facts with `source_type = email`: embedded, but not searched until reviewed. The classifier
+   `flag`s a statement that looks like general advice, an opinion, or no answer to the question.
    Contradicting statements are **held** (only in `email_interpretations.statements`); addressed, the sender
    gets a reply that sets each against the fact it contradicts and that fact's source.
 4. **Other** → `no_action`.
+
+**Review.** Nothing from mail reaches the knowledge base by itself: every new or conflicting statement waits
+(`needs_review`) until an administrator of the account approves or rejects it on the thread page
+(`EmailStatementController`, `StatementReview`). Approving a new statement makes its fact `supplementary`;
+approving a conflict adds it and expires the fact it contradicts (`superseded_by_id`); rejecting removes the
+proposed fact. The top bar's inbox count is the number of mails waiting for review.
 
 The row records `status` (`queued → processing → done | skipped | failed`), `intent`, `outcome`
 (`answered`, `not_found`, `suggested`, `unsure`, `added`, `duplicate`, `conflict`, `no_action`), the question and answer with

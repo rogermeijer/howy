@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Mail;
 
+use App\Enums\FactStatus;
 use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
 use App\Enums\ReplyStatus;
@@ -189,6 +190,26 @@ class CopiedMailTest extends TestCase
         $this->assertSame('Medewerkers mogen maximaal drie dagen per week thuiswerken.', $fact->statement);
         $this->assertSame($answer->id, $fact->source_id);
         Http::assertNothingSent();
+    }
+
+    public function test_an_answer_that_is_general_advice_is_flagged_for_the_reviewer(): void
+    {
+        $this->fakeMailAi([
+            'intent' => 'information',
+            'question' => '',
+            'statements' => [[
+                'statement' => 'Alle toegang tot opslag moet TLS 1.2 of hoger gebruiken.',
+                'subject' => 'transportbeveiliging',
+                'valid_from' => null,
+                'flag' => 'Algemeen advies over TLS, niet hoe wij het geregeld hebben.',
+            ]],
+        ]);
+
+        $interpretation = $this->interpret($this->answer($this->question(), 'Hier de kern: dwing TLS 1.2+ af.'));
+
+        $this->assertTrue($interpretation->needs_review);
+        $this->assertSame('Algemeen advies over TLS, niet hoe wij het geregeld hebben.', $interpretation->statements[0]['flag'] ?? null);
+        $this->assertSame(FactStatus::Proposed, Tenancy::for($this->account, fn () => KnowledgeFact::query()->sole()->status));
     }
 
     public function test_an_answer_that_contradicts_the_knowledge_base_is_flagged_without_writing_to_anyone(): void

@@ -51,6 +51,7 @@ class EmailInterpreter
         private readonly ReplyComposer $composer,
         private readonly ThreadReplier $replier,
         private readonly EmailEligibility $eligibility,
+        private readonly MailFactWriter $facts,
     ) {}
 
     public function interpret(Email $email): EmailInterpretation
@@ -70,8 +71,15 @@ class EmailInterpreter
             return $interpretation;
         }
 
-        // A re-run starts from a clean reading. The reply fields stay: a reply
-        // that went out once is never sent again.
+        // A re-run starts from a clean reading: what it proposed before and
+        // nobody approved goes. The reply fields stay: a reply that went out
+        // once is never sent again.
+        KnowledgeFact::query()
+            ->where('source_type', 'email')
+            ->where('source_id', $email->id)
+            ->where('status', FactStatus::Proposed)
+            ->delete();
+
         $interpretation->update([
             'status' => InterpretationStatus::Processing,
             'outcome' => null,
@@ -81,6 +89,7 @@ class EmailInterpreter
             'answer_gaps' => null,
             'citations' => null,
             'statements' => null,
+            'needs_review' => false,
             'error' => null,
         ]);
 
@@ -210,13 +219,13 @@ class EmailInterpreter
             return;
         }
 
-        /** @var array<string, array{statement: array{statement: string, subject: string|null, valid_from: string|null}, hash: string, candidates: list<KnowledgeFact>}> $open */
+        /** @var array<string, array{statement: array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}, hash: string, candidates: list<KnowledgeFact>}> $open */
         $open = [];
         /** @var list<Statement> $judged */
         $judged = [];
 
         foreach ($statements as $index => $statement) {
-            $hash = $this->hash($statement['statement']);
+            $hash = MailFactWriter::hash($statement['statement']);
             $known = KnowledgeFact::query()
                 ->where('content_hash', $hash)
                 ->where('status', '!=', FactStatus::Expired)
@@ -273,6 +282,7 @@ class EmailInterpreter
 
         $verdicts = array_column($judged, 'verdict');
         $interpretation->statements = $judged;
+        $interpretation->needs_review = in_array('pending', array_column($judged, 'review'), true);
         $interpretation->outcome = match (true) {
             in_array('conflict', $verdicts, true) => InterpretationOutcome::Conflict,
             in_array('new', $verdicts, true) => InterpretationOutcome::Added,
@@ -287,49 +297,28 @@ class EmailInterpreter
     }
 
     /**
-     * Store the new statements as facts sourced from the mail, embedded so
-     * search finds them right away.
+     * Store the new statements as proposed facts sourced from the mail: kept
+     * and embedded, but not searched until someone approves them.
      *
      * @param  list<Statement>  $judged
      * @return list<Statement>
      */
-    private function addNewFacts(array $judged, Email $email, string $locale): array
+    private function addNewFacts(array $judged, Email $email, ?string $language): array
     {
-        $created = [];
+        $new = array_filter($judged, fn (array $statement): bool => $statement['verdict'] === 'new' && $statement['fact_id'] === null);
+        $facts = $this->facts->write($email, array_values($new), FactStatus::Proposed, $language);
 
-        foreach ($judged as $index => $statement) {
-            if ($statement['verdict'] !== 'new' || $statement['fact_id'] !== null) {
-                continue;
-            }
+        $ids = [];
 
-            $fact = KnowledgeFact::create([
-                'source_type' => 'email',
-                'source_id' => $email->id,
-                'statement' => $statement['statement'],
-                'subject' => $statement['subject'] === null ? null : mb_substr($statement['subject'], 0, 120),
-                'status' => FactStatus::Supplementary,
-                'valid_from' => $statement['valid_from'] ?? $email->received_at?->toDateString(),
-                'content_hash' => $this->hash($statement['statement']),
-                'search_config' => $this->searchLanguage($locale),
-            ]);
-
-            $judged[$index]['fact_id'] = $fact->id;
-            $created[] = $fact;
+        foreach (array_keys($new) as $position => $index) {
+            $ids[$index] = $facts[$position]->id;
         }
 
-        if ($created !== []) {
-            $vectors = $this->ai->embed(
-                array_map(fn (KnowledgeFact $fact): string => trim(($fact->subject ? $fact->subject.': ' : '').$fact->statement), $created),
-                'embed',
-                $email,
-            );
-
-            foreach ($vectors as $index => $vector) {
-                $created[$index]->update(['embedding' => $vector, 'embedding_model' => config('knowledge.embeddings.model')]);
-            }
-        }
-
-        return $judged;
+        return array_map(
+            fn (array $statement, int $index): array => isset($ids[$index]) ? [...$statement, 'fact_id' => $ids[$index]] : $statement,
+            $judged,
+            array_keys($judged),
+        );
     }
 
     /**
@@ -355,7 +344,7 @@ class EmailInterpreter
     }
 
     /**
-     * @param  array{statement: string, subject: string|null, valid_from: string|null}  $statement
+     * @param  array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}  $statement
      * @param  'new'|'duplicate'|'conflict'  $verdict
      * @return Statement
      */
@@ -370,6 +359,11 @@ class EmailInterpreter
             'existing_fact_id' => $existing?->id,
             'existing_statement' => $existing?->statement,
             'explanation' => filled($explanation) ? $explanation : null,
+            'flag' => $statement['flag'],
+            // What would change the knowledge base waits for a person.
+            'review' => in_array($verdict, ['new', 'conflict'], true) ? 'pending' : null,
+            'reviewed_by' => null,
+            'reviewed_at' => null,
         ];
     }
 
@@ -399,7 +393,7 @@ class EmailInterpreter
 
     /**
      * @param  array<string, mixed>  $reading
-     * @return list<array{statement: string, subject: string|null, valid_from: string|null}>
+     * @return list<array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}>
      */
     private function statements(array $reading): array
     {
@@ -408,7 +402,7 @@ class EmailInterpreter
 
         foreach ((array) ($reading['statements'] ?? []) as $statement) {
             $text = is_array($statement) ? trim((string) ($statement['statement'] ?? '')) : '';
-            $hash = $this->hash($text);
+            $hash = MailFactWriter::hash($text);
 
             if ($text === '' || isset($seen[$hash])) {
                 continue;
@@ -418,9 +412,12 @@ class EmailInterpreter
             $subject = mb_strtolower(trim((string) ($statement['subject'] ?? '')));
             $validFrom = $statement['valid_from'] ?? null;
 
+            $flag = trim((string) ($statement['flag'] ?? ''));
+
             $statements[] = [
                 'statement' => $text,
                 'subject' => $subject !== '' ? $subject : null,
+                'flag' => $flag !== '' ? $flag : null,
                 'valid_from' => is_string($validFrom) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $validFrom) === 1 && strtotime($validFrom) !== false ? $validFrom : null,
             ];
         }
@@ -502,7 +499,7 @@ class EmailInterpreter
     }
 
     /**
-     * @param  array<string, array{statement: array{statement: string, subject: string|null, valid_from: string|null}, hash: string, candidates: list<KnowledgeFact>}>  $open
+     * @param  array<string, array{statement: array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}, hash: string, candidates: list<KnowledgeFact>}>  $open
      */
     private function conflictPrompt(array $open, string $locale): string
     {
@@ -574,13 +571,5 @@ class EmailInterpreter
     private function searchLanguage(string $locale): string
     {
         return (Locale::tryFrom($locale) ?? Tenancy::account()->locale)->searchConfiguration();
-    }
-
-    /**
-     * The same normalisation as document facts, so a claim matches across both.
-     */
-    private function hash(string $statement): string
-    {
-        return hash('sha256', mb_strtolower((string) preg_replace('/\s+/u', ' ', $statement)));
     }
 }

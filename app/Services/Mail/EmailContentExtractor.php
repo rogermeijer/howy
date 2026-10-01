@@ -417,6 +417,11 @@ class EmailContentExtractor
         $doc = new DOMDocument;
         $previous = libxml_use_internal_errors(true);
 
+        // The parser already decoded the body to UTF-8, so a charset the
+        // markup still declares (Outlook writes Windows-1252) is stale, and
+        // libxml would believe it over the XML declaration: drop it.
+        $html = (string) preg_replace('/<meta\b[^>]*\bcharset\s*=[^>]*>/i', '', $html);
+
         // The XML declaration makes libxml read the markup as UTF-8.
         $doc->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NONET | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR | LIBXML_NOWARNING);
 

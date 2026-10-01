@@ -12,12 +12,16 @@ enum FactStatus: string
     case Supplementary = 'supplementary';
     case Expired = 'expired';
 
+    /** Taken from mail and waiting for someone to approve it; not searched. */
+    case Proposed = 'proposed';
+
     public function label(): string
     {
         return match ($this) {
             self::Core => 'Core',
             self::Supplementary => 'Supplementary',
             self::Expired => 'Expired',
+            self::Proposed => 'Proposed',
         };
     }
 }

@@ -1,5 +1,15 @@
-import { Link } from '@inertiajs/react';
-import { FileText, Mail, Sparkles } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { useState } from 'react';
+import EmailStatementController from '@/actions/App/Http/Controllers/EmailStatementController';
+import {
+    AlertTriangle,
+    Check,
+    ChevronDown,
+    FileText,
+    Mail,
+    Sparkles,
+    X,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { InterpretationKind } from '@/components/cc/tag';
 import { Tag } from '@/components/cc/tag';
@@ -7,6 +17,7 @@ import { WithCcLogo } from '@/components/cc/with-cc-logo';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
+import { cn } from '@/lib/utils';
 import emailRoutes from '@/routes/emails';
 import documentRoutes from '@/routes/knowledge/documents';
 import type {
@@ -17,6 +28,10 @@ import type {
 
 type Props = {
     interpretation: Interpretation | null;
+    /** The message the interpretation belongs to. */
+    emailId: number | null;
+    /** May approve or reject what it would add to the knowledge base. */
+    canReview: boolean;
     /** Which message this is about, when the thread has more than one. */
     about: string | null;
 };
@@ -39,9 +54,31 @@ const verdictLabels: Record<InterpretedStatement['verdict'], string> = {
 /**
  * How cc: read a mail and what followed: the dark side panel of a thread.
  */
-export function InterpretationPanel({ interpretation, about }: Props) {
+export function InterpretationPanel({
+    interpretation,
+    emailId,
+    canReview,
+    about,
+}: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
+
+    // What waits for a decision is the call to action, so it comes first and
+    // stands out; what was decided is compact; what was already known folds.
+    const statements = (interpretation?.statements ?? []).map(
+        (statement, index) => ({ statement, index }),
+    );
+    const pending = statements.filter(
+        ({ statement }) => statement.review === 'pending',
+    );
+    const known = statements.filter(
+        ({ statement }) =>
+            statement.verdict === 'duplicate' && statement.review !== 'pending',
+    );
+    const decided = statements.filter(
+        ({ statement }) =>
+            statement.review !== 'pending' && statement.verdict !== 'duplicate',
+    );
 
     return (
         <aside className="cc-panel-dark flex flex-col gap-5 p-7">
@@ -131,19 +168,82 @@ export function InterpretationPanel({ interpretation, about }: Props) {
                         </Block>
                     )}
 
-                    {interpretation.statements.length > 0 && (
-                        <Block title={t('Statements')}>
+                    {pending.length > 0 && (
+                        <Block
+                            title={t('To review (:count)', {
+                                count: pending.length,
+                            })}
+                        >
                             <ul className="flex flex-col gap-3">
-                                {interpretation.statements.map(
-                                    (statement, index) => (
-                                        <Statement
-                                            key={index}
-                                            statement={statement}
-                                        />
-                                    ),
-                                )}
+                                {pending.map(({ statement, index }) => (
+                                    <Statement
+                                        key={index}
+                                        statement={statement}
+                                        emailId={emailId}
+                                        index={index}
+                                        canReview={canReview}
+                                        prominent
+                                    />
+                                ))}
                             </ul>
                         </Block>
+                    )}
+
+                    {decided.length > 0 && (
+                        <Block
+                            title={
+                                pending.length > 0
+                                    ? t('Reviewed')
+                                    : t('Statements')
+                            }
+                        >
+                            <ul className="flex flex-col gap-2">
+                                {decided.map(({ statement, index }) => (
+                                    <Statement
+                                        key={index}
+                                        statement={statement}
+                                        emailId={emailId}
+                                        index={index}
+                                        canReview={canReview}
+                                    />
+                                ))}
+                            </ul>
+                        </Block>
+                    )}
+
+                    {known.length > 0 && (
+                        <details className="group border-t border-cc-dark-border pt-4">
+                            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold text-cc-dark-text hover:text-cc-bg">
+                                <span>
+                                    {known.length === 1
+                                        ? t('1 statement already known')
+                                        : t(':count statements already known', {
+                                              count: known.length,
+                                          })}
+                                </span>
+                                <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+                            </summary>
+                            <ul className="mt-2 flex flex-col gap-2">
+                                {known.map(({ statement, index }) => (
+                                    <li
+                                        key={index}
+                                        className="flex flex-col gap-1.5 rounded-[10px] bg-cc-dark-1 px-3.5 py-2.5"
+                                    >
+                                        <p className="text-[13px] leading-[1.5] text-cc-dark-text">
+                                            {statement.statement}
+                                        </p>
+                                        {statement.existingSource && (
+                                            <SourceLink
+                                                source={
+                                                    statement.existingSource
+                                                }
+                                                className="self-start"
+                                            />
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </details>
                     )}
 
                     {interpretation.error && (
@@ -175,39 +275,163 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
     );
 }
 
-function Statement({ statement }: { statement: InterpretedStatement }) {
+function Statement({
+    statement,
+    emailId,
+    index,
+    canReview,
+    prominent = false,
+}: {
+    statement: InterpretedStatement;
+    emailId: number | null;
+    index: number;
+    canReview: boolean;
+    /** Waiting for a decision: a light card that stands out on the dark panel. */
+    prominent?: boolean;
+}) {
     const t = useTranslations();
+    const formatDate = useFormatDate();
+    const [busy, setBusy] = useState(false);
+
+    const decide = (action: 'approve' | 'reject') => {
+        if (emailId === null) {
+            return;
+        }
+
+        const route =
+            action === 'approve'
+                ? EmailStatementController.approve
+                : EmailStatementController.reject;
+
+        router.post(
+            route.url({ email: emailId, statement: index }),
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setBusy(true),
+                onFinish: () => setBusy(false),
+            },
+        );
+    };
 
     return (
-        <li className="flex flex-col gap-2 rounded-[10px] bg-cc-dark-1 px-3.5 py-3">
+        <li
+            className={cn(
+                'flex flex-col',
+                prominent
+                    ? 'gap-3 rounded-xl bg-cc-panel p-4 text-cc-ink'
+                    : 'gap-2 rounded-[10px] bg-cc-dark-1 px-3.5 py-3',
+            )}
+        >
             <Tag
                 kind={verdictKinds[statement.verdict]}
                 label={t(verdictLabels[statement.verdict])}
                 className="self-start"
             />
-            <p className="text-[14px] leading-[1.5] text-cc-bg">
+            <p
+                className={cn(
+                    'leading-[1.5]',
+                    prominent
+                        ? 'text-[15px] font-medium text-cc-ink'
+                        : 'text-[14px] text-cc-bg',
+                )}
+            >
                 {statement.statement}
             </p>
             {statement.verdict === 'conflict' &&
                 statement.existingStatement && (
                     <div className="flex flex-col gap-1.5 border-l-2 border-cc-accent pl-3">
-                        <span className="text-[12px] text-cc-faint">
+                        <span
+                            className={cn(
+                                'text-[12px]',
+                                prominent ? 'text-cc-subtle' : 'text-cc-faint',
+                            )}
+                        >
                             {t('The knowledge base says')}
                         </span>
-                        <p className="text-[13px] leading-[1.5] text-cc-dark-text">
+                        <p
+                            className={cn(
+                                'text-[13px] leading-[1.5]',
+                                prominent
+                                    ? 'text-cc-muted'
+                                    : 'text-cc-dark-text',
+                            )}
+                        >
                             {statement.existingStatement}
                         </p>
                         {statement.existingSource && (
                             <SourceLink
                                 source={statement.existingSource}
+                                light={prominent}
                                 className="self-start"
                             />
                         )}
                     </div>
                 )}
             {statement.explanation && (
-                <p className="text-[13px] leading-[1.5] text-cc-dark-text">
+                <p
+                    className={cn(
+                        'text-[13px] leading-[1.5]',
+                        prominent ? 'text-cc-muted' : 'text-cc-dark-text',
+                    )}
+                >
                     {statement.explanation}
+                </p>
+            )}
+            {statement.flag && (
+                <p className="flex gap-2 rounded-[8px] bg-cc-pending-bg px-3 py-2 text-[13px] leading-[1.5] text-cc-pending-fg">
+                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                    <span>{statement.flag}</span>
+                </p>
+            )}
+
+            {statement.review === 'pending' &&
+                (canReview ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                        <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => decide('approve')}
+                            className="flex h-11 cursor-pointer items-center gap-1.5 rounded-[10px] bg-cc-ink px-4 text-[14px] font-semibold text-cc-bg transition-colors hover:bg-cc-dark-2 disabled:opacity-60"
+                        >
+                            <Check className="size-4" />
+                            {statement.verdict === 'conflict'
+                                ? t('Approve change')
+                                : t('Add to knowledge base')}
+                        </button>
+                        <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => decide('reject')}
+                            className="flex h-11 cursor-pointer items-center gap-1.5 rounded-[10px] border-[1.5px] border-cc-border-strong px-4 text-[14px] font-semibold text-cc-ink transition-colors hover:border-cc-ink disabled:opacity-60"
+                        >
+                            <X className="size-4" />
+                            {t('Reject')}
+                        </button>
+                    </div>
+                ) : (
+                    <p className="text-[12px] text-cc-subtle">
+                        {t('Waiting for an administrator to review it.')}
+                    </p>
+                ))}
+
+            {(statement.review === 'approved' ||
+                statement.review === 'rejected') && (
+                <p className="text-[12px] text-cc-faint">
+                    {(statement.review === 'approved'
+                        ? t('Approved by :name', {
+                              name: statement.reviewedBy ?? '',
+                          })
+                        : t('Rejected by :name', {
+                              name: statement.reviewedBy ?? '',
+                          })) +
+                        (statement.reviewedAt
+                            ? ' · ' +
+                              formatDate(statement.reviewedAt, {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                              })
+                            : '')}
                 </p>
             )}
         </li>
@@ -216,9 +440,12 @@ function Statement({ statement }: { statement: InterpretedStatement }) {
 
 function SourceLink({
     source,
+    light = false,
     className = '',
 }: {
     source: InterpretationSource;
+    /** On a light card rather than the dark panel. */
+    light?: boolean;
     className?: string;
 }) {
     const t = useTranslations();
@@ -245,7 +472,13 @@ function SourceLink({
     return (
         <Link
             href={href}
-            className={`inline-flex max-w-full items-center gap-1.5 rounded-md border border-cc-dark-border px-2 py-1 text-[12px] font-medium text-cc-dark-text transition-colors hover:border-cc-faint hover:text-cc-bg ${className}`}
+            className={cn(
+                'inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] font-medium transition-colors',
+                light
+                    ? 'border-cc-border bg-cc-panel text-cc-muted hover:border-cc-border-strong hover:text-cc-ink'
+                    : 'border-cc-dark-border text-cc-dark-text hover:border-cc-faint hover:text-cc-bg',
+                className,
+            )}
         >
             {source.type === 'email' ? (
                 <Mail className="size-3.5 shrink-0" />

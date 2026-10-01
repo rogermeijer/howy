@@ -46,12 +46,14 @@ const factStatusStyles = {
     core: 'bg-cc-knowledge-bg text-cc-knowledge-fg',
     supplementary: 'bg-cc-question-bg text-cc-question-fg',
     expired: 'bg-cc-raised text-cc-muted line-through',
+    proposed: 'bg-cc-pending-bg text-cc-pending-fg',
 } as const;
 
 const factStatusLabels = {
     core: 'Core',
     supplementary: 'Supplementary',
     expired: 'Expired',
+    proposed: 'Proposed',
 } as const;
 
 export default function DocumentInspector({

@@ -16,17 +16,33 @@ import { inbox, knowledge } from '@/routes';
 import knowledgeRoutes from '@/routes/knowledge';
 import type { Auth } from '@/types';
 
-// Titles are English source strings, translated where they are rendered.
-const navItems = [
-    { title: 'Inbox', href: inbox(), badge: 3 },
-    { title: 'Knowledge base', href: knowledge(), badge: null },
-];
-
 function TopBar() {
-    const { auth } = usePage<{ auth: Auth }>().props;
+    const t = useTranslations();
+    const { auth, inbox: inboxCounts } = usePage<{
+        auth: Auth;
+        inbox: { needsReview: number };
+    }>().props;
+    const needsReview = inboxCounts?.needsReview ?? 0;
+
+    // Titles are English source strings, translated where they are rendered.
+    // The inbox counts the mails waiting for review; none, no badge.
+    const navItems = [
+        {
+            title: 'Inbox',
+            href: inbox(),
+            badge: needsReview > 0 ? needsReview : null,
+            badgeLabel: t(':count emails to review', { count: needsReview }),
+        },
+        {
+            title: 'Knowledge base',
+            href: knowledge(),
+            badge: null,
+            badgeLabel: null,
+        },
+    ];
+
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const getInitials = useInitials();
-    const t = useTranslations();
 
     return (
         <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-cc-border bg-cc-bg px-4 lg:gap-9 lg:px-10">
@@ -59,6 +75,7 @@ function TopBar() {
                             {t(item.title)}
                             {item.badge !== null && (
                                 <span
+                                    aria-label={item.badgeLabel ?? undefined}
                                     className={cn(
                                         'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold',
                                         active

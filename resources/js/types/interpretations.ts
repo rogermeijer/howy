@@ -28,6 +28,8 @@ export type InterpretationBrief = {
     intentLabel: string | null;
     outcome: InterpretationOutcome | null;
     outcomeLabel: string | null;
+    /** Something it would add to the knowledge base waits for review. */
+    needsReview: boolean;
 };
 
 export type InterpretationSource = {
@@ -46,6 +48,11 @@ export type InterpretedStatement = {
     existingStatement: string | null;
     existingSource: InterpretationSource | null;
     explanation: string | null;
+    /** Why someone should look before it goes in, or null. */
+    flag: string | null;
+    review: 'pending' | 'approved' | 'rejected' | null;
+    reviewedBy: string | null;
+    reviewedAt: string | null;
 };
 
 export type Interpretation = InterpretationBrief & {

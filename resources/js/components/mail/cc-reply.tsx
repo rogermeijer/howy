@@ -71,9 +71,14 @@ export function CcReply({
                         (interpretation.answerConfidence ?? 0) * 100,
                     ),
                 })
-              : answered
-                ? t('Answer from the knowledge base')
-                : interpretation.outcomeLabel;
+              : [
+                    answered
+                        ? t('Answer from the knowledge base')
+                        : interpretation.outcomeLabel,
+                    recipients ? t('to :recipients', { recipients }) : null,
+                ]
+                    .filter(Boolean)
+                    .join(' · ');
 
     return (
         <li

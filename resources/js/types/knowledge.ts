@@ -80,7 +80,7 @@ export type ChunkView = {
     isCurrent: boolean;
 };
 
-export type FactStatus = 'core' | 'supplementary' | 'expired';
+export type FactStatus = 'core' | 'supplementary' | 'expired' | 'proposed';
 
 export type FactView = {
     id: number;

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CurrentAccountController;
 use App\Http\Controllers\EmailController;
+use App\Http\Controllers\EmailStatementController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\Knowledge\DocumentController;
 use App\Http\Controllers\Knowledge\DocumentInspectorController;
@@ -34,6 +35,16 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::get('inbox', [InboxController::class, 'index'])->name('inbox');
 
     Route::get('emails/{email}', [EmailController::class, 'show'])->name('emails.show');
+
+    // What a mail would add to the knowledge base: its admins decide, as they curate it.
+    Route::middleware('account.admin')->group(function () {
+        Route::post('emails/{email}/statements/{statement}/approve', [EmailStatementController::class, 'approve'])
+            ->whereNumber('statement')
+            ->name('emails.statements.approve');
+        Route::post('emails/{email}/statements/{statement}/reject', [EmailStatementController::class, 'reject'])
+            ->whereNumber('statement')
+            ->name('emails.statements.reject');
+    });
 
     Route::get('knowledge', [KnowledgeController::class, 'index'])->name('knowledge');
 

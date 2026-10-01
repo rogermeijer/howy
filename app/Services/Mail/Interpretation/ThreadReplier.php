@@ -25,13 +25,14 @@ class ThreadReplier
     public function __construct(private readonly GmailMessageParser $parser) {}
 
     /**
-     * Answer the sender: Reply-To when set, else From.
+     * Answer the sender (Reply-To when set, else From), with everyone else
+     * the mail was addressed or copied to in CC, so they see cc: has it.
      */
     public function reply(EmailInterpretation $interpretation, Email $email, ComposedReply $body): void
     {
         $recipient = $this->recipient($email);
 
-        $this->deliver($interpretation, $email, $recipient !== null ? [$recipient] : [], $body);
+        $this->deliver($interpretation, $email, $recipient !== null ? [$recipient] : [], $body, $this->copiedOn($email, $recipient));
     }
 
     /**
@@ -59,12 +60,34 @@ class ThreadReplier
     }
 
     /**
-     * Send to every recipient the send policy allows. With none allowed the
-     * reply is kept, blocked; a retried job never sends the same reply twice.
+     * Everyone else on a mail, To and CC, without the sender, the reply's
+     * recipient and the mailbox: who a reply to all copies in.
+     *
+     * @return list<string>
+     */
+    public function copiedOn(Email $email, ?string $recipient): array
+    {
+        $exclude = array_filter([
+            strtolower((string) $email->from_email),
+            strtolower((string) $recipient),
+            strtolower((string) $email->mailbox?->email_address),
+        ]);
+
+        return array_values(array_unique(array_filter(
+            array_map(fn (array $address): string => strtolower($address['email']), [...($email->to ?? []), ...($email->cc ?? [])]),
+            fn (string $address): bool => $address !== '' && ! in_array($address, $exclude, true),
+        )));
+    }
+
+    /**
+     * Send to every recipient the send policy allows, copying in those of
+     * $cc it allows too. With no recipient allowed the reply is kept,
+     * blocked, and nobody is copied; a retried job never sends it twice.
      *
      * @param  list<string>  $recipients
+     * @param  list<string>  $cc
      */
-    private function deliver(EmailInterpretation $interpretation, Email $email, array $recipients, ComposedReply $body): void
+    private function deliver(EmailInterpretation $interpretation, Email $email, array $recipients, ComposedReply $body, array $cc = []): void
     {
         if ($interpretation->reply_provider_message_id !== null) {
             return;
@@ -81,7 +104,8 @@ class ThreadReplier
         }
 
         $allowed = array_values(array_filter($recipients, fn (string $recipient): bool => $mailbox->maySendTo($recipient)));
-        $interpretation->reply_recipients = $allowed !== [] ? $allowed : $recipients;
+        $copied = array_values(array_filter($cc, fn (string $address): bool => $mailbox->maySendTo($address)));
+        $interpretation->reply_recipients = $allowed !== [] ? [...$allowed, ...$copied] : $recipients;
 
         if ($allowed === []) {
             $this->finish($interpretation, ReplyStatus::Blocked);
@@ -90,7 +114,7 @@ class ThreadReplier
         }
 
         try {
-            $sent = GmailClient::for($mailbox)->sendMessage($this->compose($email, $mailbox->email_address, $allowed, $body), $email->provider_thread_id);
+            $sent = GmailClient::for($mailbox)->sendMessage($this->compose($email, $mailbox->email_address, $allowed, $copied, $body), $email->provider_thread_id);
         } catch (RequestException|ConnectionException|MailboxNeedsReauthException $exception) {
             $this->finish($interpretation, ReplyStatus::Failed, Str::limit($exception->getMessage(), 500));
 
@@ -114,8 +138,9 @@ class ThreadReplier
 
     /**
      * @param  list<string>  $to
+     * @param  list<string>  $cc
      */
-    private function compose(Email $email, string $from, array $to, ComposedReply $body): string
+    private function compose(Email $email, string $from, array $to, array $cc, ComposedReply $body): string
     {
         $subject = trim((string) $email->subject);
 
@@ -125,6 +150,10 @@ class ThreadReplier
             ->subject(preg_match('/^re:/i', $subject) === 1 ? $subject : trim('Re: '.$subject))
             ->text($body->text)
             ->html($body->html);
+
+        if ($cc !== []) {
+            $message->cc(...array_map(fn (string $address): Address => new Address($address), $cc));
+        }
 
         // Inline, so the HTML's cid: references show the image in place.
         foreach ($body->inline as $name => $path) {

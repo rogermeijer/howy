@@ -38,12 +38,14 @@ class InboxController extends Controller
             $items = $messages->get($thread->mailbox_id.'|'.$thread->provider_thread_id, new Collection);
             $first = $items->first();
             $latest = $items->last();
-            // The thread shows how its latest interpreted message was read.
-            $interpreted = $items->last(fn (Email $email): bool => $email->interpretation !== null)?->interpretation;
+            // A message waiting for review is what the thread is about until
+            // someone acts on it; else its latest interpreted message.
+            $waiting = $items->last(fn (Email $email): bool => $email->interpretation?->needs_review === true);
+            $interpreted = ($waiting ?? $items->last(fn (Email $email): bool => $email->interpretation !== null))?->interpretation;
 
             return [
-                // The row opens the conversation at its latest message.
-                'id' => $latest?->id,
+                // The row opens the conversation at what needs action, else its latest message.
+                'id' => ($waiting ?? $latest)?->id,
                 'subject' => $first->subject ?? $latest?->subject,
                 'participants' => $items
                     ->map(fn (Email $email): ?string => $email->from_name ?? $email->from_email)

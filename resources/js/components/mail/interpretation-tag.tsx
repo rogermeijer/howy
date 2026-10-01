@@ -37,7 +37,14 @@ export function InterpretationTag({
         );
     }
 
-    const { status, statusLabel, outcome, outcomeLabel } = interpretation;
+    const { status, statusLabel, outcome, outcomeLabel, needsReview } =
+        interpretation;
+
+    if (needsReview) {
+        return (
+            <Tag kind="pending" label={t('To review')} className={className} />
+        );
+    }
 
     if (status === 'done' && outcome !== null) {
         return (
