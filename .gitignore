@@ -42,3 +42,6 @@ yarn-error.log
 /boost.json
 /opencode.json
 /opencode.jsonc
+
+# Knowledge base snapshots (php artisan knowledge:export-seed): local only.
+/database/seeders/data/knowledge/
