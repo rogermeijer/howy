@@ -6,12 +6,13 @@ use App\Http\Controllers\InboxController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Webhooks\GmailWebhookController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 
 // Valet serves `.webmanifest` as application/octet-stream; Chrome rejects that MIME type.
 Route::get('site.webmanifest', function () {
     return response(
-        file_get_contents(resource_path('site.webmanifest')),
+        File::get(resource_path('site.webmanifest')),
         headers: ['Content-Type' => 'application/manifest+json; charset=UTF-8'],
     );
 })->name('site.webmanifest');

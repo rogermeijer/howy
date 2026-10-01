@@ -25,7 +25,7 @@ class InboxController extends Controller
             ->select(['mailbox_id', 'provider_thread_id'])
             ->selectRaw('MAX(received_at) as last_received_at')
             ->selectRaw('COUNT(*) as messages_count')
-            ->selectRaw('MAX(has_attachments) as any_attachments')
+            ->selectRaw('BOOL_OR(has_attachments) as any_attachments')
             ->groupBy('mailbox_id', 'provider_thread_id')
             ->orderByDesc('last_received_at')
             ->paginate(50);

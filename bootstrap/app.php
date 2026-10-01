@@ -19,10 +19,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        if (env('APP_ENV') === 'local') {
-            $middleware->trustProxies(at: '*');
-        }
-
         // The locale cookie joins sidebar_state as an unencrypted UI preference.
         $middleware->encryptCookies(except: ['sidebar_state', SetLocale::COOKIE]);
 

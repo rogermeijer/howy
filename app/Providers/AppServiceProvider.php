@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\DevCommands;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -37,6 +38,13 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+
+        // Local tunnels (ngrok) sit in front of the app; trust them so URLs keep
+        // their https scheme. Set here rather than in bootstrap/app.php, where
+        // config is not loaded yet.
+        if (app()->environment('local')) {
+            TrustProxies::at('*');
+        }
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
