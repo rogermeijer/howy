@@ -10,8 +10,12 @@ use App\Models\Email;
 use App\Models\KnowledgeFact;
 use App\Models\KnowledgeTopic;
 use App\Models\User;
+use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\Extraction\LlmScannedPageReader;
 use App\Services\Knowledge\Extraction\NullScannedPageReader;
 use App\Services\Knowledge\Extraction\ScannedPageReader;
+use App\Services\Knowledge\Search\HybridKnowledgeSearch;
+use App\Services\Knowledge\Search\KnowledgeSearch;
 use App\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -33,7 +37,12 @@ class AppServiceProvider extends ServiceProvider
         // between jobs, so a job can never inherit the previous job's account.
         $this->app->scoped(TenantContext::class);
 
-        $this->app->bind(ScannedPageReader::class, NullScannedPageReader::class);
+        $this->app->bind(KnowledgeSearch::class, HybridKnowledgeSearch::class);
+
+        // Scanned pages go to the LLM only when a provider is configured.
+        $this->app->bind(ScannedPageReader::class, fn ($app) => $app->make(AiGateway::class)->enabled()
+            ? $app->make(LlmScannedPageReader::class)
+            : new NullScannedPageReader);
     }
 
     /**

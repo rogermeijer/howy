@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { Bell, Search } from 'lucide-react';
 import { useTranslations } from '@/hooks/use-translations';
 import type { PropsWithChildren } from 'react';
@@ -13,6 +13,7 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { inbox, knowledge } from '@/routes';
+import knowledgeRoutes from '@/routes/knowledge';
 import type { Auth } from '@/types';
 
 // Titles are English source strings, translated where they are rendered.
@@ -73,10 +74,22 @@ function TopBar() {
                 })}
             </nav>
 
-            <label className="hidden h-10 w-[300px] shrink-0 items-center gap-2.5 rounded-[10px] border-[1.5px] border-cc-border bg-cc-panel px-3.5 text-cc-subtle focus-within:border-cc-ink lg:flex">
+            <form
+                role="search"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    const q = new FormData(event.currentTarget).get('q');
+
+                    if (typeof q === 'string' && q.trim() !== '') {
+                        router.get(knowledgeRoutes.search().url, { q });
+                    }
+                }}
+                className="hidden h-10 w-[300px] shrink-0 items-center gap-2.5 rounded-[10px] border-[1.5px] border-cc-border bg-cc-panel px-3.5 text-cc-subtle focus-within:border-cc-ink lg:flex"
+            >
                 <Search className="size-4 shrink-0" />
                 <input
                     type="search"
+                    name="q"
                     placeholder={t('Search emails and knowledge')}
                     aria-label={t('Search')}
                     className="min-w-0 flex-1 border-none bg-transparent text-sm text-cc-ink outline-none placeholder:text-cc-subtle"
@@ -84,7 +97,7 @@ function TopBar() {
                 <span className="shrink-0 rounded-[5px] border border-cc-border px-1.5 text-[11px] font-semibold text-cc-faint">
                     ⌘K
                 </span>
-            </label>
+            </form>
 
             <button
                 type="button"

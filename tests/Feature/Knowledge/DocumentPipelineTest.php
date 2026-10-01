@@ -63,12 +63,17 @@ class DocumentPipelineTest extends TestCase
             $table = KnowledgeChunk::query()->where('kind', 'table')->sole();
             $this->assertStringContainsString('| 20 jaar of langer | 3 dagen |', $table->content);
             $this->assertSame('dutch', $table->search_config);
-            // Not searchable until embedded.
-            $this->assertFalse($table->is_current);
 
+            // Without an AI provider the AI steps are skipped, not failed.
             $steps = DocumentProcessingStep::query()->orderBy('id')->get();
-            $this->assertSame([ProcessingStep::Extract, ProcessingStep::Structure], $steps->pluck('step')->all());
-            $this->assertSame([StepStatus::Succeeded, StepStatus::Succeeded], $steps->pluck('status')->all());
+            $this->assertSame(
+                [ProcessingStep::Extract, ProcessingStep::Structure, ProcessingStep::Contextualize, ProcessingStep::Embed],
+                $steps->pluck('step')->all(),
+            );
+            $this->assertSame(
+                [StepStatus::Succeeded, StepStatus::Succeeded, StepStatus::Skipped, StepStatus::Skipped],
+                $steps->pluck('status')->all(),
+            );
             $this->assertSame(10, $steps[1]->meta['chunks'] ?? null);
         });
     }

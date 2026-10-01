@@ -40,6 +40,8 @@ class ProcessDocumentVersion extends KnowledgeJob
         return [
             new ExtractDocumentText($this->versionId),
             new BuildDocumentStructure($this->versionId),
+            new ContextualizeChunks($this->versionId),
+            new EmbedChunks($this->versionId),
         ];
     }
 }

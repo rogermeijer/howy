@@ -7,6 +7,7 @@ use App\Http\Controllers\Knowledge\DocumentController;
 use App\Http\Controllers\Knowledge\DocumentInspectorController;
 use App\Http\Controllers\Knowledge\DocumentVersionController;
 use App\Http\Controllers\Knowledge\KnowledgeController;
+use App\Http\Controllers\Knowledge\KnowledgeSearchController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Webhooks\GmailWebhookController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -36,6 +37,7 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::get('knowledge', [KnowledgeController::class, 'index'])->name('knowledge');
 
     Route::prefix('knowledge')->name('knowledge.')->group(function () {
+        Route::get('search', [KnowledgeSearchController::class, 'index'])->name('search');
         Route::get('documents', [DocumentController::class, 'index'])->name('documents.index');
         Route::get('documents/{document}', [DocumentInspectorController::class, 'show'])->name('documents.show');
         Route::get('documents/{document}/versions/{version}/file', [DocumentVersionController::class, 'file'])

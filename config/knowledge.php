@@ -85,6 +85,9 @@ return [
         'max_tokens' => 4000,
         // Reciprocal rank fusion constant.
         'rrf_k' => 60,
+        // Vector hits below this cosine similarity are noise, not answers
+        // (text-embedding-3-large: related text scores ~0.45+, unrelated < 0.25).
+        'min_similarity' => 0.35,
         'query_embedding_cache_hours' => 24,
     ],
 

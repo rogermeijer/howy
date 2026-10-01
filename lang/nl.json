@@ -680,5 +680,13 @@
     "This section has no text of its own; its content is in its subsections.": "Deze sectie heeft geen eigen tekst; de inhoud staat in de subsecties.",
     "Text": "Tekst",
     "Table": "Tabel",
-    "List": "Lijst"
+    "List": "Lijst",
+    "Search the knowledge base": "Zoeken in de kennisbank",
+    "Ask a question in your own words. You get the passages an answer would be built from, each with its exact source.": "Stel een vraag in je eigen woorden. Je krijgt de passages waar een antwoord op gebaseerd zou worden, elk met de exacte bron.",
+    "e.g. How many days of leave do I get after ten years?": "bijv. Hoeveel vakantiedagen krijg ik na tien jaar?",
+    "All types": "Alle typen",
+    "Nothing in the knowledge base matches this question.": "Niets in de kennisbank past bij deze vraag.",
+    ":passages passages and :facts facts · ~:tokens tokens": ":passages passages en :facts feiten · ~:tokens tokens",
+    "text search only": "alleen tekstzoeken",
+    "Ranking details": "Rangschikking tonen"
 }

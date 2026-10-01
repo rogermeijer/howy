@@ -95,7 +95,8 @@ class DocumentExtractor
             return $callback($disk->path($version->path));
         }
 
-        $temp = tempnam(sys_get_temp_dir(), 'cc-doc-').'.'.pathinfo($version->path, PATHINFO_EXTENSION);
+        $base = (string) tempnam(sys_get_temp_dir(), 'cc-doc-');
+        $temp = $base.'.'.pathinfo($version->path, PATHINFO_EXTENSION);
         $stream = $disk->readStream($version->path);
         file_put_contents($temp, $stream);
 
@@ -103,6 +104,7 @@ class DocumentExtractor
             return $callback($temp);
         } finally {
             @unlink($temp);
+            @unlink($base);
         }
     }
 
