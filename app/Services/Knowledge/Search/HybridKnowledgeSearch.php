@@ -99,6 +99,7 @@ class HybridKnowledgeSearch implements KnowledgeSearch
             ->select("{$table}.id")
             ->selectRaw("row_number() over (order by ts_rank_cd({$table}.search_vector, {$tsquery}) desc) as rnk", [$language, $text])
             ->selectRaw("'t' as method")
+            ->selectRaw('null::float as similarity')
             ->whereRaw("{$table}.search_vector @@ {$tsquery}", [$language, $text])
             ->orderByRaw("ts_rank_cd({$table}.search_vector, {$tsquery}) desc", [$language, $text])
             ->limit($candidates);
@@ -112,6 +113,7 @@ class HybridKnowledgeSearch implements KnowledgeSearch
                 ->select("{$table}.id")
                 ->selectRaw("row_number() over (order by {$table}.embedding <=> ?::vector) as rnk", [$literal])
                 ->selectRaw("'v' as method")
+                ->selectRaw("1 - ({$table}.embedding <=> ?::vector) as similarity", [$literal])
                 ->whereNotNull("{$table}.embedding")
                 ->whereRaw("{$table}.embedding <=> ?::vector <= ?", [$literal, 1 - (float) config('knowledge.search.min_similarity')])
                 ->orderByRaw("{$table}.embedding <=> ?::vector", [$literal])
@@ -125,15 +127,27 @@ class HybridKnowledgeSearch implements KnowledgeSearch
             ->selectRaw('sum(1.0 / (? + rnk)) as score', [(int) config('knowledge.search.rrf_k')])
             ->selectRaw("min(rnk) filter (where method = 'v') as vector_rank")
             ->selectRaw("min(rnk) filter (where method = 't') as text_rank")
+            ->selectRaw('max(similarity) as similarity')
             ->groupBy('id')
             ->orderByDesc('score')
-            ->limit($limit)
+            ->limit($limit * 2)
             ->get();
 
         $ranked = [];
+        $vectorOnly = (float) config('knowledge.search.min_similarity_vector_only');
 
         foreach ($rows as $row) {
-            /** @var object{id: int, score: float|string, vector_rank: int|null, text_rank: int|null} $row */
+            /** @var object{id: int, score: float|string, vector_rank: int|null, text_rank: int|null, similarity: float|string|null} $row */
+
+            // Found by meaning alone and only loosely related: not an answer.
+            if ($row->text_rank === null && (float) $row->similarity < $vectorOnly) {
+                continue;
+            }
+
+            if (count($ranked) >= $limit) {
+                break;
+            }
+
             $ranked[(int) $row->id] = [
                 'score' => (float) $row->score,
                 'vector' => $row->vector_rank === null ? null : (int) $row->vector_rank,

@@ -42,7 +42,8 @@ chunks and facts have a `source` so mail-derived knowledge can share the same in
 ## Search
 
 `KnowledgeSearch` (`HybridKnowledgeSearch`) ranks current chunks twice — pgvector cosine distance (with
-`hnsw.iterative_scan` and a minimum similarity of `knowledge.search.min_similarity`) and full text (OR of the
+`hnsw.iterative_scan` and a minimum similarity of `knowledge.search.min_similarity`; a hit only the vector
+search found must also clear `min_similarity_vector_only`, 0.45) and full text (OR of the
 question's words, `ts_rank_cd`) — and fuses the ranks with reciprocal rank fusion (k = 60). Hits widen to their
 whole section when it fits, else to the hit and its neighbours, until `maxTokens`. Facts are ranked the same
 way and count against the budget first. Filters: document type, effective date, fact status, folder subtree.

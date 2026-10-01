@@ -438,6 +438,12 @@ het draait, staat in [`knowledge-base.md`](knowledge-base.md).
 - **Minimale vectorgelijkenis van 0,35** (`knowledge.search.min_similarity`). Zonder drempel vult het
   budget zich met irrelevante secties, en een vraag die niet in de kennisbank staat, levert niets op.
   Gemeten op het voorbeeld: relevant scoort ≥ 0,45, ruis ~0,36, onzin < 0,2.
+  Met contextregels in de embedding scoort elke vraag uit hetzelfde domein ~0,38. Daarom moet een treffer
+  die alleen via vectoren binnenkomt, ≥ 0,45 halen (`min_similarity_vector_only`).
+- **Eerste evaluatie (echte API, voorbeeld-handboek, 25 vragen):** bron in de top 5 bij 100% van de vragen,
+  MRR 0,91, gevraagd feit gevonden bij 100%, en de „niet in de kennisbank”-vragen leveren niets op.
+  Gemiddeld ~270 tokens. Zonder embeddings (alleen tekst) was dat 84%. De verwerking van het hele document
+  kostte ≈ $0,005.
 - **Mapkoppelingen alleen op secties.** Feiten en documenten erven hun mappen van hun secties. Daardoor
   verandert er niets dubbel bij een nieuwe versie.
 - **Bronverwijzingen van een mapoverzicht** staan in de bronnenlijst naast het overzicht, niet als nummers in
@@ -454,6 +460,4 @@ het draait, staat in [`knowledge-base.md`](knowledge-base.md).
 **Nog open:**
 
 - Q1 (EU-dataresidentie), Q2 (retentie) en Q3 (testdocumenten) uit hoofdstuk 0.
-- Een rooktest van fase 4 en een volledige evaluatie tegen de echte API. Fase 3 is wel echt getest
-  (contextregels, embeddings, zoeken). De OpenAI-key werd tijdens fase 4 geweigerd (401).
 - Reranker (Voyage of Cohere): het haakpunt staat beschreven, er is nog niets gebouwd.

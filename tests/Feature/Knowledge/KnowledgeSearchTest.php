@@ -78,6 +78,20 @@ class KnowledgeSearchTest extends TestCase
         $this->assertStringContainsString('| 20 jaar of langer | 3 dagen |', $result->passages[0]->text);
     }
 
+    public function test_loosely_related_hits_found_by_meaning_alone_are_dropped(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->index($this->ours, 'ours');
+
+        // Shares no word with the handbook: only the vector search could find
+        // anything, and the fake vectors are far apart.
+        config(['knowledge.search.min_similarity' => 0.0, 'knowledge.search.min_similarity_vector_only' => 0.45]);
+        $this->assertSame([], $this->search($this->ours, new SearchQuery('huisdieren kantoorhond', includeFacts: false))->passages);
+
+        config(['knowledge.search.min_similarity_vector_only' => 0.0]);
+        $this->assertNotEmpty($this->search($this->ours, new SearchQuery('huisdieren kantoorhond', includeFacts: false))->passages);
+    }
+
     public function test_the_token_budget_is_a_hard_limit(): void
     {
         $this->index($this->ours, 'ours');
