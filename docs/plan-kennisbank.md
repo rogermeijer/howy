@@ -418,3 +418,42 @@ via `t()`, met de Nederlandse vertaling in `lang/nl.json`. De demodata in `knowl
 | **5. Evaluatie en productie**   | De eval-set en `knowledge:eval`, `knowledge:usage`, Horizon-config, VPS-runbook, `docs/knowledge-base.md`, een update van CLAUDE.md (morph map, AI-gateway)                                                                                                                                                                                                                                                                                        | `config/horizon.php`, `database/eval/*`                                                                                                                                                                                                                                               | Een eval-run met de baseline vastgelegd                                                  |
 
 ---
+
+---
+
+## Stand van de uitvoering (1 oktober 2026)
+
+Fase 0 tot en met 5 zijn gebouwd op `feature/kennisbank`, met één commit per fase. Hoe het werkt en hoe je
+het draait, staat in [`knowledge-base.md`](knowledge-base.md).
+
+**Afwijkingen van het plan, met reden:**
+
+- **Batch-API via Laravels Http-client in plaats van `openai-php/client`.** `laravel/ai` heeft geen
+  batch-ondersteuning. De Batch-API bestaat uit vier eenvoudige REST-calls, en de bestaande `GmailClient`
+  volgt hetzelfde patroon. Er is dus geen extra pakket nodig, en `Http::fake()` dekt de tests.
+- **Kleine secties worden niet samengevoegd bij het chunken.** Elke chunk hoort bij precies één sectie.
+  Het kopjespad en de contextregel maken ook een korte chunk vindbaar, en samenvoegen zou de bron vertroebelen.
+- **Full-text gebruikt een OR van de woorden van de vraag**, met `ts_rank_cd` voor de volgorde. De
+  standaard-AND van `websearch_to_tsquery` vond bij natuurlijke vragen vrijwel niets.
+- **Minimale vectorgelijkenis van 0,35** (`knowledge.search.min_similarity`). Zonder drempel vult het
+  budget zich met irrelevante secties, en een vraag die niet in de kennisbank staat, levert niets op.
+  Gemeten op het voorbeeld: relevant scoort ≥ 0,45, ruis ~0,36, onzin < 0,2.
+- **Mapkoppelingen alleen op secties.** Feiten en documenten erven hun mappen van hun secties. Daardoor
+  verandert er niets dubbel bij een nieuwe versie.
+- **Bronverwijzingen van een mapoverzicht** staan in de bronnenlijst naast het overzicht, niet als nummers in
+  de tekst. Die nummers zouden na elke herschrijving verschuiven.
+- **Robuustheid (nieuw).** Een AI-stap die faalt, mag een document nooit onvindbaar maken:
+    - contextregels en embeddings geven na de laatste poging op, en de keten loopt door;
+    - na "doorzoekbaar" laat een fout de status staan;
+    - opnieuw verwerken hergebruikt het eigen werk van de versie.
+- **`retry_after` naar 960 seconden** op de database- en Redis-queue. Die moet groter zijn dan de timeout
+  van 900 seconden, anders pakken twee workers dezelfde job op.
+- **De evaluatieset telt nu 25 vragen** op het voorbeeld-handboek, in alle categorieën. Uitbreiden naar
+  ~50 gebeurt met echte documenten (Q3).
+
+**Nog open:**
+
+- Q1 (EU-dataresidentie), Q2 (retentie) en Q3 (testdocumenten) uit hoofdstuk 0.
+- Een rooktest van fase 4 en een volledige evaluatie tegen de echte API. Fase 3 is wel echt getest
+  (contextregels, embeddings, zoeken). De OpenAI-key werd tijdens fase 4 geweigerd (401).
+- Reranker (Voyage of Cohere): het haakpunt staat beschreven, er is nog niets gebouwd.

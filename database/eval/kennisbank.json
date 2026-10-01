@@ -1,0 +1,299 @@
+{
+    "name": "Personeelshandboek Noordkade (voorbeeld, tests/Fixtures/Knowledge/personeelshandboek.pdf)",
+    "about": "Startset: elke vraag noemt de bron (document en sectie) waar het antwoord staat. Categorieën: fact, table, paraphrase, compound (Nederlandse samenstellingen), multi (meerdere secties) en none (staat niet in de kennisbank: er hoort niets terug te komen). Breid uit tot ~50 vragen met echte documenten van een tenant.",
+    "questions": [
+        {
+            "id": "q01",
+            "category": "fact",
+            "question": "Hoeveel uur is een normale werkweek?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "1 Werktijden"
+                }
+            ],
+            "expected_fact": "38 uur"
+        },
+        {
+            "id": "q02",
+            "category": "fact",
+            "question": "Tussen welke tijden mag ik mijn werkdag indelen?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "1 Werktijden"
+                }
+            ],
+            "expected_fact": "07:30"
+        },
+        {
+            "id": "q03",
+            "category": "fact",
+            "question": "Hoeveel vakantiedagen krijgt iemand met een fulltime contract?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "2.1 Vakantiedagen"
+                }
+            ],
+            "expected_fact": "25 vakantiedagen"
+        },
+        {
+            "id": "q04",
+            "category": "fact",
+            "question": "Hoe ver van tevoren moet ik vakantie aanvragen?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "2.1 Vakantiedagen"
+                }
+            ],
+            "expected_fact": "vier weken"
+        },
+        {
+            "id": "q05",
+            "category": "fact",
+            "question": "Hoe en wanneer meld ik me ziek?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "3 Ziekmelding"
+                }
+            ],
+            "expected_fact": "09:00"
+        },
+        {
+            "id": "q06",
+            "category": "fact",
+            "question": "Wat is de kilometervergoeding voor de eigen auto?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "4 Onkosten"
+                }
+            ],
+            "expected_fact": "0,23"
+        },
+        {
+            "id": "q07",
+            "category": "fact",
+            "question": "Binnen hoeveel dagen moet ik onkosten declareren?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "4 Onkosten"
+                }
+            ],
+            "expected_fact": "dertig dagen"
+        },
+        {
+            "id": "q08",
+            "category": "fact",
+            "question": "Wanneer wordt de bedrijfsarts ingeschakeld?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "3.1 Bereikbaarheid tijdens ziekte"
+                }
+            ],
+            "expected_fact": "bedrijfsarts"
+        },
+        {
+            "id": "q09",
+            "category": "table",
+            "question": "Hoeveel extra vakantiedagen krijg ik na 12 jaar in dienst?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "2.1 Vakantiedagen"
+                }
+            ],
+            "expected_fact": "2 dagen"
+        },
+        {
+            "id": "q10",
+            "category": "table",
+            "question": "Krijg ik extra verlof als ik 25 jaar bij het bedrijf werk?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "2.1 Vakantiedagen"
+                }
+            ],
+            "expected_fact": "3 dagen"
+        },
+        {
+            "id": "q11",
+            "category": "paraphrase",
+            "question": "Mag ik in december op zaterdag werken?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "1.1 Weekendwerk"
+                }
+            ],
+            "expected_fact": "vierde kwartaal"
+        },
+        {
+            "id": "q12",
+            "category": "paraphrase",
+            "question": "Wat krijg ik betaald als ik in het weekend een storing oplos?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "1.1 Weekendwerk"
+                }
+            ],
+            "expected_fact": "150 procent"
+        },
+        {
+            "id": "q13",
+            "category": "paraphrase",
+            "question": "Kan ik mijn extra gewerkte uren laten uitbetalen?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "1.2 Overwerk"
+                }
+            ],
+            "expected_fact": "uitbetaald"
+        },
+        {
+            "id": "q14",
+            "category": "paraphrase",
+            "question": "Moet ik toestemming vragen voordat ik langer doorwerk?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "1.2 Overwerk"
+                }
+            ],
+            "expected_fact": "vooraf"
+        },
+        {
+            "id": "q15",
+            "category": "paraphrase",
+            "question": "Mag ik mijn ziekmelding via WhatsApp doorgeven?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "3 Ziekmelding"
+                }
+            ],
+            "expected_fact": "whatsapp"
+        },
+        {
+            "id": "q16",
+            "category": "paraphrase",
+            "question": "Hoeveel dagen vrij krijg ik als ik ga trouwen?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "2.2 Bijzonder verlof"
+                }
+            ],
+            "expected_fact": "twee dagen"
+        },
+        {
+            "id": "q17",
+            "category": "paraphrase",
+            "question": "Ik ga verhuizen, krijg ik daar een vrije dag voor?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "2.2 Bijzonder verlof"
+                }
+            ],
+            "expected_fact": "verhuizing"
+        },
+        {
+            "id": "q18",
+            "category": "compound",
+            "question": "verlofaanvraag termijn",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "2.1 Vakantiedagen"
+                }
+            ],
+            "expected_fact": null
+        },
+        {
+            "id": "q19",
+            "category": "compound",
+            "question": "declaratiegrens vooraf afstemmen",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "4 Onkosten"
+                }
+            ],
+            "expected_fact": "250"
+        },
+        {
+            "id": "q20",
+            "category": "compound",
+            "question": "ziekteverzuim bereikbaarheid",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "3.1 Bereikbaarheid tijdens ziekte"
+                }
+            ],
+            "expected_fact": null
+        },
+        {
+            "id": "q21",
+            "category": "multi",
+            "question": "Welke soorten verlof zijn er en hoeveel dagen?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "2.1 Vakantiedagen"
+                },
+                {
+                    "document": "handboek",
+                    "section": "2.2 Bijzonder verlof"
+                }
+            ],
+            "expected_fact": null
+        },
+        {
+            "id": "q22",
+            "category": "multi",
+            "question": "Wat moet ik doen als ik ziek ben en moet ik bereikbaar blijven?",
+            "expected": [
+                {
+                    "document": "handboek",
+                    "section": "3 Ziekmelding"
+                },
+                {
+                    "document": "handboek",
+                    "section": "3.1 Bereikbaarheid tijdens ziekte"
+                }
+            ],
+            "expected_fact": null
+        },
+        {
+            "id": "q23",
+            "category": "none",
+            "question": "Wat is het beleid voor huisdieren op kantoor?",
+            "expected": [],
+            "expected_fact": null
+        },
+        {
+            "id": "q24",
+            "category": "none",
+            "question": "Hoe vraag ik een leaseauto aan?",
+            "expected": [],
+            "expected_fact": null
+        },
+        {
+            "id": "q25",
+            "category": "none",
+            "question": "Wat is het wifi-wachtwoord van het kantoor?",
+            "expected": [],
+            "expected_fact": null
+        }
+    ]
+}

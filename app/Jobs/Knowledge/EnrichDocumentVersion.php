@@ -10,6 +10,7 @@ use App\Services\Knowledge\Ai\AiGateway;
 use App\Services\Knowledge\Ai\Batch\BatchRunner;
 use App\Services\Knowledge\Enrichment\SectionEnrichment;
 use App\Services\Knowledge\StepRecorder;
+use Throwable;
 
 /**
  * Step 5: summaries and facts per section. Unchanged sections are carried
@@ -53,13 +54,30 @@ class EnrichDocumentVersion extends KnowledgeJob
 
         $record = $steps->start($version, ProcessingStep::Enrich, meta: $meta);
         $facts = 0;
+        $failed = 0;
 
         foreach ($requests as $index => $request) {
-            $result = $ai->structured($request->agent, $request->prompt, $request->step, $version);
-            $facts += $enrichment->apply($pending[$index], $version, $result, $ai->modelFor($request->step));
+            try {
+                $result = $ai->structured($request->agent, $request->prompt, $request->step, $version);
+                $facts += $enrichment->apply($pending[$index], $version, $result, $ai->modelFor($request->step));
+            } catch (Throwable $e) {
+                // One section's summary failing does not cost the others theirs.
+                report($e);
+                $failed++;
+            }
         }
 
-        $steps->finish($record, meta: ['summaries' => count($requests), 'facts' => $facts]);
+        $steps->finish(
+            $record,
+            $failed === count($requests) ? (string) __('The summaries could not be made.') : null,
+            ['summaries' => count($requests) - $failed, 'facts' => $facts, 'failed_requests' => $failed],
+        );
+
+        if ($failed === count($requests)) {
+            $version->update(['status' => ProcessingStatus::Searchable, 'error' => __('The summaries could not be made.')]);
+
+            return;
+        }
 
         FinishEnrichment::dispatch($version->id);
     }

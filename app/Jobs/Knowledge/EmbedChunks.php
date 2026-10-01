@@ -10,6 +10,7 @@ use App\Services\Knowledge\Ai\AiGateway;
 use App\Services\Knowledge\ChunkText;
 use App\Services\Knowledge\StepRecorder;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Step 4: embed the chunks that have no embedding yet, then make this version
@@ -47,20 +48,32 @@ class EmbedChunks extends KnowledgeJob
             return ['embedded' => count($texts)];
         };
 
+        $error = null;
+
         if ($ai->enabled()) {
-            $steps->run($version, ProcessingStep::Embed, $embed);
+            try {
+                $steps->run($version, ProcessingStep::Embed, $embed);
+            } catch (Throwable $e) {
+                if (! $this->isLastAttempt()) {
+                    throw $e;
+                }
+
+                // Without (all) embeddings the document is still found by text.
+                report($e);
+                $error = (string) __('Indexing for meaning failed; the document is searchable by text.');
+            }
         } else {
             $steps->skip($version, ProcessingStep::Embed, 'No AI provider configured; searchable by text only.');
         }
 
-        DB::transaction(function () use ($version): void {
+        DB::transaction(function () use ($version, $error): void {
             // Swap in one go: this version becomes the one that answers.
             $chunks = KnowledgeChunk::query()->where('document_id', $version->document_id)->where('source_type', 'document_version');
 
             (clone $chunks)->where('source_id', '!=', $version->id)->update(['is_current' => false]);
             (clone $chunks)->where('source_id', $version->id)->update(['is_current' => true]);
 
-            $version->update(['status' => ProcessingStatus::Searchable, 'processed_at' => now()]);
+            $version->update(['status' => ProcessingStatus::Searchable, 'processed_at' => now(), 'error' => $error]);
             $version->document->touch();
         });
     }

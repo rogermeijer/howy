@@ -9,6 +9,7 @@ use App\Tenancy\Concerns\InteractsWithTenancy;
 use App\Tenancy\Contracts\TenantAware;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Jobs\SyncJob;
 use Throwable;
 
 /**
@@ -37,13 +38,30 @@ abstract class KnowledgeJob implements ShouldQueue, TenantAware
     }
 
     /**
+     * On the last attempt an optional step gives up instead of failing the
+     * chain: the document stays findable without what that step adds.
+     */
+    protected function isLastAttempt(): bool
+    {
+        return $this->job === null || $this->job instanceof SyncJob || $this->attempts() >= $this->tries;
+    }
+
+    /**
      * Runs outside the job middleware, so it sets the tenant itself.
      */
     public function failed(?Throwable $exception): void
     {
         Tenancy::for($this->tenantAccountId, function () use ($exception): void {
-            DocumentVersion::query()->whereKey($this->versionId)->update([
-                'status' => ProcessingStatus::Failed,
+            $version = DocumentVersion::query()->find($this->versionId);
+
+            if ($version === null) {
+                return;
+            }
+
+            // Once searchable, a later step failing (summaries, folders) leaves
+            // the document usable: it keeps its status and shows the error.
+            $version->update([
+                'status' => $version->status->isSearchable() ? ProcessingStatus::Searchable : ProcessingStatus::Failed,
                 'error' => $exception?->getMessage() ?? __('Processing failed.'),
             ]);
         });

@@ -12,6 +12,7 @@ use App\Services\Knowledge\Extraction\Block;
 use App\Services\Knowledge\StepRecorder;
 use App\Services\Knowledge\TokenEstimator;
 use Illuminate\Support\Collection;
+use Throwable;
 
 /**
  * Step 3: give every new chunk a context line. Chunks reused from the previous
@@ -33,6 +34,20 @@ class ContextualizeChunks extends KnowledgeJob
 
         $version->update(['status' => ProcessingStatus::Contextualizing]);
 
+        try {
+            $this->contextualize($version, $ai, $steps, $tokens);
+        } catch (Throwable $e) {
+            // Context lines improve retrieval but are not required for it.
+            if (! $this->isLastAttempt()) {
+                throw $e;
+            }
+
+            report($e);
+        }
+    }
+
+    private function contextualize(DocumentVersion $version, AiGateway $ai, StepRecorder $steps, TokenEstimator $tokens): void
+    {
         $steps->run($version, ProcessingStep::Contextualize, function () use ($version, $ai, $tokens): array {
             $chunks = KnowledgeChunk::query()
                 ->with('section')

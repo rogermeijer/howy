@@ -741,5 +741,7 @@
     "Sources": "Bronnen",
     "No sources filed here yet.": "Hier zijn nog geen bronnen ingedeeld.",
     "Remove from this folder": "Uit deze map halen",
-    "via :folder": "via :folder"
+    "via :folder": "via :folder",
+    "The summaries could not be made.": "De samenvattingen konden niet worden gemaakt.",
+    "Indexing for meaning failed; the document is searchable by text.": "Indexeren op betekenis is mislukt; het document is wel op tekst doorzoekbaar."
 }
