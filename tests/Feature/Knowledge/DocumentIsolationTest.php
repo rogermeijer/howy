@@ -5,6 +5,7 @@ namespace Tests\Feature\Knowledge;
 use App\Facades\Tenancy;
 use App\Models\Account;
 use App\Models\Document;
+use App\Models\DocumentSection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -53,6 +54,7 @@ class DocumentIsolationTest extends TestCase
             'file' => UploadedFile::fake()->createWithContent('x.pdf', '%PDF-1.4 x'),
         ])->assertNotFound();
         $this->get(route('knowledge.documents.versions.file', [$document->id, $versionId]))->assertNotFound();
+        $this->get(route('knowledge.documents.show', $document->id))->assertNotFound();
 
         $this->assertSame($document->title, Tenancy::for($this->theirs, fn () => $document->fresh()?->title));
         Queue::assertNothingPushed();
@@ -68,6 +70,24 @@ class DocumentIsolationTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('knowledge.documents.versions.file', [$mine->id, $other->current_version_id]))
             ->assertNotFound();
+    }
+
+    public function test_the_inspector_only_shows_versions_and_sections_of_the_document_itself(): void
+    {
+        [$mine, $other] = Tenancy::for($this->ours, fn () => [
+            Document::factory()->withVersion()->create(),
+            Document::factory()->withVersion()->create(),
+        ]);
+        $foreignSection = Tenancy::for($this->theirs, fn () => DocumentSection::factory()->create());
+
+        $this->actingAs($this->admin);
+
+        $this->get(route('knowledge.documents.show', [$mine->id, 'version' => $other->current_version_id]))->assertNotFound();
+
+        $this->get(route('knowledge.documents.show', [$mine->id, 'section' => $foreignSection->id]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('knowledge/documents/show')
+                ->where('section', null));
     }
 
     public function test_listings_only_show_the_current_accounts_documents(): void

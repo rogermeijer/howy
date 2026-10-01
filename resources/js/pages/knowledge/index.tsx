@@ -115,7 +115,7 @@ export default function Knowledge({
                             {recent.map((document) => (
                                 <Link
                                     key={document.id}
-                                    href={documentRoutes.index()}
+                                    href={documentRoutes.show(document.id)}
                                     className="cc-row-file border-b border-cc-border px-6 py-3.5 transition-colors last:border-b-0 hover:bg-cc-bg"
                                 >
                                     <FileText

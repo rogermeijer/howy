@@ -52,3 +52,80 @@ export type TopicFolder = {
 };
 
 export type Option = { value: string; label: string };
+
+export type SectionChange = 'unchanged' | 'changed' | 'added';
+
+export type SectionNode = {
+    id: number;
+    parentId: number | null;
+    level: number;
+    heading: string | null;
+    pageFrom: number | null;
+    pageTo: number | null;
+    change: SectionChange;
+    tokenCount: number;
+    chunksCount: number;
+    factsCount: number;
+};
+
+export type ChunkView = {
+    id: number;
+    kind: 'text' | 'table' | 'list';
+    content: string;
+    context: string | null;
+    pageFrom: number | null;
+    pageTo: number | null;
+    tokenCount: number;
+    embedded: boolean;
+    isCurrent: boolean;
+};
+
+export type FactStatus = 'core' | 'supplementary' | 'expired';
+
+export type FactView = {
+    id: number;
+    statement: string;
+    status: FactStatus;
+    validFrom: string | null;
+    validUntil: string | null;
+    pageFrom: number | null;
+};
+
+export type SectionDetail = {
+    id: number;
+    heading: string | null;
+    headingPath: string;
+    pageFrom: number | null;
+    pageTo: number | null;
+    change: SectionChange;
+    summary: string | null;
+    chunks: ChunkView[];
+    facts: FactView[];
+    topics: { id: number; name: string; origin: 'ai' | 'manual' }[];
+};
+
+export type ProcessingStepView = {
+    step: string;
+    status: 'running' | 'succeeded' | 'failed' | 'skipped';
+    attempts: number;
+    startedAt: string | null;
+    finishedAt: string | null;
+    error: string | null;
+    meta: Record<string, unknown>;
+    usage: {
+        calls: number;
+        inputTokens: number;
+        cachedInputTokens: number;
+        outputTokens: number;
+        costMicros: number;
+    } | null;
+};
+
+export type VersionOption = {
+    id: number;
+    number: number;
+    filename: string;
+    status: ProcessingStatus;
+    createdAt: string | null;
+    isPdf: boolean;
+};

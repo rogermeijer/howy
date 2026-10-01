@@ -4,6 +4,7 @@ use App\Http\Controllers\CurrentAccountController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\Knowledge\DocumentController;
+use App\Http\Controllers\Knowledge\DocumentInspectorController;
 use App\Http\Controllers\Knowledge\DocumentVersionController;
 use App\Http\Controllers\Knowledge\KnowledgeController;
 use App\Http\Controllers\LocaleController;
@@ -36,6 +37,7 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
 
     Route::prefix('knowledge')->name('knowledge.')->group(function () {
         Route::get('documents', [DocumentController::class, 'index'])->name('documents.index');
+        Route::get('documents/{document}', [DocumentInspectorController::class, 'show'])->name('documents.show');
         Route::get('documents/{document}/versions/{version}/file', [DocumentVersionController::class, 'file'])
             ->scopeBindings()
             ->name('documents.versions.file');

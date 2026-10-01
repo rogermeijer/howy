@@ -170,9 +170,12 @@ export default function Documents({
                                     strokeWidth={1.8}
                                 />
                                 <div className="flex min-w-0 flex-col gap-0.5">
-                                    <div className="truncate text-[15px] font-semibold">
+                                    <Link
+                                        href={documentRoutes.show(document.id)}
+                                        className="truncate text-[15px] font-semibold hover:underline hover:underline-offset-[3px]"
+                                    >
                                         {document.title}
-                                    </div>
+                                    </Link>
                                     {document.version && (
                                         <div className="cc-caption truncate">
                                             {[

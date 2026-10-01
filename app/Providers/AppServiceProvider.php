@@ -10,6 +10,8 @@ use App\Models\Email;
 use App\Models\KnowledgeFact;
 use App\Models\KnowledgeTopic;
 use App\Models\User;
+use App\Services\Knowledge\Extraction\NullScannedPageReader;
+use App\Services\Knowledge\Extraction\ScannedPageReader;
 use App\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -30,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
         // Scoped rather than singleton: the queue worker forgets scoped instances
         // between jobs, so a job can never inherit the previous job's account.
         $this->app->scoped(TenantContext::class);
+
+        $this->app->bind(ScannedPageReader::class, NullScannedPageReader::class);
     }
 
     /**

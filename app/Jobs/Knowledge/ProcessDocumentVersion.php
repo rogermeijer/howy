@@ -37,6 +37,9 @@ class ProcessDocumentVersion extends KnowledgeJob
      */
     private function steps(): array
     {
-        return [];
+        return [
+            new ExtractDocumentText($this->versionId),
+            new BuildDocumentStructure($this->versionId),
+        ];
     }
 }
