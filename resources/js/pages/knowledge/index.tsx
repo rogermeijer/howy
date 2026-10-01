@@ -7,6 +7,7 @@ import { StatusPipeline } from '@/components/knowledge/status-pipeline';
 import { TopicFolderCard } from '@/components/knowledge/topic-folder-card';
 import { Button } from '@/components/ui/button';
 import { useFormatDate } from '@/hooks/use-format-date';
+import { sourcesLabel } from '@/components/knowledge/labels';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import documentRoutes from '@/routes/knowledge/documents';
@@ -96,9 +97,7 @@ export default function Knowledge({
                                 key={topic.id}
                                 topic={topic}
                                 href={topicRoutes.show(topic.id)}
-                                meta={t(':count sources', {
-                                    count: topic.sourcesCount ?? 0,
-                                })}
+                                meta={sourcesLabel(t, topic.sourcesCount ?? 0)}
                             />
                         ))}
                     </div>

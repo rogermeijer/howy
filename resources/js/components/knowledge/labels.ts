@@ -46,3 +46,10 @@ export function formatBytes(bytes: number): string {
 
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+export function sourcesLabel(
+    t: (key: string, replacements?: Record<string, string | number>) => string,
+    count: number,
+): string {
+    return count === 1 ? t('1 source') : t(':count sources', { count });
+}

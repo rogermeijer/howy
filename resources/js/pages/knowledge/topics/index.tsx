@@ -5,6 +5,7 @@ import KnowledgeTopicController from '@/actions/App/Http/Controllers/Knowledge/K
 import { PageHeader } from '@/components/cc/page-header';
 import { TopicFormDialog } from '@/components/knowledge/topic-dialogs';
 import { Button } from '@/components/ui/button';
+import { sourcesLabel } from '@/components/knowledge/labels';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { knowledge } from '@/routes';
@@ -123,9 +124,10 @@ export default function TopicTreePage({ topics, maxDepth, canManage }: Props) {
                                         )}
                                     </div>
                                     <span className="cc-caption shrink-0">
-                                        {t(':count sources', {
-                                            count: topic.sourcesCount ?? 0,
-                                        })}
+                                        {sourcesLabel(
+                                            t,
+                                            topic.sourcesCount ?? 0,
+                                        )}
                                     </span>
                                     {topic.isNew ? (
                                         canManage ? (

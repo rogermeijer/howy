@@ -26,6 +26,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { sourcesLabel } from '@/components/knowledge/labels';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { knowledge } from '@/routes';
@@ -228,9 +229,7 @@ export default function TopicPage({
                                 key={child.id}
                                 topic={child}
                                 href={topicRoutes.show(child.id)}
-                                meta={t(':count sources', {
-                                    count: child.sourcesCount ?? 0,
-                                })}
+                                meta={sourcesLabel(t, child.sourcesCount ?? 0)}
                             />
                         ))}
                     </div>

@@ -26,12 +26,7 @@ export function StatusPipeline({ status, error, className }: Props) {
         return (
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <span
-                        className={cn(
-                            'inline-flex items-center gap-1.5 rounded-full bg-cc-action-bg px-2.5 py-1 text-[12px] font-semibold text-cc-action-fg',
-                            className,
-                        )}
-                    >
+                    <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-cc-action-bg px-2.5 py-1 text-[12px] font-semibold text-cc-action-fg">
                         <AlertCircle className="size-3.5" />
                         {t(statusLabels.failed)}
                     </span>
@@ -47,12 +42,7 @@ export function StatusPipeline({ status, error, className }: Props) {
 
     if (status === 'ready') {
         return (
-            <span
-                className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full bg-cc-decision-bg px-2.5 py-1 text-[12px] font-semibold text-cc-decision-fg',
-                    className,
-                )}
-            >
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-cc-decision-bg px-2.5 py-1 text-[12px] font-semibold text-cc-decision-fg">
                 <Check className="size-3.5" strokeWidth={2.5} />
                 {t(statusLabels.ready)}
             </span>
