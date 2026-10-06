@@ -7,7 +7,9 @@ import { HowyName, WithHowy } from '@/components/brand/howy-name';
 import { type InterpretationKind, Tag } from '@/components/cc/tag';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { useFormatDate } from '@/hooks/use-format-date';
+import { useScrolled } from '@/hooks/use-scrolled';
 import { useTranslations } from '@/hooks/use-translations';
+import { cn } from '@/lib/utils';
 import { dashboard, login, register } from '@/routes';
 import type { Auth } from '@/types';
 
@@ -28,23 +30,33 @@ const steps: { title: string; desc: string }[] = [
     },
 ];
 
-const interpretations: { kind: InterpretationKind; desc: string }[] = [
+const interpretations: {
+    kind: InterpretationKind;
+    label: string;
+    desc: string;
+}[] = [
     {
         kind: 'question',
-        desc: 'Howy looks up the answer and replies to the whole thread.',
+        label: 'Assists',
+        desc: 'Howy knows your organization and helps everyone on the thread when you put Howy in CC.',
     },
     {
         kind: 'decision',
-        desc: 'Howy records what was decided, by whom and when.',
+        label: 'Answers',
+        desc: 'When the question is addressed to Howy directly, Howy replies in the thread.',
     },
-    { kind: 'action', desc: 'Howy notes who is going to do what.' },
     {
         kind: 'knowledge',
-        desc: 'Howy puts it in the knowledge base, with a link to the thread.',
+        desc: 'Howy keeps an eye out for new knowledge, confirms it, and stores it for future use.',
+    },
+    {
+        kind: 'action',
+        label: 'Warning',
+        desc: 'Howy warns when something contradicts what the team already knows.',
     },
     {
         kind: 'noise',
-        desc: 'Howy simply leaves thank-yous and "great!" alone.',
+        desc: 'Howy stays quiet when it is none of its business, or when it is not sure enough to help.',
     },
 ];
 
@@ -153,6 +165,7 @@ export default function Welcome() {
     const { auth } = usePage<{ auth: Auth }>().props;
     const t = useTranslations();
     const formatDate = useFormatDate();
+    const scrolled = useScrolled();
 
     const sourceDate = formatDate('2026-03-14T12:00:00Z', {
         dateStyle: undefined,
@@ -166,12 +179,23 @@ export default function Welcome() {
 
             <div className="min-h-screen bg-cc-bg text-base leading-[1.55] text-cc-ink antialiased">
                 {/* Nav */}
-                <header className="border-b border-cc-border bg-cc-bg px-4 py-[18px] lg:px-12">
+                {/* Sticky: once the page scrolls it tightens, frosts and lifts. */}
+                <header
+                    className={cn(
+                        'sticky top-0 z-40 border-b px-4 transition-[background-color,border-color,box-shadow,padding] duration-300 ease-out motion-reduce:transition-none lg:px-12',
+                        scrolled
+                            ? 'border-cc-border bg-cc-bg/85 py-2.5 shadow-[0_10px_30px_-22px_rgba(23,20,15,0.45)] backdrop-blur-md'
+                            : 'border-transparent bg-cc-bg py-[18px]',
+                    )}
+                >
                     <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-6">
                         <a
                             href="#top"
                             aria-label={t('Howy, back to top')}
-                            className="no-underline"
+                            className={cn(
+                                'block origin-left no-underline transition-transform duration-300 ease-out motion-reduce:transition-none',
+                                scrolled && 'scale-90',
+                            )}
                         >
                             <HowyLogo size={25} />
                         </a>
@@ -219,14 +243,14 @@ export default function Welcome() {
                 {/* Hero */}
                 <section
                     id="top"
-                    className="px-4 pt-14 pb-20 lg:px-12 lg:pt-[88px] lg:pb-24"
+                    className="scroll-mt-20 px-4 pt-14 pb-20 lg:px-12 lg:pt-[88px] lg:pb-24"
                 >
                     <div className="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-14 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-[72px]">
                         <div className="flex flex-col gap-7">
                             <div className="inline-flex items-center gap-2.5 self-start rounded-full border border-cc-border bg-cc-panel py-1.5 pr-3.5 pl-1.5 text-[13px] font-medium text-cc-muted">
                                 <HowyAvatar size={22} />
                                 {t(
-                                    'Your new colleague for everything that goes through email',
+                                    'Your new colleague that remembers everything',
                                 )}
                             </div>
                             <h1 className="m-0 text-[46px] leading-[1.02] font-semibold tracking-[-0.035em] lg:text-[72px]">
@@ -390,7 +414,7 @@ export default function Welcome() {
                 {/* How it works */}
                 <section
                     id="how"
-                    className="border-y border-cc-border bg-cc-panel px-4 py-20 lg:px-12 lg:py-24"
+                    className="scroll-mt-20 border-y border-cc-border bg-cc-panel px-4 py-20 lg:px-12 lg:py-24"
                 >
                     <div className="mx-auto flex max-w-[1200px] flex-col gap-12">
                         <div className="flex max-w-[680px] flex-col gap-3">
@@ -446,19 +470,20 @@ export default function Welcome() {
                             <p className="m-0 text-[17px] text-cc-muted">
                                 <WithHowy
                                     text={t(
-                                        'Not every email is knowledge. Howy recognises a question, a decision or an action, and simply leaves the rest alone.',
+                                        'Not every email is knowledge. Howy assists, answers, captures knowledge, warns — and leaves the rest alone.',
                                     )}
                                 />
                             </p>
                         </div>
                         <ul className="m-0 flex list-none flex-col overflow-hidden rounded-[20px] border border-cc-border bg-cc-panel p-0">
-                            {interpretations.map(({ kind, desc }) => (
+                            {interpretations.map(({ kind, label, desc }) => (
                                 <li
                                     key={kind}
                                     className="grid grid-cols-1 items-center gap-2 border-b border-cc-border px-6 py-5 last:border-b-0 sm:grid-cols-[120px_minmax(0,1fr)] sm:gap-5"
                                 >
                                     <Tag
                                         kind={kind}
+                                        label={t(label)}
                                         className="justify-self-start"
                                     />
                                     <div
@@ -479,7 +504,7 @@ export default function Welcome() {
                 {/* Discretion */}
                 <section
                     id="discreet"
-                    className="px-4 pb-20 lg:px-12 lg:pb-[104px]"
+                    className="scroll-mt-20 px-4 pb-20 lg:px-12 lg:pb-[104px]"
                 >
                     <div className="mx-auto flex max-w-[1200px] flex-col gap-10">
                         <h2 className={`${h2Class} max-w-[720px]`}>
