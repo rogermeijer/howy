@@ -1,7 +1,7 @@
 import { CircleHelp } from 'lucide-react';
+import { HowyAvatar } from '@/components/brand/howy-avatar';
+import { WithHowy } from '@/components/brand/howy-name';
 import { Tag } from '@/components/cc/tag';
-import { WithCcLogo } from '@/components/cc/with-cc-logo';
-import { CcLogoInline } from '@/components/cc-logo';
 import {
     EmailSourceChip,
     SourceChip,
@@ -13,7 +13,7 @@ import type { Interpretation } from '@/types';
 export const replyAnchor = (messageId: number) => `reply-${messageId}`;
 
 /**
- * Whether a message has a reply from cc: worth showing in the thread.
+ * Whether a message has a reply from Howy worth showing in the thread.
  */
 export function hasCcReply(interpretation: Interpretation | null): boolean {
     if (interpretation === null) {
@@ -33,7 +33,7 @@ export function hasCcReply(interpretation: Interpretation | null): boolean {
 }
 
 /**
- * The reply cc: wrote to a message, shown in the thread itself, above the
+ * The reply Howy wrote to a message, shown in the thread itself, above the
  * message it answers: an answer to the sender, or, when the mailbox was only
  * copied, a suggestion to the people who were asked. Gmail files a sent reply
  * under Sent, not the inbox, so it never arrives as a message of its own; this
@@ -58,10 +58,10 @@ export function CcReply({
 
     const title =
         outcome === 'suggested'
-            ? t('Suggestion from [cc]:')
+            ? t('Suggestion from Howy')
             : unsure
-              ? t('Answer [cc]: did not suggest')
-              : t('Reply from [cc]:');
+              ? t('Answer Howy did not suggest')
+              : t('Reply from Howy');
     const caption =
         outcome === 'suggested'
             ? t('Only to :recipients, not to the sender', { recipients })
@@ -89,12 +89,10 @@ export function CcReply({
                 className={`flex flex-col gap-3.5 border-l-[3px] px-7 py-5 ${unsure ? 'border-cc-border-strong' : 'border-cc-accent'}`}
             >
                 <div className="flex flex-wrap items-center gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-cc-dark text-[13px] text-cc-bg">
-                        <CcLogoInline />
-                    </span>
+                    <HowyAvatar size={40} />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="text-[15px] font-semibold">
-                            <WithCcLogo text={title} />
+                            <WithHowy text={title} />
                         </span>
                         <span className="cc-caption">{caption}</span>
                     </span>

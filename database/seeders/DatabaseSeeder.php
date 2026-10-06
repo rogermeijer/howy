@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
             'is_admin' => true,
         ]);
 
-        $cc = $createAccount->handle($roger, 'cc:', 'nl', 'Europe/Amsterdam');
+        $cc = $createAccount->handle($roger, 'Howy', 'nl', 'Europe/Amsterdam');
 
         $devkids = User::factory()->create([
             'name' => 'Roger Meijer',

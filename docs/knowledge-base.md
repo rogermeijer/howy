@@ -120,9 +120,9 @@ citations, every statement with its verdict, and the reply. The inbox shows the 
 page shows the whole interpretation.
 
 **Replies** are designed HTML (`resources/views/mail/cc/`, composed by `ReplyComposer`) with the same message as
-plain text, which is also what the thread page shows. The `[cc]:` wordmark is embedded as an inline image
-(`resources/images/mail/cc-logo@3x.png`, Idiqlat rendered at 3×, shown at 56×30), since mail clients load no web
-fonts; re-render it with headless Chrome if the wordmark changes. They go out in the Gmail thread (`GmailClient::sendMessage`, `In-Reply-To`/`References`,
+plain text, which is also what the thread page shows. The Howy wordmark is embedded as an inline image
+(`resources/images/mail/howy-logo@3x.png`, Yeseva One rendered at 3×, shown at 76×36), since mail clients load no web
+fonts; re-render it (ImageMagick with the Yeseva One font, plus the underline from `components/brand/brand.ts`) if the wordmark changes. They go out in the Gmail thread (`GmailClient::sendMessage`, `In-Reply-To`/`References`,
 `Auto-Submitted: auto-replied`) from the mailbox, in the mail's language when we ship it. Each mailbox has a
 send policy, set under _Settings → Mailboxes → Reply settings_:
 
@@ -151,7 +151,7 @@ links is split. AI-made folders are `review_status = new` until approved. Anythi
 ## Running it
 
 **Local (macOS):** `brew install postgresql@18 pgvector poppler pandoc qpdf redis`, create the `cc` and
-`cc_testing` databases, set `QUEUE_CONNECTION=redis` and the `KNOWLEDGE_*` binary paths if your PHP processes
+`howy_testing` databases, set `QUEUE_CONNECTION=redis` and the `KNOWLEDGE_*` binary paths if your PHP processes
 do not see `/opt/homebrew/bin`. `composer dev` starts Horizon, which works the `default` and `knowledge` queues.
 
 **Server (Ubuntu, Forge-like):**

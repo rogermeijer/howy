@@ -27,7 +27,7 @@ use Tests\Concerns\FakesKnowledgeAi;
 use Tests\TestCase;
 
 /**
- * The mailbox only copied: cc: listens. It never writes to the sender, may
+ * The mailbox only copied: Howy listens. It never writes to the sender, may
  * suggest an answer to whoever was asked, and files what they answer.
  */
 class CopiedMailTest extends TestCase

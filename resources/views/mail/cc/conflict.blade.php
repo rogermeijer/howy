@@ -39,7 +39,7 @@
 
 <div style="margin: 0 0 24px;">
 @include('mail.cc.partials.label', ['text' => __('What now')])
-<div style="font-size: 15px; line-height: 1.6; color: #17140f;">{{ __('Your change is ready for approval in cc:. If it is approved, it replaces what the knowledge base says now. Until then, the current version stands.') }}</div>
+<div style="font-size: 15px; line-height: 1.6; color: #17140f;">{{ __('Your change is ready for approval in Howy. If it is approved, it replaces what the knowledge base says now. Until then, the current version stands.') }}</div>
 </div>
 
 @foreach ($added as $statement)

@@ -8,16 +8,16 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * cc: design system
- * Warm ivory ground, ink text, one pink accent. Instrument Sans for UI,
- * Idiqlat for the wordmark only.
+ * Howy design system
+ * Warm ivory ground, ink text, one pink accent. Source Sans 3 for UI,
+ * Yeseva One for the name only (components/brand).
  */
 @theme {
     --font-sans:
-        'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Source Sans 3', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
-    --font-serif: 'Idiqlat', serif;
+    --font-logo: 'Yeseva One', Georgia, serif;
 
     /* Ground and ink */
     --color-cc-bg: #f8f6f1;

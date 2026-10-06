@@ -11,10 +11,6 @@
             }
         </style>
 
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Idiqlat:wght@200;300;400&display=swap" rel="stylesheet">
-
         <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="icon" href="/favicon-96x96.png" type="image/png" sizes="96x96">

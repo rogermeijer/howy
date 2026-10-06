@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { ArrowRight, Mail } from 'lucide-react';
-import { WithCcLogo } from '@/components/cc/with-cc-logo';
+import { WithHowy } from '@/components/brand/howy-name';
 import { useTranslations } from '@/hooks/use-translations';
 import { settings } from '@/routes';
 
@@ -29,11 +29,11 @@ export function MailboxBanner({ canManage }: Props) {
                     {t('Connect a support or knowledge mailbox')}
                 </h2>
                 <p className="max-w-[700px] text-[14px] leading-[1.55] text-cc-dark-text">
-                    <WithCcLogo
+                    <WithHowy
                         text={
                             canManage
                                 ? t(
-                                      'Connect a shared Gmail mailbox, such as support@ or knowledge@. [cc]: processes every email that arrives there, and you can import existing emails.',
+                                      'Connect a shared Gmail mailbox, such as support@ or knowledge@. Howy processes every email that arrives there, and you can import existing emails.',
                                   )
                                 : t(
                                       'Ask an administrator of this account to connect a shared mailbox, such as support@ or knowledge@.',

@@ -25,7 +25,7 @@ class MailboxController extends Controller
     }
 
     /**
-     * Who cc: may reply to from this mailbox.
+     * Who Howy may reply to from this mailbox.
      */
     public function updateSendPolicy(MailboxSendPolicyRequest $request, Mailbox $mailbox): RedirectResponse
     {

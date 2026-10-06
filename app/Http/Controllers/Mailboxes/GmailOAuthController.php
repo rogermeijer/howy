@@ -20,7 +20,7 @@ class GmailOAuthController extends Controller
     /**
      * Read mail, and send it once sending is switched on. Asked for together so
      * a mailbox never has to be reconnected when sending ships. Never
-     * gmail.modify: cc: does not change or delete anything in the mailbox.
+     * gmail.modify: Howy does not change or delete anything in the mailbox.
      *
      * @var list<string>
      */
@@ -74,7 +74,7 @@ class GmailOAuthController extends Controller
 
         // Google lets people untick individual permissions on the consent screen.
         if (! in_array(self::READ_SCOPE, $google->approvedScopes, true)) {
-            return $this->fail(__('[cc]: needs permission to read mail. Connect again and allow it.'));
+            return $this->fail(__('Howy needs permission to read mail. Connect again and allow it.'));
         }
 
         $mailbox = $connector->connect($google, $request->user());

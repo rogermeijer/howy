@@ -26,13 +26,13 @@
 </div>
 
 @if ($gaps)
-@include('mail.cc.partials.gaps', ['gaps' => $gaps, 'invite' => __('Do you know? Put it in your answer to :name and keep cc: in CC, so the knowledge base learns it right away.', ['name' => $asker])])
+@include('mail.cc.partials.gaps', ['gaps' => $gaps, 'invite' => __('Do you know? Put it in your answer to :name and keep Howy in CC, so the knowledge base learns it right away.', ['name' => $asker])])
 @endif
 
 @include('mail.cc.partials.sources', ['sources' => $sources])
 @endsection
 
 @section('footer')
-<div>{{ __(':name does not see this suggestion. cc: only sends it to whoever was asked.', ['name' => $asker]) }}</div>
+<div>{{ __(':name does not see this suggestion. Howy only sends it to whoever was asked.', ['name' => $asker]) }}</div>
 <div style="margin-top: 6px;">{{ __('Confidence: :percent%', ['percent' => $confidence]) }}</div>
 @endsection

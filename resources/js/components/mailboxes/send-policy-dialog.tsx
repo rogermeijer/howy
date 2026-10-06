@@ -1,7 +1,7 @@
 import { Form } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import MailboxController from '@/actions/App/Http/Controllers/Mailboxes/MailboxController';
-import { WithCcLogo } from '@/components/cc/with-cc-logo';
+import { WithHowy } from '@/components/brand/howy-name';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,7 +34,7 @@ const fieldClass =
     'rounded-[10px] border-[1.5px] border-cc-border-strong bg-cc-panel';
 
 /**
- * Who cc: may reply to from one mailbox. The list shown follows the policy:
+ * Who Howy may reply to from one mailbox. The list shown follows the policy:
  * the whitelist for "Whitelist", the blacklist for "Same domain" and "Always".
  * The list that is not shown still travels along, so switching policies never
  * throws a list away.
@@ -55,7 +55,7 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
 
     const domain = mailbox?.domain ?? '';
     const help: Record<SendPolicy, string> = {
-        off: t('[cc]: never replies from this mailbox.'),
+        off: t('Howy never replies from this mailbox.'),
         domain: t('Only addresses at @:domain get a reply.', { domain }),
         whitelist: t('Only the addresses and domains below get a reply.'),
         always: t('Everyone who writes to this mailbox gets a reply.'),
@@ -120,7 +120,7 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
                                         </SelectContent>
                                     </Select>
                                     <p className="cc-caption">
-                                        <WithCcLogo text={help[policy]} />
+                                        <WithHowy text={help[policy]} />
                                     </p>
                                     <InputError message={errors.send_policy} />
                                 </div>

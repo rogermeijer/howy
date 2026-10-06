@@ -55,7 +55,7 @@ jobs:
           node-version: '22'
 
       - name: Create test database
-        run: psql -h 127.0.0.1 -U postgres -c 'CREATE DATABASE cc_testing'
+        run: psql -h 127.0.0.1 -U postgres -c 'CREATE DATABASE howy_testing'
         env:
           PGPASSWORD: postgres
 

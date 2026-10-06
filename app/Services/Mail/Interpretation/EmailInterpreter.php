@@ -31,7 +31,7 @@ use Illuminate\Support\Str;
  * against the facts already known: new ones are added as facts sourced from
  * the mail, known ones are skipped, and contradicting ones are held.
  *
- * Written to the mailbox, cc: answers the sender and explains a conflict.
+ * Written to the mailbox, Howy answers the sender and explains a conflict.
  * Only copied, it never writes to the sender: it suggests an answer to the
  * people who were asked, when it is sure enough, and files what they answer.
  * Every step is written to the interpretation, so the mail always shows how
@@ -157,7 +157,7 @@ class EmailInterpreter
             $interpretation->outcome = InterpretationOutcome::NotFound;
             $interpretation->save();
 
-            // Copied, cc: only speaks up when it has something to offer.
+            // Copied, Howy only speaks up when it has something to offer.
             if (! $copied) {
                 $this->replier->reply($interpretation, $email, $this->composer->notFound($question, $locale));
             }
@@ -290,7 +290,7 @@ class EmailInterpreter
         };
         $interpretation->save();
 
-        // Copied, cc: never writes to the sender: the conflict is only flagged.
+        // Copied, Howy never writes to the sender: the conflict is only flagged.
         if ($interpretation->outcome === InterpretationOutcome::Conflict && $interpretation->mode === InterpretationMode::Addressed) {
             $this->replier->reply($interpretation, $email, $this->composer->conflict($judged, $this->conflictSources($judged), $locale));
         }
@@ -427,7 +427,7 @@ class EmailInterpreter
 
     /**
      * The message a mail replies to, as context: the stored message it names
-     * in In-Reply-To, else the text it quotes. When cc: told the thread what
+     * in In-Reply-To, else the text it quotes. When Howy told the thread what
      * the knowledge base does not know, that comes along: a reply that fills
      * the gap is exactly what should be learned.
      */
@@ -452,7 +452,7 @@ class EmailInterpreter
 
     /**
      * What the knowledge base was last found to be missing in this thread,
-     * for a reply to a message that is not stored (cc:'s own suggestion).
+     * for a reply to a message that is not stored (Howy's own suggestion).
      */
     private function threadGaps(Email $email): ?string
     {

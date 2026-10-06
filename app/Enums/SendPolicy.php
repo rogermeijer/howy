@@ -3,7 +3,7 @@
 namespace App\Enums;
 
 /**
- * Whether cc: may reply from a mailbox, and to whom. Set per mailbox, because
+ * Whether Howy may reply from a mailbox, and to whom. Set per mailbox, because
  * the mailbox's own address is what "the same domain" means.
  */
 enum SendPolicy: string

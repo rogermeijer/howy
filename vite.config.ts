@@ -34,8 +34,11 @@ export default defineConfig(({ mode }) => {
                 input: ['resources/css/app.css', 'resources/js/app.tsx'],
                 refresh: true,
                 fonts: [
-                    bunny('Instrument Sans', {
-                        weights: [400, 500, 600],
+                    bunny('Source Sans 3', {
+                        weights: [400, 500, 600, 700],
+                    }),
+                    bunny('Yeseva One', {
+                        weights: [400],
                     }),
                 ],
             }),

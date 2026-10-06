@@ -9,7 +9,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Traits\Localizable;
 
 /**
- * The replies cc: sends, as HTML (resources/views/mail/cc) and as plain text.
+ * The replies Howy sends, as HTML (resources/views/mail/cc) and as plain text.
  * The model writes the answer or the explanation of a conflict; the framing
  * around it is ours, in the mail's language when we ship that language, else
  * the account's.
@@ -24,9 +24,9 @@ class ReplyComposer
     /**
      * The wordmark, embedded in every mail: mail clients load no web fonts and
      * show no SVG, and an embedded image shows even where remote images are
-     * blocked. Rendered at 3× from Idiqlat; shown at 56×30.
+     * blocked. Rendered at 3× from Yeseva One; shown at 76×36.
      */
-    private const string LOGO = 'cc-logo.png';
+    private const string LOGO = 'howy-logo.png';
 
     /**
      * An answer to the sender, from the knowledge base.
@@ -107,7 +107,7 @@ class ReplyComposer
             '',
             $this->line(__('You asked: ":question"', ['question' => trim($question)])),
             '',
-            $this->line(__('Your question is saved with this email, so someone can pick it up. Once the answer is in the knowledge base, cc: knows it next time.')),
+            $this->line(__('Your question is saved with this email, so someone can pick it up. Once the answer is in the knowledge base, Howy knows it next time.')),
         ], ['question' => trim($question)]));
     }
 
@@ -159,7 +159,7 @@ class ReplyComposer
             }
 
             $lines[] = '';
-            $lines[] = $this->line(__('Your change is ready for approval in cc:. If it is approved, it replaces what the knowledge base says now. Until then, the current version stands.'));
+            $lines[] = $this->line(__('Your change is ready for approval in Howy. If it is approved, it replaces what the knowledge base says now. Until then, the current version stands.'));
 
             foreach ($added as $statement) {
                 $lines[] = $this->line(__('Added: :statement', ['statement' => $statement['statement']]));
@@ -189,10 +189,10 @@ class ReplyComposer
      */
     private function compose(string $view, array $lines, array $data): ComposedReply
     {
-        $text = implode("\n", [...$lines, '', '-- ', $this->line(__('cc: knowledge base'))])."\n";
+        $text = implode("\n", [...$lines, '', '-- ', $this->line(__('Howy knowledge base'))])."\n";
 
         return new ComposedReply($text, view($view, ['logo' => 'cid:'.self::LOGO, ...$data])->render(), [
-            self::LOGO => resource_path('images/mail/cc-logo@3x.png'),
+            self::LOGO => resource_path('images/mail/howy-logo@3x.png'),
         ]);
     }
 

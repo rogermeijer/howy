@@ -378,7 +378,7 @@ via `t()`, met de Nederlandse vertaling in `lang/nl.json`. De demodata in `knowl
 ## 8. Kwaliteit en meten
 
 - **Postgres in de tests:**
-    - `phpunit.xml` wordt pgsql met een `cc_testing`-database.
+    - `phpunit.xml` wordt pgsql met een `howy_testing`-database.
     - CI krijgt de service `pgvector/pgvector:pg18`.
     - De guard-tests (`TenantSchemaGuardTest`, `WithoutTenancyGuardTest`) moeten groen blijven.
 - **Unit tests:**

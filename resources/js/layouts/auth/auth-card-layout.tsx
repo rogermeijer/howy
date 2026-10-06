@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
-import { CcLogo } from '@/components/cc-logo';
+import { HowyLogo } from '@/components/brand/howy-logo';
 import {
     Card,
     CardContent,
@@ -23,7 +23,7 @@ export default function AuthCardLayout({
         <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
             <div className="flex w-full max-w-md flex-col gap-6">
                 <Link href={home()} className="self-center">
-                    <CcLogo size={30} />
+                    <HowyLogo size={30} />
                 </Link>
 
                 <div className="flex flex-col gap-6">

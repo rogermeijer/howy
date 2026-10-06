@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * How cc: read one mail to a mailbox, and what it did about it: answered a
+ * How Howy read one mail to a mailbox, and what it did about it: answered a
  * question (or suggested an answer to whoever was asked), added what was new,
  * held what contradicts the knowledge base, and whether a reply went out.
  * Whatever it would add or change waits for someone to review it

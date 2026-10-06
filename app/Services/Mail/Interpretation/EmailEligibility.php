@@ -8,10 +8,10 @@ use App\Models\Email;
 use App\Models\Mailbox;
 
 /**
- * Whether cc: should interpret a mail, and in which role: one that arrived
+ * Whether Howy should interpret a mail, and in which role: one that arrived
  * live, written by a person rather than a machine, and not by the mailbox (its
- * own replies must never loop). Written to the mailbox, cc: answers; only
- * copied on it, cc: listens.
+ * own replies must never loop). Written to the mailbox, Howy answers; only
+ * copied on it, Howy listens.
  */
 class EmailEligibility
 {
@@ -29,7 +29,7 @@ class EmailEligibility
     }
 
     /**
-     * The role cc: takes in a mail, whether or not it is interpreted on its
+     * The role Howy takes in a mail, whether or not it is interpreted on its
      * own: answering when the mailbox is in To, listening otherwise.
      */
     public function role(Email $email, ?Mailbox $mailbox): InterpretationMode

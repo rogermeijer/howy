@@ -102,7 +102,7 @@ class Mailbox extends Model
     }
 
     /**
-     * Whether the send policy lets cc: reply to this address from here.
+     * Whether the send policy lets Howy reply to this address from here.
      */
     public function maySendTo(string $address): bool
     {
