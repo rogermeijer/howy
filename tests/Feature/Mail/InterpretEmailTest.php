@@ -148,7 +148,8 @@ class InterpretEmailTest extends TestCase
                 && str_contains($raw, 'In-Reply-To: <original@mail.gmail.com>')
                 && str_contains($raw, 'To: tom@haarlem.nl')
                 && str_contains($raw, 'Subject: Re: Vakantiedagen')
-                && str_contains($raw, 'Je hebt recht op 25 vakantiedagen per jaar.')
+                // Quoted-printable may wrap anywhere, so read the text decoded.
+                && str_contains(quoted_printable_decode($raw), 'Je hebt recht op 25 vakantiedagen per jaar.')
                 && str_contains($raw, 'Bronnen:')
                 // The designed HTML goes along with the plain text.
                 && str_contains($raw, 'Content-Type: text/html')
@@ -156,7 +157,7 @@ class InterpretEmailTest extends TestCase
                 && str_contains($raw, 'Je vroeg')
                 // The wordmark rides along as an inline image, referenced by cid.
                 && str_contains($raw, 'Content-Type: multipart/related')
-                && preg_match('/Content-Type: image\/png; name=cc-logo\.png.*?Content-Disposition: inline/s', $raw) === 1
+                && preg_match('/Content-Type: image\/png; name=howy-logo\.png.*?Content-Disposition: inline/s', $raw) === 1
                 && preg_match('/<img src=3D"cid:[^"]+@symfony"|<img src="cid:[^"]+@symfony"/', $raw) === 1;
         });
 

@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { FileText, FolderOpen, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/cc/page-header';
-import { WithCcLogo } from '@/components/cc/with-cc-logo';
+import { WithHowy } from '@/components/brand/howy-name';
 import { DocumentTypeBadge } from '@/components/knowledge/document-type-badge';
 import { StatusPipeline } from '@/components/knowledge/status-pipeline';
 import { TopicFolderCard } from '@/components/knowledge/topic-folder-card';
@@ -71,9 +71,9 @@ export default function Knowledge({
                 {canManage && newTopicsCount > 0 && (
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-cc-accent-tint/60 px-5 py-4">
                         <p className="text-[14px]">
-                            <WithCcLogo
+                            <WithHowy
                                 text={t(
-                                    '[cc]: proposed :count new folders. Look them over and approve, rename or merge them.',
+                                    'Howy proposed :count new folders. Look them over and approve, rename or merge them.',
                                     { count: newTopicsCount },
                                 )}
                             />
@@ -107,9 +107,9 @@ export default function Knowledge({
                             <FolderOpen className="size-5" strokeWidth={1.8} />
                         </div>
                         <p className="cc-caption">
-                            <WithCcLogo
+                            <WithHowy
                                 text={t(
-                                    'Folders appear here once documents are processed: [cc]: proposes a structure of topics, which an administrator can rename, merge and nest.',
+                                    'Folders appear here once documents are processed: Howy proposes a structure of topics, which an administrator can rename, merge and nest.',
                                 )}
                             />
                         </p>

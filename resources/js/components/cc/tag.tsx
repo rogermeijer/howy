@@ -25,7 +25,7 @@ const styles: Record<InterpretationKind, string> = {
 export const interpretationLabels: Record<InterpretationKind, string> = {
     question: 'Question',
     decision: 'Decision',
-    action: 'Action',
+    action: 'Warning',
     knowledge: 'Knowledge',
     noise: 'Noise',
     pending: 'To confirm',

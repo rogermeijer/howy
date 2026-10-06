@@ -13,7 +13,8 @@ import {
 import type { ReactNode } from 'react';
 import type { InterpretationKind } from '@/components/cc/tag';
 import { Tag } from '@/components/cc/tag';
-import { WithCcLogo } from '@/components/cc/with-cc-logo';
+import { HowyAvatar } from '@/components/brand/howy-avatar';
+import { WithHowy } from '@/components/brand/howy-name';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
@@ -52,7 +53,7 @@ const verdictLabels: Record<InterpretedStatement['verdict'], string> = {
 };
 
 /**
- * How cc: read a mail and what followed: the dark side panel of a thread.
+ * How Howy read a mail and what followed: the dark side panel of a thread.
  */
 export function InterpretationPanel({
     interpretation,
@@ -82,13 +83,16 @@ export function InterpretationPanel({
 
     return (
         <aside className="cc-panel-dark flex flex-col gap-5 p-7">
-            <div className="flex flex-col gap-1">
-                <div className="cc-label text-cc-faint">
-                    {t('Interpretation')}
+            <div className="flex items-center gap-3">
+                <HowyAvatar size={36} />
+                <div className="flex flex-col gap-1">
+                    <div className="cc-label text-cc-faint">
+                        {t('Interpretation')}
+                    </div>
+                    {about && (
+                        <div className="text-[12px] text-cc-faint">{about}</div>
+                    )}
                 </div>
-                {about && (
-                    <div className="text-[12px] text-cc-faint">{about}</div>
-                )}
             </div>
 
             <InterpretationTag
@@ -98,9 +102,9 @@ export function InterpretationPanel({
 
             {interpretation === null ? (
                 <Note>
-                    <WithCcLogo
+                    <WithHowy
                         text={t(
-                            '[cc]: interprets mail sent to the mailbox or copied to it. This message was imported, sent by the mailbox itself or sent automatically, so it is stored but not interpreted.',
+                            'Howy interprets mail sent to the mailbox or copied to it. This message was imported, sent by the mailbox itself or sent automatically, so it is stored but not interpreted.',
                         )}
                     />
                 </Note>
@@ -113,9 +117,9 @@ export function InterpretationPanel({
                     {(interpretation.status === 'queued' ||
                         interpretation.status === 'processing') && (
                         <Note>
-                            <WithCcLogo
+                            <WithHowy
                                 text={t(
-                                    '[cc]: is reading this email. The outcome will appear here.',
+                                    'Howy is reading this email. The outcome will appear here.',
                                 )}
                             />
                         </Note>

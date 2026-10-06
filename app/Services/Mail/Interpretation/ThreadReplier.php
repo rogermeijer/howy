@@ -26,7 +26,7 @@ class ThreadReplier
 
     /**
      * Answer the sender (Reply-To when set, else From), with everyone else
-     * the mail was addressed or copied to in CC, so they see cc: has it.
+     * the mail was addressed or copied to in CC, so they see Howy has it.
      */
     public function reply(EmailInterpretation $interpretation, Email $email, ComposedReply $body): void
     {
@@ -37,7 +37,7 @@ class ThreadReplier
 
     /**
      * Suggest an answer to the people a question was put to, and to no one
-     * else: the sender never hears from cc: when the mailbox is only copied.
+     * else: the sender never hears from Howy when the mailbox is only copied.
      */
     public function suggest(EmailInterpretation $interpretation, Email $email, ComposedReply $body): void
     {
@@ -166,7 +166,7 @@ class ThreadReplier
             $message->getHeaders()->addIdHeader('References', $this->ids($references));
         }
 
-        // Tells other systems (and cc: itself) not to answer this automatically.
+        // Tells other systems (and Howy itself) not to answer this automatically.
         $message->getHeaders()->addTextHeader('Auto-Submitted', 'auto-replied');
 
         return $message->toString();

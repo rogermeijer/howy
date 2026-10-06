@@ -2,7 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { Bell, Search } from 'lucide-react';
 import { useTranslations } from '@/hooks/use-translations';
 import type { PropsWithChildren } from 'react';
-import { CcLogo } from '@/components/cc-logo';
+import { HowyLogo } from '@/components/brand/howy-logo';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -48,10 +48,10 @@ function TopBar() {
         <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-cc-border bg-cc-bg px-4 lg:gap-9 lg:px-10">
             <Link
                 href={inbox()}
-                aria-label={t('cc: home')}
+                aria-label={t('Howy home')}
                 className="shrink-0"
             >
-                <CcLogo size={24} />
+                <HowyLogo size={24} />
             </Link>
 
             <nav

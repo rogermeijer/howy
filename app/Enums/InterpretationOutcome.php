@@ -13,7 +13,7 @@ enum InterpretationOutcome: string
     /** A question the knowledge base has no answer to. */
     case NotFound = 'not_found';
 
-    /** A question to someone else; cc: suggested an answer to them. */
+    /** A question to someone else; Howy suggested an answer to them. */
     case Suggested = 'suggested';
 
     /** A question to someone else; the answer found was not sure enough to suggest. */

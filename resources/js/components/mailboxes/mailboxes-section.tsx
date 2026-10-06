@@ -13,7 +13,7 @@ import {
 import { useEffect, useState } from 'react';
 import MailboxController from '@/actions/App/Http/Controllers/Mailboxes/MailboxController';
 import { Section } from '@/components/cc/section';
-import { WithCcLogo } from '@/components/cc/with-cc-logo';
+import { WithHowy } from '@/components/brand/howy-name';
 import { ConnectMailboxDialog } from '@/components/mailboxes/connect-mailbox-dialog';
 import { DisconnectMailboxDialog } from '@/components/mailboxes/disconnect-mailbox-dialog';
 import { ImportMailboxDialog } from '@/components/mailboxes/import-mailbox-dialog';
@@ -110,9 +110,9 @@ export function MailboxesSection({
                         {t('No mailbox connected yet')}
                     </p>
                     <p className="cc-caption max-w-[400px]">
-                        <WithCcLogo
+                        <WithHowy
                             text={t(
-                                'Connect a shared support or knowledge mailbox, so [cc]: processes every new email automatically.',
+                                'Connect a shared support or knowledge mailbox, so Howy processes every new email automatically.',
                             )}
                         />
                     </p>
@@ -151,9 +151,9 @@ export function MailboxesSection({
             <p className="flex items-center gap-2.5 text-[13px] text-cc-subtle">
                 <ShieldCheck className="size-4 shrink-0" />
                 <span>
-                    <WithCcLogo
+                    <WithHowy
                         text={t(
-                            '[cc]: only replies as the reply settings of a mailbox allow, and never changes or deletes anything in the mailbox.',
+                            'Howy only replies as the reply settings of a mailbox allow, and never changes or deletes anything in the mailbox.',
                         )}
                     />
                 </span>

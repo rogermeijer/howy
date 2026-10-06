@@ -140,5 +140,5 @@ export default function Register({ passwordRules }: Props) {
 
 Register.layout = {
     title: 'Create an account',
-    description: 'Add [cc]: to your next thread and keep knowledge findable.',
+    description: 'Add Howy to your next thread and keep knowledge findable.',
 };

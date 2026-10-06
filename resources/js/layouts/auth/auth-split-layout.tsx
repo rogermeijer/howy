@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { CcLogo } from '@/components/cc-logo';
+import { HowyLogo } from '@/components/brand/howy-logo';
 import { home } from '@/routes';
 import { useTranslations } from '@/hooks/use-translations';
 import type { AuthLayoutProps } from '@/types';
@@ -17,7 +17,7 @@ export default function AuthSplitLayout({
                 style={{ background: '#17140f' }}
             >
                 <Link href={home()} className="relative z-20 flex items-center">
-                    <CcLogo size={30} color="#f8f6f1" />
+                    <HowyLogo size={30} tone="ivory" />
                 </Link>
                 <div className="relative z-20 mt-auto">
                     <blockquote className="space-y-2">
@@ -35,7 +35,7 @@ export default function AuthSplitLayout({
                         href={home()}
                         className="relative z-20 flex items-center justify-center lg:hidden"
                     >
-                        <CcLogo size={28} />
+                        <HowyLogo size={28} />
                     </Link>
                     <div className="flex flex-col items-start gap-2 text-left sm:items-center sm:text-center">
                         <h1 className="text-xl font-semibold tracking-tight">

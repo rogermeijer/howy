@@ -13,7 +13,7 @@ trait MailboxValidationRules
     private const string DOMAIN_PATTERN = '/^@?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/';
 
     /**
-     * Who cc: may reply to from a mailbox. List entries are a full address or
+     * Who Howy may reply to from a mailbox. List entries are a full address or
      * a domain; normalise them with normalizeSendList() before validating.
      *
      * @return array<string, array<int, ValidationRule|array<mixed>|string|Closure>>

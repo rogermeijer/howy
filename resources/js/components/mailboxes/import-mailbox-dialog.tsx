@@ -3,7 +3,7 @@ import { Download, Paperclip, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import MailboxImportController from '@/actions/App/Http/Controllers/Mailboxes/MailboxImportController';
-import { WithCcLogo } from '@/components/cc/with-cc-logo';
+import { WithHowy } from '@/components/brand/howy-name';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -173,9 +173,9 @@ export function ImportMailboxDialog({
                                 {t('Import emails')}
                             </DialogTitle>
                             <DialogDescription className="cc-caption">
-                                <WithCcLogo
+                                <WithHowy
                                     text={t(
-                                        'Search the mailbox and choose which emails [cc]: should process.',
+                                        'Search the mailbox and choose which emails Howy should process.',
                                     )}
                                 />
                             </DialogDescription>

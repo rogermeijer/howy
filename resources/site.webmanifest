@@ -1,7 +1,7 @@
 {
-    "name": "cc:",
-    "short_name": "cc:",
-    "description": "Zet [cc]: in je thread en houd kennis vindbaar.",
+    "name": "Howy",
+    "short_name": "Howy",
+    "description": "Zet Howy in je thread en houd kennis vindbaar.",
     "lang": "nl",
     "start_url": "/",
     "display": "standalone",

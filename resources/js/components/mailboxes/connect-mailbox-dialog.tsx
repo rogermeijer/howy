@@ -8,7 +8,7 @@ import {
     X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { WithCcLogo } from '@/components/cc/with-cc-logo';
+import { WithHowy } from '@/components/brand/howy-name';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -67,9 +67,9 @@ export function ConnectMailboxDialog({ open, onOpenChange }: Props) {
                         {t('Connect mailbox')}
                     </DialogTitle>
                     <DialogDescription className="cc-caption">
-                        <WithCcLogo
+                        <WithHowy
                             text={t(
-                                'Connect a shared mailbox, such as support@ or knowledge@. [cc]: then processes every new email automatically.',
+                                'Connect a shared mailbox, such as support@ or knowledge@. Howy then processes every new email automatically.',
                             )}
                         />
                     </DialogDescription>
@@ -183,9 +183,9 @@ export function ConnectMailboxDialog({ open, onOpenChange }: Props) {
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent className="max-w-[280px] bg-cc-ink px-3.5 py-3 text-[12px] leading-[1.5] text-cc-bg">
-                                    <WithCcLogo
+                                    <WithHowy
                                         text={t(
-                                            'By default [cc]: sends nothing. If you turn sending on, you can limit it to colleagues on your own domain or to a list of allowed addresses.',
+                                            'By default Howy sends nothing. If you turn sending on, you can limit it to colleagues on your own domain or to a list of allowed addresses.',
                                         )}
                                     />
                                 </TooltipContent>

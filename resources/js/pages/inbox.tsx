@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { Copy, Inbox as InboxIcon, Paperclip } from 'lucide-react';
-import { WithCcLogo } from '@/components/cc/with-cc-logo';
+import { WithHowy } from '@/components/brand/howy-name';
 import { PageHeader } from '@/components/cc/page-header';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { MailboxBanner } from '@/components/mailboxes/mailbox-banner';
@@ -96,9 +96,9 @@ export default function Inbox({
                             {t('No emails yet')}
                         </p>
                         <p className="cc-caption max-w-[420px]">
-                            <WithCcLogo
+                            <WithHowy
                                 text={t(
-                                    'As soon as a mailbox is connected or you put [cc]: in CC, your emails show up here with their interpretation.',
+                                    'As soon as a mailbox is connected or you put Howy in CC, your emails show up here with their interpretation.',
                                 )}
                             />
                         </p>

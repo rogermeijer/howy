@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { CcLogo } from '@/components/cc-logo';
+import { HowyLogo } from '@/components/brand/howy-logo';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
@@ -18,7 +18,6 @@ export default function AuthSimpleLayout({
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: '24px',
-                fontFamily: '"Instrument Sans", Helvetica, Arial, sans-serif',
             }}
         >
             <div
@@ -32,7 +31,7 @@ export default function AuthSimpleLayout({
                 }}
             >
                 <Link href={home()}>
-                    <CcLogo size={32} color="#17140f" />
+                    <HowyLogo size={32} />
                 </Link>
 
                 <div
