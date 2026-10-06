@@ -47,6 +47,7 @@ const interpretations: {
     },
     {
         kind: 'knowledge',
+        label: 'Knowledge',
         desc: 'Howy keeps an eye out for new knowledge, confirms it, and stores it for future use.',
     },
     {
@@ -56,6 +57,7 @@ const interpretations: {
     },
     {
         kind: 'noise',
+        label: 'Noise',
         desc: 'Howy stays quiet when it is none of its business, or when it is not sure enough to help.',
     },
 ];
