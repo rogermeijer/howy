@@ -539,8 +539,13 @@ export default function Welcome() {
                     <div className="relative z-10 flex min-w-0 flex-[1_1_500px] flex-col gap-7">
                         <div className="relative">
                             <Burst className="absolute -top-10 -left-2 size-9 sm:-top-[34px] sm:-left-10 sm:size-12" />
-                            <h1 className="m-0 text-[clamp(46px,6.2vw,80px)] leading-none font-extrabold tracking-[-0.045em] lg:whitespace-nowrap">
-                                {t('Your people move on.')}
+                            {/* Only the first line may run on over the photo
+                                column (it sits above the photo); the rest wraps
+                                inside the text column, so it never covers it. */}
+                            <h1 className="m-0 text-[clamp(46px,6.2vw,80px)] leading-none font-extrabold tracking-[-0.045em]">
+                                <span className="lg:whitespace-nowrap">
+                                    {t('Your people move on.')}
+                                </span>
                                 <br />
                                 {withMark(
                                     t('Your knowledge :mark'),
