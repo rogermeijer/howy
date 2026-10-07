@@ -548,7 +548,7 @@ export default function Welcome() {
                                 </span>
                                 <br />
                                 {withMark(
-                                    t('Your knowledge :mark'),
+                                    t('The knowledge :mark'),
                                     <Marker>{t('stays.')}</Marker>,
                                 )}
                             </h1>
