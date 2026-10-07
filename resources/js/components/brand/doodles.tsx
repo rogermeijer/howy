@@ -14,9 +14,12 @@ const markerColor = {
     yellow: 'var(--color-cc-highlight)',
 } as const;
 
+// The stroke stretches with the box, its round caps too, so the path keeps
+// 12 units (half the stroke) clear of each edge: the swash then never reaches
+// past the box, whatever the length of the words.
 const markerPath = {
-    rise: 'M6 28 C 48 16, 120 10, 194 18',
-    wave: 'M6 24 C 50 30, 140 12, 194 20',
+    rise: 'M12 28 C 52 16, 120 10, 188 18',
+    wave: 'M12 24 C 54 30, 136 12, 188 20',
 } as const;
 
 /** A highlighter swash behind the lower half of the words. */
@@ -38,7 +41,7 @@ export function Marker({
                 aria-hidden="true"
                 viewBox="0 0 200 40"
                 preserveAspectRatio="none"
-                className="absolute bottom-0 left-[-4%] -z-10 h-[46%] w-[108%]"
+                className="absolute bottom-0 left-[-0.1em] -z-10 h-[46%] w-[calc(100%+0.2em)]"
             >
                 <path
                     d={markerPath[shape]}
