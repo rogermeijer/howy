@@ -34,11 +34,11 @@ export default defineConfig(({ mode }) => {
                 input: ['resources/css/app.css', 'resources/js/app.tsx'],
                 refresh: true,
                 fonts: [
-                    bunny('Source Sans 3', {
-                        weights: [400, 500, 600, 700],
+                    bunny('Plus Jakarta Sans', {
+                        weights: [400, 500, 600, 700, 800],
                     }),
-                    bunny('Yeseva One', {
-                        weights: [400],
+                    bunny('Caveat', {
+                        weights: [700],
                     }),
                 ],
             }),

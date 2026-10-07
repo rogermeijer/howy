@@ -73,7 +73,7 @@ export function UserMenuContent({ user }: Props) {
                                     className={cn(
                                         'mr-2 size-4 shrink-0',
                                         account.id === auth.account?.id
-                                            ? 'text-cc-accent'
+                                            ? 'text-cc-accent-deep'
                                             : 'invisible',
                                     )}
                                 />

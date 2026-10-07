@@ -65,7 +65,7 @@ export function LanguageSwitcher({ className }: Props) {
                             className={cn(
                                 'mr-2 size-4 shrink-0',
                                 option.value === locale
-                                    ? 'text-cc-accent'
+                                    ? 'text-cc-accent-deep'
                                     : 'invisible',
                             )}
                         />

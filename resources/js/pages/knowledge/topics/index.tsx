@@ -102,7 +102,7 @@ export default function TopicTreePage({ topics, maxDepth, canManage }: Props) {
                                         className="size-[18px] shrink-0 text-cc-ink"
                                         strokeWidth={1.8}
                                         fill={
-                                            topic.isNew ? '#ffe4ec' : '#ecebe6'
+                                            topic.isNew ? '#f0fbd3' : '#edf1ef'
                                         }
                                     />
                                     <div className="flex min-w-0 flex-1 flex-col">

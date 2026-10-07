@@ -5,8 +5,8 @@
     "lang": "nl",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#f8f6f1",
-    "theme_color": "#f8f6f1",
+    "background_color": "#ffffff",
+    "theme_color": "#ffffff",
     "icons": [
         {
             "src": "/web-app-manifest-192x192.png",

@@ -45,7 +45,7 @@ function TopBar() {
     const getInitials = useInitials();
 
     return (
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-cc-border bg-cc-bg px-4 lg:gap-9 lg:px-10">
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-cc-border bg-white/90 px-4 backdrop-blur-md lg:gap-9 lg:px-10">
             <Link
                 href={inbox()}
                 aria-label={t('Howy home')}

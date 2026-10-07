@@ -24,7 +24,7 @@ class ReplyComposer
     /**
      * The wordmark, embedded in every mail: mail clients load no web fonts and
      * show no SVG, and an embedded image shows even where remote images are
-     * blocked. Rendered at 3× from Yeseva One; shown at 76×36.
+     * blocked. Rendered at 3× from Plus Jakarta Sans 800; shown at 83×27.
      */
     private const string LOGO = 'howy-logo.png';
 

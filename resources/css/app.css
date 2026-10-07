@@ -9,52 +9,57 @@
 
 /*
  * Howy design system
- * Warm ivory ground, ink text, one pink accent. Source Sans 3 for UI,
- * Yeseva One for the name only (components/brand).
+ * White ground, ink text, one lime accent with a yellow highlighter on the
+ * side. Plus Jakarta Sans throughout (the wordmark at 800), Caveat for the
+ * hand-written notes only. Brand pieces live in components/brand.
  */
 @theme {
     --font-sans:
-        'Source Sans 3', ui-sans-serif, system-ui, sans-serif,
+        'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
-    --font-logo: 'Yeseva One', Georgia, serif;
+    --font-logo: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-hand: 'Caveat', cursive;
 
     /* Ground and ink */
-    --color-cc-bg: #f8f6f1;
+    --color-cc-bg: #f4f6f5;
     --color-cc-panel: #ffffff;
-    --color-cc-raised: #ecebe6;
-    --color-cc-border: #e4e0d6;
-    --color-cc-border-strong: #d6d1c6;
-    --color-cc-ink: #17140f;
-    --color-cc-muted: #5c5750;
-    --color-cc-subtle: #6b655c;
-    --color-cc-faint: #8a8478;
+    --color-cc-raised: #edf1ef;
+    --color-cc-border: #e3e8e6;
+    --color-cc-border-strong: #cbd3d0;
+    --color-cc-ink: #0d1b1e;
+    --color-cc-muted: #55636a;
+    --color-cc-subtle: #5f6d73;
+    --color-cc-faint: #84919a;
 
     /* Dark surfaces */
-    --color-cc-dark: #17140f;
-    --color-cc-dark-1: #211d17;
-    --color-cc-dark-2: #2e2922;
-    --color-cc-dark-border: #3a342b;
-    --color-cc-dark-text: #c4bfb5;
+    --color-cc-dark: #0d1b1e;
+    --color-cc-dark-1: #14272b;
+    --color-cc-dark-2: #1e3439;
+    --color-cc-dark-border: #2a4146;
+    --color-cc-dark-text: #a9b6b9;
 
     /* Accent */
-    --color-cc-accent: #ff2d78;
-    --color-cc-accent-tint: #ffe4ec;
-    --color-cc-accent-deep: #b8134f;
+    --color-cc-accent: #cdf464;
+    --color-cc-accent-tint: #f0fbd3;
+    --color-cc-accent-deep: #2f6b1f;
+    --color-cc-accent-hover: #bfea4c;
+    --color-cc-highlight: #ffe14d;
+    --color-cc-wash: #f5fae6;
 
     /* Interpretation labels */
     --color-cc-question-bg: #e6eefb;
     --color-cc-question-fg: #1f5bb8;
     --color-cc-decision-bg: #e4f3ea;
     --color-cc-decision-fg: #1e6e47;
-    --color-cc-action-bg: #ffe4ec;
-    --color-cc-action-fg: #b8134f;
+    --color-cc-action-bg: #fff6cc;
+    --color-cc-action-fg: #6b5300;
     --color-cc-knowledge-bg: #ede7fa;
     --color-cc-knowledge-fg: #5b39a8;
-    --color-cc-noise-bg: #ecebe6;
-    --color-cc-noise-fg: #5c5750;
-    --color-cc-pending-bg: #fff2dc;
-    --color-cc-pending-fg: #8a5a0c;
+    --color-cc-noise-bg: #edf1ef;
+    --color-cc-noise-fg: #55636a;
+    --color-cc-pending-bg: #fde9df;
+    --color-cc-pending-fg: #9a3d12;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -107,39 +112,39 @@
 /* shadcn/ui semantic tokens mapped onto the brand, so every UI primitive
    (Button, Input, Card, Dialog…) is on-brand without per-component styling. */
 :root {
-    --background: #f8f6f1;
-    --foreground: #17140f;
+    --background: #f4f6f5;
+    --foreground: #0d1b1e;
     --card: #ffffff;
-    --card-foreground: #17140f;
+    --card-foreground: #0d1b1e;
     --popover: #ffffff;
-    --popover-foreground: #17140f;
-    --primary: #17140f;
-    --primary-foreground: #f8f6f1;
-    --secondary: #ecebe6;
-    --secondary-foreground: #17140f;
-    --muted: #ecebe6;
-    --muted-foreground: #6b655c;
-    --accent: #ecebe6;
-    --accent-foreground: #17140f;
-    --destructive: #b8134f;
+    --popover-foreground: #0d1b1e;
+    --primary: #cdf464;
+    --primary-foreground: #0d1b1e;
+    --secondary: #edf1ef;
+    --secondary-foreground: #0d1b1e;
+    --muted: #edf1ef;
+    --muted-foreground: #5f6d73;
+    --accent: #edf1ef;
+    --accent-foreground: #0d1b1e;
+    --destructive: #b42318;
     --destructive-foreground: #ffffff;
-    --border: #e4e0d6;
-    --input: #d6d1c6;
-    --ring: #ff2d78;
-    --chart-1: #ff2d78;
+    --border: #e3e8e6;
+    --input: #cbd3d0;
+    --ring: #2f6b1f;
+    --chart-1: #7db02e;
     --chart-2: #1f5bb8;
     --chart-3: #1e6e47;
     --chart-4: #5b39a8;
     --chart-5: #c47d0e;
-    --radius: 0.625rem;
-    --sidebar: #f8f6f1;
-    --sidebar-foreground: #17140f;
-    --sidebar-primary: #17140f;
-    --sidebar-primary-foreground: #f8f6f1;
-    --sidebar-accent: #ecebe6;
-    --sidebar-accent-foreground: #17140f;
-    --sidebar-border: #e4e0d6;
-    --sidebar-ring: #ff2d78;
+    --radius: 0.875rem;
+    --sidebar: #f4f6f5;
+    --sidebar-foreground: #0d1b1e;
+    --sidebar-primary: #cdf464;
+    --sidebar-primary-foreground: #0d1b1e;
+    --sidebar-accent: #edf1ef;
+    --sidebar-accent-foreground: #0d1b1e;
+    --sidebar-border: #e3e8e6;
+    --sidebar-ring: #2f6b1f;
 }
 
 @layer base {
@@ -155,10 +160,10 @@
 @layer components {
     /* ---- Type scale ---------------------------------------------------- */
     .cc-title {
-        @apply text-[30px] leading-[1.15] font-semibold tracking-[-0.025em];
+        @apply text-[32px] leading-[1.1] font-extrabold tracking-[-0.04em];
     }
     .cc-subtitle {
-        @apply text-[20px] leading-[1.25] font-semibold tracking-[-0.015em];
+        @apply text-[20px] leading-[1.25] font-bold tracking-[-0.025em];
     }
     .cc-row-title {
         @apply text-[15px] leading-[1.4] font-medium;
@@ -175,10 +180,10 @@
 
     /* ---- Surfaces ------------------------------------------------------ */
     .cc-panel {
-        @apply rounded-2xl border border-cc-border bg-cc-panel;
+        @apply rounded-[20px] border border-cc-border bg-cc-panel;
     }
     .cc-panel-dark {
-        @apply rounded-2xl bg-cc-dark text-cc-bg;
+        @apply rounded-[20px] bg-cc-dark text-cc-bg;
     }
 
     /* ---- Interpretation labels ----------------------------------------- */
@@ -291,33 +296,9 @@
         @apply border-transparent bg-cc-ink font-semibold text-cc-bg hover:border-cc-ink;
     }
 
-    /* ---- Marketing / welcome page --------------------------------------- */
-    .cc-nav-link {
-        @apply text-sm font-medium text-cc-ink no-underline transition-colors hover:text-cc-accent;
-    }
-
-    .cc-btn-nav {
-        @apply rounded-lg bg-cc-ink px-4 py-2.5 text-sm font-semibold text-cc-bg no-underline transition-opacity hover:opacity-85;
-    }
-
-    .cc-btn-pink {
-        @apply inline-block rounded-[10px] bg-cc-accent px-7 py-4 text-base font-semibold text-cc-ink no-underline transition-opacity hover:opacity-88;
-    }
-
-    .cc-btn-outline {
-        @apply inline-block rounded-[10px] border-[1.5px] border-cc-border-strong bg-transparent px-6 py-[15px] text-base font-semibold text-cc-ink no-underline transition-colors hover:border-cc-ink;
-    }
-
-    .cc-btn-dark-outline {
-        @apply inline-block rounded-[10px] border-[1.5px] border-cc-dark-border bg-transparent px-5 py-3 text-[15px] font-semibold text-cc-bg no-underline transition-colors hover:border-cc-bg;
-    }
-
-    .cc-input-dark {
-        @apply min-w-0 flex-[1_1_260px] rounded-[10px] border-[1.5px] border-cc-dark-border bg-cc-dark-1 px-[18px] py-4 text-center text-base text-cc-bg transition-colors outline-none placeholder:text-cc-faint focus:border-cc-accent;
-    }
-
-    .cc-submit-btn {
-        @apply cursor-pointer rounded-[10px] border-none bg-cc-accent px-7 py-[17px] text-base font-semibold text-cc-ink transition-opacity hover:opacity-88;
+    /* ---- Primary call to action --------------------------------------- */
+    .cc-btn-accent {
+        @apply inline-flex items-center justify-center rounded-full bg-cc-accent px-6 py-3.5 text-[15px] font-bold text-cc-ink no-underline transition-colors hover:bg-cc-accent-hover;
     }
 }
 
@@ -327,49 +308,49 @@
  * beat the Input primitive's own `bg-transparent` / `border-input` classes.
  */
 .cc-auth-card {
-    background: #17140f;
-    color: #f8f6f1;
+    background: #0d1b1e;
+    color: #f4f6f5;
 
-    --foreground: #f8f6f1;
-    --card: #211d17;
-    --card-foreground: #f8f6f1;
-    --primary: #ff2d78;
-    --primary-foreground: #17140f;
-    --secondary: #2e2922;
-    --secondary-foreground: #f8f6f1;
-    --muted: #2e2922;
-    --muted-foreground: #8a8478;
-    --accent: #2e2922;
-    --accent-foreground: #f8f6f1;
-    --border: #3a342b;
-    --input: #3a342b;
-    --ring: #ff2d78;
+    --foreground: #f4f6f5;
+    --card: #14272b;
+    --card-foreground: #f4f6f5;
+    --primary: #cdf464;
+    --primary-foreground: #0d1b1e;
+    --secondary: #1e3439;
+    --secondary-foreground: #f4f6f5;
+    --muted: #1e3439;
+    --muted-foreground: #84919a;
+    --accent: #1e3439;
+    --accent-foreground: #f4f6f5;
+    --border: #2a4146;
+    --input: #2a4146;
+    --ring: #cdf464;
 
-    --color-foreground: #f8f6f1;
-    --color-card: #211d17;
-    --color-card-foreground: #f8f6f1;
-    --color-primary: #ff2d78;
-    --color-primary-foreground: #17140f;
-    --color-secondary: #2e2922;
-    --color-secondary-foreground: #f8f6f1;
-    --color-muted: #2e2922;
-    --color-muted-foreground: #8a8478;
-    --color-accent: #2e2922;
-    --color-accent-foreground: #f8f6f1;
-    --color-border: #3a342b;
-    --color-input: #3a342b;
-    --color-ring: #ff2d78;
-    --color-background: #17140f;
+    --color-foreground: #f4f6f5;
+    --color-card: #14272b;
+    --color-card-foreground: #f4f6f5;
+    --color-primary: #cdf464;
+    --color-primary-foreground: #0d1b1e;
+    --color-secondary: #1e3439;
+    --color-secondary-foreground: #f4f6f5;
+    --color-muted: #1e3439;
+    --color-muted-foreground: #84919a;
+    --color-accent: #1e3439;
+    --color-accent-foreground: #f4f6f5;
+    --color-border: #2a4146;
+    --color-input: #2a4146;
+    --color-ring: #cdf464;
+    --color-background: #0d1b1e;
 }
 
 /* Solid ivory fields — readable on the dark card, never dark-on-dark. */
 .cc-auth-card [data-slot='input'],
 .cc-auth-card input:not([type='checkbox']):not([type='radio']) {
     height: 48px;
-    background-color: #f8f6f1;
-    border: 1.5px solid #f8f6f1;
+    background-color: #f4f6f5;
+    border: 1.5px solid #f4f6f5;
     border-radius: 10px;
-    color: #17140f;
+    color: #0d1b1e;
     font-size: 15px;
     padding-inline: 16px;
     box-shadow: none;
@@ -377,36 +358,36 @@
 
 .cc-auth-card [data-slot='input']::placeholder,
 .cc-auth-card input:not([type='checkbox']):not([type='radio'])::placeholder {
-    color: #6b655c;
+    color: #5f6d73;
 }
 
 .cc-auth-card [data-slot='input']:focus-visible,
 .cc-auth-card input:not([type='checkbox']):not([type='radio']):focus-visible {
-    border-color: #ff2d78;
-    box-shadow: 0 0 0 3px rgba(255, 45, 120, 0.28);
+    border-color: #cdf464;
+    box-shadow: 0 0 0 3px rgba(205, 244, 100, 0.45);
     outline: none;
 }
 
 .cc-auth-card [data-slot='label'],
 .cc-auth-card label {
-    color: #f8f6f1;
+    color: #f4f6f5;
     font-size: 13px;
     font-weight: 600;
 }
 
 .cc-auth-card [data-slot='checkbox'] {
-    border-color: #3a342b;
-    background-color: #211d17;
+    border-color: #2a4146;
+    background-color: #14272b;
 }
 
 /* Password reveal toggle sits inside the ivory field. */
 .cc-auth-card .relative > button[type='button'] {
-    color: #6b655c;
+    color: #5f6d73;
 }
 
 .cc-auth-card a {
-    color: #c4bfb5;
+    color: #a9b6b9;
 }
 .cc-auth-card a:hover {
-    color: #ff2d78;
+    color: #cdf464;
 }

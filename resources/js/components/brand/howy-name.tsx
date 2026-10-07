@@ -1,10 +1,11 @@
 import { Fragment } from 'react';
 import { BRAND_NAME } from '@/components/brand/brand';
+import { Marker } from '@/components/brand/doodles';
 import { cn } from '@/lib/utils';
 
 /**
- * The name in running text: set in the logo face at the size of the copy
- * around it. `accent` makes it pink, for headings.
+ * The name in running text: the copy's own type, in the wordmark's weight.
+ * `accent` puts the lime marker under it, for headings.
  */
 export function HowyName({
     accent = false,
@@ -13,17 +14,13 @@ export function HowyName({
     accent?: boolean;
     className?: string;
 }) {
-    return (
-        <span
-            className={cn(
-                'font-logo font-normal tracking-normal',
-                accent && 'text-cc-accent',
-                className,
-            )}
-        >
+    const name = (
+        <span className={cn('font-logo font-extrabold', className)}>
             {BRAND_NAME}
         </span>
     );
+
+    return accent ? <Marker>{name}</Marker> : name;
 }
 
 /**

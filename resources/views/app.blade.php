@@ -7,7 +7,7 @@
         {{-- Matches --color-cc-bg so the page never flashes white before CSS loads --}}
         <style>
             html {
-                background-color: #f8f6f1;
+                background-color: #f4f6f5;
             }
         </style>
 
@@ -16,8 +16,8 @@
         <link rel="icon" href="/favicon-96x96.png" type="image/png" sizes="96x96">
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
         <link rel="manifest" href="/site.webmanifest">
-        <meta name="theme-color" content="#f8f6f1" media="(prefers-color-scheme: light)">
-        <meta name="theme-color" content="#17140f" media="(prefers-color-scheme: dark)">
+        <meta name="theme-color" content="#f4f6f5" media="(prefers-color-scheme: light)">
+        <meta name="theme-color" content="#0d1b1e" media="(prefers-color-scheme: dark)">
 
         @fonts
 

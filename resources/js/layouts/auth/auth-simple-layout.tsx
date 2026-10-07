@@ -13,7 +13,7 @@ export default function AuthSimpleLayout({
         <div
             style={{
                 minHeight: '100svh',
-                background: '#f8f6f1',
+                background: '#f4f6f5',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -53,7 +53,7 @@ export default function AuthSimpleLayout({
                                 fontSize: '1.15rem',
                                 fontWeight: 600,
                                 letterSpacing: '-0.02em',
-                                color: '#f8f6f1',
+                                color: '#f4f6f5',
                                 lineHeight: 1.3,
                             }}
                         >
@@ -64,7 +64,7 @@ export default function AuthSimpleLayout({
                                 style={{
                                     margin: '6px 0 0',
                                     fontSize: 14,
-                                    color: '#8a8478',
+                                    color: '#84919a',
                                     lineHeight: 1.5,
                                 }}
                             >
