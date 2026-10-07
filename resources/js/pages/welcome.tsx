@@ -822,21 +822,24 @@ export default function Welcome() {
                             'flex flex-col gap-14',
                         )}
                     >
-                        <div className="flex max-w-[760px] flex-col gap-5">
+                        <div className="flex flex-col gap-5">
                             <SectionHeading>
                                 {t('Plug & play.')}
                                 <br />
-                                {withMark(
-                                    t('Up and running in :mark'),
-                                    <Circled
-                                        color="green"
-                                        className="mx-[0.3em]"
-                                    >
-                                        {t('10 minutes.')}
-                                    </Circled>,
-                                )}
+                                {/* One line from sm up, as in the design. */}
+                                <span className="sm:whitespace-nowrap">
+                                    {withMark(
+                                        t('Up and running in :mark'),
+                                        <Circled
+                                            color="green"
+                                            className="mx-[0.3em]"
+                                        >
+                                            {t('10 minutes.')}
+                                        </Circled>,
+                                    )}
+                                </span>
                             </SectionHeading>
-                            <p className="m-0 text-[19px] text-cc-muted">
+                            <p className="m-0 max-w-[760px] text-[19px] text-cc-muted">
                                 {t(
                                     'No IT project. No training days. No new app your team has to get used to. Howy works with the tools you already use.',
                                 )}
