@@ -85,7 +85,7 @@ const steps: { label: string; title: string; desc: string }[] = [
     {
         label: 'Step 1 · 10 minutes',
         title: 'Install in 10 minutes.',
-        desc: 'Connect Howy to your company tools and invite your team. Done.',
+        desc: 'Connect Howy to your company tools and introduce Howy to your team. Done.',
     },
     {
         label: 'Step 2 · one click',
@@ -824,8 +824,7 @@ export default function Welcome() {
                     <div
                         className={cn(
                             container,
-                            sectionY,
-                            'flex flex-col gap-14',
+                            'flex flex-col gap-14 pt-[clamp(72px,9vw,128px)] pb-[clamp(128px,16vw,224px)]',
                         )}
                     >
                         <div className="flex flex-col gap-5">
@@ -877,12 +876,13 @@ export default function Welcome() {
                     </div>
                 </section>
 
-                {/* Photo band — always one row: three photos on wide
-                    screens, two from sm, one on phones. */}
+                {/* Photo band — pulled up so it sits on the wash of
+                    #how. Always one row: three photos on wide screens,
+                    two from sm, one on phones. */}
                 <div
                     className={cn(
                         container,
-                        'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
+                        'relative z-10 -mt-[clamp(56px,8vw,112px)] grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
                     )}
                 >
                     {photos.map(({ src, alt, position }, index) => (
