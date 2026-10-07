@@ -91,55 +91,56 @@ function TopBar() {
                 })}
             </nav>
 
-            <form
-                role="search"
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    const q = new FormData(event.currentTarget).get('q');
+            {/* Search, notifications and the account menu sit together as one
+                group: the header's wide gap only separates logo, nav and this. */}
+            <div className="flex shrink-0 items-center gap-2">
+                <form
+                    role="search"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        const q = new FormData(event.currentTarget).get('q');
 
-                    if (typeof q === 'string' && q.trim() !== '') {
-                        router.get(knowledgeRoutes.search().url, { q });
-                    }
-                }}
-                className="hidden h-10 w-[300px] shrink-0 items-center gap-2.5 rounded-[10px] border-[1.5px] border-cc-border bg-cc-panel px-3.5 text-cc-subtle focus-within:border-cc-ink lg:flex"
-            >
-                <Search className="size-4 shrink-0" />
-                <input
-                    type="search"
-                    name="q"
-                    placeholder={t('Search emails and knowledge')}
-                    aria-label={t('Search')}
-                    className="min-w-0 flex-1 border-none bg-transparent text-sm text-cc-ink outline-none placeholder:text-cc-subtle"
-                />
-                <span className="shrink-0 rounded-[5px] border border-cc-border px-1.5 text-[11px] font-semibold text-cc-faint">
-                    ⌘K
-                </span>
-            </form>
+                        if (typeof q === 'string' && q.trim() !== '') {
+                            router.get(knowledgeRoutes.search().url, { q });
+                        }
+                    }}
+                    className="hidden h-10 w-[300px] shrink-0 items-center gap-2.5 rounded-[10px] border-[1.5px] border-cc-border bg-cc-panel px-3.5 text-cc-subtle focus-within:border-cc-ink lg:flex"
+                >
+                    <Search className="size-4 shrink-0" />
+                    <input
+                        type="search"
+                        name="q"
+                        placeholder={t('Search emails and knowledge')}
+                        aria-label={t('Search')}
+                        className="min-w-0 flex-1 border-none bg-transparent text-sm text-cc-ink outline-none placeholder:text-cc-subtle"
+                    />
+                </form>
 
-            <button
-                type="button"
-                aria-label={t('Notifications')}
-                className="hidden size-10 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-[1.5px] border-cc-border bg-cc-panel text-cc-ink transition-colors hover:border-cc-border-strong sm:flex"
-            >
-                <Bell className="size-[18px]" />
-            </button>
+                <button
+                    type="button"
+                    aria-label={t('Notifications')}
+                    className="hidden size-10 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-[1.5px] border-cc-border bg-cc-panel text-cc-ink transition-colors hover:border-cc-border-strong sm:flex"
+                >
+                    <Bell className="size-[18px]" />
+                </button>
 
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <button
-                        type="button"
-                        aria-label={t('Account: :name', {
-                            name: auth.user.name,
-                        })}
-                        className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-cc-ink text-[13px] font-semibold text-cc-bg"
-                    >
-                        {getInitials(auth.user.name)}
-                    </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                    <UserMenuContent user={auth.user} />
-                </DropdownMenuContent>
-            </DropdownMenu>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            type="button"
+                            aria-label={t('Account: :name', {
+                                name: auth.user.name,
+                            })}
+                            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-cc-ink text-[13px] font-semibold text-cc-bg"
+                        >
+                            {getInitials(auth.user.name)}
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                        <UserMenuContent user={auth.user} />
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </header>
     );
 }
