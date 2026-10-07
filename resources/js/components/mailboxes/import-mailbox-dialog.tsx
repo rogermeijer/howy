@@ -302,7 +302,7 @@ export function ImportMailboxDialog({
                                 message.alreadyImported
                                     ? 'text-cc-faint'
                                     : 'cursor-pointer hover:bg-cc-bg',
-                                selected.has(message.id) && 'bg-[#fffdfa]',
+                                selected.has(message.id) && 'bg-[#fbfdf5]',
                             )}
                         >
                             <Checkbox

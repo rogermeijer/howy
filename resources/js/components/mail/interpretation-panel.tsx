@@ -13,7 +13,6 @@ import {
 import type { ReactNode } from 'react';
 import type { InterpretationKind } from '@/components/cc/tag';
 import { Tag } from '@/components/cc/tag';
-import { HowyAvatar } from '@/components/brand/howy-avatar';
 import { WithHowy } from '@/components/brand/howy-name';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { useFormatDate } from '@/hooks/use-format-date';
@@ -83,16 +82,13 @@ export function InterpretationPanel({
 
     return (
         <aside className="cc-panel-dark flex flex-col gap-5 p-7">
-            <div className="flex items-center gap-3">
-                <HowyAvatar size={36} />
-                <div className="flex flex-col gap-1">
-                    <div className="cc-label text-cc-faint">
-                        {t('Interpretation')}
-                    </div>
-                    {about && (
-                        <div className="text-[12px] text-cc-faint">{about}</div>
-                    )}
+            <div className="flex flex-col gap-1">
+                <div className="cc-label text-cc-faint">
+                    {t('Interpretation')}
                 </div>
+                {about && (
+                    <div className="text-[12px] text-cc-faint">{about}</div>
+                )}
             </div>
 
             <InterpretationTag

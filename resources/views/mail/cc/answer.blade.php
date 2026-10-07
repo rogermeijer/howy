@@ -4,7 +4,7 @@
 
 @section('content')
 @include('mail.cc.partials.quote', ['label' => __('You asked'), 'text' => $question])
-<div style="margin: 0 0 24px; font-size: 17px; line-height: 1.6; color: #17140f;">{!! nl2br(e($answer)) !!}</div>
+<div style="margin: 0 0 24px; font-size: 17px; line-height: 1.6; color: #0d1b1e;">{!! nl2br(e($answer)) !!}</div>
 @if ($gaps)
 @include('mail.cc.partials.gaps', ['gaps' => $gaps])
 @endif

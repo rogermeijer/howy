@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Copy, Inbox as InboxIcon, Paperclip } from 'lucide-react';
+import { Inbox as InboxIcon, Paperclip } from 'lucide-react';
 import { WithHowy } from '@/components/brand/howy-name';
 import { PageHeader } from '@/components/cc/page-header';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
@@ -75,15 +75,6 @@ export default function Inbox({
                             : t(':count conversations', {
                                   count: threads.total,
                               })
-                    }
-                    actions={
-                        <Button className="h-10">
-                            {t('Copy address')}
-                            <span className="font-mono font-medium text-cc-dark-text">
-                                inbox@cc.nl
-                            </span>
-                            <Copy />
-                        </Button>
                     }
                 />
 

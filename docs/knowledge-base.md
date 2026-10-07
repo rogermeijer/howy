@@ -121,8 +121,8 @@ page shows the whole interpretation.
 
 **Replies** are designed HTML (`resources/views/mail/cc/`, composed by `ReplyComposer`) with the same message as
 plain text, which is also what the thread page shows. The Howy wordmark is embedded as an inline image
-(`resources/images/mail/howy-logo@3x.png`, Yeseva One rendered at 3×, shown at 76×36), since mail clients load no web
-fonts; re-render it (ImageMagick with the Yeseva One font, plus the underline from `components/brand/brand.ts`) if the wordmark changes. They go out in the Gmail thread (`GmailClient::sendMessage`, `In-Reply-To`/`References`,
+(`resources/images/mail/howy-logo@3x.png`, Plus Jakarta Sans 800 rendered at 3×, shown at 83×27), since mail clients load no web
+fonts; re-render it (ImageMagick with Plus Jakarta Sans 800 and the lime dot) if the wordmark changes. They go out in the Gmail thread (`GmailClient::sendMessage`, `In-Reply-To`/`References`,
 `Auto-Submitted: auto-replied`) from the mailbox, in the mail's language when we ship it. Each mailbox has a
 send policy, set under _Settings → Mailboxes → Reply settings_:
 

@@ -1,5 +1,4 @@
 import { CircleHelp } from 'lucide-react';
-import { HowyAvatar } from '@/components/brand/howy-avatar';
 import { WithHowy } from '@/components/brand/howy-name';
 import { Tag } from '@/components/cc/tag';
 import {
@@ -89,7 +88,6 @@ export function CcReply({
                 className={`flex flex-col gap-3.5 border-l-[3px] px-7 py-5 ${unsure ? 'border-cc-border-strong' : 'border-cc-accent'}`}
             >
                 <div className="flex flex-wrap items-center gap-3">
-                    <HowyAvatar size={40} />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="text-[15px] font-semibold">
                             <WithHowy text={title} />

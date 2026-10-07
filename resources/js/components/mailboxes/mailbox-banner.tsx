@@ -47,7 +47,7 @@ export function MailboxBanner({ canManage }: Props) {
                 <div className="flex shrink-0 flex-wrap gap-3">
                     <Link
                         href={settings({ query: { connect: 'mailbox' } })}
-                        className="cc-btn-pink inline-flex items-center gap-2 px-[22px] py-[13px] text-[15px]"
+                        className="cc-btn-accent inline-flex items-center gap-2 px-[22px] py-[13px] text-[15px]"
                     >
                         {t('Connect mailbox')}
                         <ArrowRight className="size-4" />

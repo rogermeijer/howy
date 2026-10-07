@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Auth\RegistrationVoucherController;
+use App\Http\Controllers\BetaAccessRequestController;
 use App\Http\Controllers\CurrentAccountController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\EmailStatementController;
@@ -29,6 +31,19 @@ Route::inertia('/', 'welcome')->name('home');
 // Deliberately public: the language switcher has to work on the marketing and
 // auth screens, before there is an account to store the choice against.
 Route::put('locale', [LocaleController::class, 'update'])->name('locale.update');
+
+// Private beta: anyone can ask for an invite, and registration starts with a code.
+Route::post('beta-access', [BetaAccessRequestController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('beta-access.store');
+
+Route::middleware('guest')->group(function () {
+    Route::post('register/voucher', [RegistrationVoucherController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('register.voucher.store');
+    Route::delete('register/voucher', [RegistrationVoucherController::class, 'destroy'])
+        ->name('register.voucher.destroy');
+});
 
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::get('dashboard', [InboxController::class, 'index'])->name('dashboard');

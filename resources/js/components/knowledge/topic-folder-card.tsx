@@ -34,7 +34,7 @@ export function TopicFolderCard({
                 <Folder
                     className="size-[26px] text-cc-ink"
                     strokeWidth={1.8}
-                    fill={topic.isNew ? '#ffe4ec' : '#ecebe6'}
+                    fill={topic.isNew ? '#f0fbd3' : '#edf1ef'}
                 />
                 <span className="flex flex-wrap justify-end gap-1">
                     {topic.kind !== 'theme' && (

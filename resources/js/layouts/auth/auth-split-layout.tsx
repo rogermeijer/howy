@@ -14,14 +14,14 @@ export default function AuthSplitLayout({
         <div className="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
             <div
                 className="relative hidden h-full flex-col p-10 lg:flex"
-                style={{ background: '#17140f' }}
+                style={{ background: '#0d1b1e' }}
             >
                 <Link href={home()} className="relative z-20 flex items-center">
                     <HowyLogo size={30} tone="ivory" />
                 </Link>
                 <div className="relative z-20 mt-auto">
                     <blockquote className="space-y-2">
-                        <p className="text-lg" style={{ color: '#c4bfb5' }}>
+                        <p className="text-lg" style={{ color: '#a9b6b9' }}>
                             {t(
                                 '"Knowledge shared over email, and now finally findable."',
                             )}
@@ -43,7 +43,7 @@ export default function AuthSplitLayout({
                         </h1>
                         <p
                             className="text-sm text-balance"
-                            style={{ color: '#5c5750' }}
+                            style={{ color: '#55636a' }}
                         >
                             {description}
                         </p>

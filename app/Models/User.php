@@ -26,6 +26,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $password
  * @property bool $is_admin
  * @property int|null $active_account_id
+ * @property int|null $voucher_id
  * @property Locale|null $locale
  * @property string|null $timezone
  * @property string|null $two_factor_secret
@@ -36,6 +37,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Account> $accounts
  * @property-read Account|null $activeAccount
+ * @property-read Voucher|null $voucher
  */
 #[Fillable(['name', 'email', 'password', 'locale', 'timezone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -69,6 +71,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function activeAccount(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'active_account_id');
+    }
+
+    /**
+     * The private beta invite code this user registered with.
+     *
+     * @return BelongsTo<Voucher, $this>
+     */
+    public function voucher(): BelongsTo
+    {
+        return $this->belongsTo(Voucher::class);
     }
 
     /**

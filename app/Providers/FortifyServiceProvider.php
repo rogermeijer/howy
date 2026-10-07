@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Models\Voucher;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -67,8 +68,10 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::registerView(fn () => Inertia::render('auth/register', [
+        // Private beta: without a checked invite code the page asks for one first.
+        Fortify::registerView(fn (Request $request) => Inertia::render('auth/register', [
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            'voucher' => $this->rememberedVoucher($request)?->code,
         ]));
 
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
@@ -79,6 +82,21 @@ class FortifyServiceProvider extends ServiceProvider
     /**
      * Configure rate limiting.
      */
+    /**
+     * The invite code from the code step, while it can still be redeemed.
+     */
+    private function rememberedVoucher(Request $request): ?Voucher
+    {
+        $code = $request->session()->get(Voucher::SESSION_KEY);
+        $voucher = is_string($code) ? Voucher::findRedeemable($code) : null;
+
+        if ($voucher === null) {
+            $request->session()->forget(Voucher::SESSION_KEY);
+        }
+
+        return $voucher;
+    }
+
     private function configureRateLimiting(): void
     {
         RateLimiter::for('two-factor', function (Request $request) {

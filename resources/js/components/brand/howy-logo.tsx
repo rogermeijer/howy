@@ -1,27 +1,28 @@
-import { BRAND_NAME, UNDERLINE_PATH } from '@/components/brand/brand';
+import { BRAND_NAME } from '@/components/brand/brand';
 import { cn } from '@/lib/utils';
 
 export type LogoTone = 'ink' | 'ivory' | 'on-accent';
 
 const wordColor: Record<LogoTone, string> = {
     ink: 'text-cc-ink',
-    ivory: 'text-cc-bg',
+    ivory: 'text-white',
     'on-accent': 'text-cc-ink',
 };
 
-// On the pink ground the underline would vanish, so it turns ink there.
-const underlineColor: Record<LogoTone, string> = {
-    ink: 'text-cc-accent',
-    ivory: 'text-cc-accent',
-    'on-accent': 'text-cc-ink',
+// The dot is lime, ringed in the word's own colour; on the lime ground it
+// turns white so it still reads as a dot.
+const dotColor: Record<LogoTone, string> = {
+    ink: 'bg-cc-accent',
+    ivory: 'bg-cc-accent',
+    'on-accent': 'bg-white',
 };
 
 /**
- * The Howy wordmark: the name in the logo face with the pink arch under it.
- * `size` is the font size in px; the underline and spacing scale with it.
+ * The Howy wordmark: the name in heavy type with the lime dot after it.
+ * `size` is the font size in px; the dot scales with it.
  */
 export function HowyLogo({
-    size = 30,
+    size = 26,
     tone = 'ink',
     className,
 }: {
@@ -29,28 +30,26 @@ export function HowyLogo({
     tone?: LogoTone;
     className?: string;
 }) {
+    const dot = Math.max(5, Math.round(size * 0.3));
+
     return (
         <span
-            className={cn('inline-flex flex-col', wordColor[tone], className)}
+            className={cn(
+                'inline-flex items-baseline gap-[0.12em] font-logo leading-none font-extrabold tracking-[-0.05em]',
+                wordColor[tone],
+                className,
+            )}
+            style={{ fontSize: size }}
         >
+            {BRAND_NAME}
             <span
-                className="font-logo leading-[0.9] font-normal"
-                style={{ fontSize: size }}
-            >
-                {BRAND_NAME}
-            </span>
-            <svg
                 aria-hidden="true"
-                viewBox="0 0 200 24"
-                preserveAspectRatio="none"
-                className={cn('-ml-[3%] block w-full', underlineColor[tone])}
-                style={{
-                    height: Math.max(6, Math.round(size * 0.3)),
-                    marginTop: Math.max(3, Math.round(size * 0.2)),
-                }}
-            >
-                <path d={UNDERLINE_PATH} fill="currentColor" />
-            </svg>
+                className={cn(
+                    'inline-block shrink-0 rounded-full shadow-[0_0_0_1px_currentColor]',
+                    dotColor[tone],
+                )}
+                style={{ width: dot, height: dot }}
+            />
         </span>
     );
 }
