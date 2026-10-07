@@ -231,8 +231,8 @@ const footerLinks: { href: string; label: string }[] = [
     { href: '#demo', label: 'Contact' },
 ];
 
-/** Page width and side gutter, shared by every band. */
-const container = 'mx-auto w-full max-w-[1240px] px-[clamp(16px,4vw,40px)]';
+/** Page width and side gutter, shared by every band: 1240px of content. */
+const container = 'mx-auto w-full max-w-[1320px] px-[clamp(16px,4vw,40px)]';
 
 /** The vertical rhythm of a full section. */
 const sectionY = 'py-[clamp(72px,9vw,128px)]';
@@ -531,13 +531,15 @@ export default function Welcome() {
                     id="top"
                     className={cn(
                         container,
-                        'flex scroll-mt-20 flex-wrap items-center gap-[clamp(40px,6vw,80px)] pt-[clamp(40px,6vw,88px)] pb-[clamp(72px,9vw,128px)]',
+                        'flex scroll-mt-20 flex-wrap items-center gap-[clamp(40px,6vw,80px)] pt-[clamp(40px,6vw,88px)] pb-[clamp(72px,9vw,128px)] lg:flex-nowrap lg:items-start',
                     )}
                 >
-                    <div className="@container flex min-w-0 flex-[1_1_560px] flex-col gap-7">
+                    {/* The first heading line runs on over the image column,
+                        above the photo, which starts lower (lg:mt-28). */}
+                    <div className="relative z-10 flex min-w-0 flex-[1_1_500px] flex-col gap-7">
                         <div className="relative">
                             <Burst className="absolute -top-10 -left-2 size-9 sm:-top-[34px] sm:-left-10 sm:size-12" />
-                            <h1 className="m-0 text-[clamp(42px,9.6cqi,80px)] leading-none font-extrabold tracking-[-0.045em]">
+                            <h1 className="m-0 text-[clamp(46px,6.2vw,80px)] leading-none font-extrabold tracking-[-0.045em] lg:whitespace-nowrap">
                                 {t('Your people move on.')}
                                 <br />
                                 {withMark(
@@ -572,7 +574,7 @@ export default function Welcome() {
                         </ul>
                     </div>
 
-                    <div className="relative min-w-0 flex-[1_1_400px]">
+                    <div className="relative w-full min-w-0 lg:mt-28 lg:-mb-28 lg:w-[44%] lg:max-w-[540px] lg:shrink-0">
                         <img
                             src={heroTeam}
                             alt={t(
@@ -583,7 +585,7 @@ export default function Welcome() {
                         />
                         <div
                             aria-hidden="true"
-                            className="absolute bottom-[124px] left-6 flex max-w-[calc(100%-2rem)] -rotate-5 flex-col items-start"
+                            className="absolute top-[14%] left-[18px] flex max-w-[calc(100%-2rem)] -rotate-5 flex-col items-start"
                         >
                             <HandNote
                                 boxed
@@ -593,7 +595,7 @@ export default function Welcome() {
                             </HandNote>
                             <CurvedArrow className="ml-[18px]" />
                         </div>
-                        <div className="absolute -bottom-8 left-4 flex max-w-[300px] items-center gap-3.5 rounded-[20px] bg-white px-[18px] py-4 shadow-[0_12px_40px_color-mix(in_oklab,var(--color-cc-ink)_12%,transparent)] sm:-left-6">
+                        <div className="absolute -bottom-8 left-4 flex max-w-[300px] items-center gap-3.5 rounded-[20px] bg-white px-[18px] py-4 shadow-[0_12px_40px_color-mix(in_oklab,var(--color-cc-ink)_12%,transparent)] sm:-left-6 lg:top-[72%] lg:bottom-auto lg:-left-16">
                             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-cc-accent">
                                 <Check
                                     aria-hidden="true"
@@ -823,7 +825,7 @@ export default function Welcome() {
                                     t('Up and running in :mark'),
                                     <Circled
                                         color="green"
-                                        className="ml-[0.15em]"
+                                        className="mx-[0.3em]"
                                     >
                                         {t('10 minutes.')}
                                     </Circled>,
@@ -865,7 +867,7 @@ export default function Welcome() {
                 <div
                     className={cn(
                         container,
-                        'grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] gap-4 pt-[clamp(48px,6vw,80px)]',
+                        'grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] gap-4',
                     )}
                 >
                     {photos.map(({ src, alt, position }) => (
@@ -953,7 +955,7 @@ export default function Welcome() {
                     id="security"
                     className="scroll-mt-24 px-[clamp(16px,4vw,40px)]"
                 >
-                    <div className="mx-auto flex max-w-[1240px] flex-col gap-14 rounded-[32px] bg-cc-dark px-[clamp(24px,6vw,80px)] py-[clamp(40px,7vw,96px)] text-white">
+                    <div className="mx-auto flex max-w-[1400px] flex-col gap-14 rounded-[32px] bg-cc-dark px-[clamp(24px,6vw,80px)] py-[clamp(40px,7vw,96px)] text-white">
                         <div className="flex flex-wrap items-end gap-x-20 gap-y-6">
                             <SectionHeading className="min-w-0 flex-[1_1_460px]">
                                 {t('Your knowledge.')}
@@ -1193,7 +1195,7 @@ export default function Welcome() {
                     id="demo"
                     className="scroll-mt-24 px-[clamp(16px,4vw,40px)] pb-[clamp(48px,6vw,80px)]"
                 >
-                    <div className="mx-auto flex max-w-[1240px] flex-wrap items-end gap-x-20 gap-y-8 rounded-[32px] bg-cc-accent px-[clamp(24px,6vw,80px)] py-[clamp(40px,7vw,96px)]">
+                    <div className="mx-auto flex max-w-[1400px] flex-wrap items-end gap-x-20 gap-y-8 rounded-[32px] bg-cc-accent px-[clamp(24px,6vw,80px)] py-[clamp(40px,7vw,96px)]">
                         <div className="flex min-w-0 flex-[2_1_520px] flex-col gap-5">
                             <h2 className="m-0 text-[clamp(38px,5vw,64px)] leading-[1.02] font-extrabold tracking-[-0.045em]">
                                 {withMark(
