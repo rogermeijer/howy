@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import {
     BarChart3,
     EyeOff,
@@ -7,6 +7,7 @@ import {
     History,
     Home,
     Lock,
+    LogIn,
     type LucideIcon,
     Search,
     ShieldCheck,
@@ -27,8 +28,10 @@ import {
 import { HowyLogo } from '@/components/brand/howy-logo';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { CheckItem } from '@/components/marketing/check-item';
+import { ContactDialog } from '@/components/marketing/contact-dialog';
 import { Disclosure } from '@/components/marketing/disclosure';
 import { PillLink } from '@/components/marketing/pill-link';
+import { PrivateBetaBar } from '@/components/marketing/private-beta';
 import { useActiveSection } from '@/hooks/use-active-section';
 import { useScrolled } from '@/hooks/use-scrolled';
 import { useTranslations } from '@/hooks/use-translations';
@@ -232,7 +235,6 @@ const footerLinks: { href: string; label: string }[] = [
     { href: '#security', label: 'Privacy & GDPR' },
     { href: '#pricing', label: 'Pricing' },
     { href: '#faq', label: 'FAQ' },
-    { href: '#demo', label: 'Contact' },
 ];
 
 /** Page width and side gutter, shared by every band: 1240px of content. */
@@ -435,7 +437,7 @@ export default function Welcome() {
     const { auth } = usePage<{ auth: Auth }>().props;
     const t = useTranslations();
     const scrolled = useScrolled();
-    const activeSection = useActiveSection(navSections);
+    const activeSection = useActiveSection(navSections, 160);
 
     // In-page links glide to their section while this page is open. Only
     // here: Inertia's own scroll resets elsewhere should stay instant.
@@ -451,13 +453,17 @@ export default function Welcome() {
             <Head title={t('Your company blueprint')} />
 
             <div className="min-h-screen overflow-x-clip bg-white text-base leading-[1.65] text-cc-ink antialiased">
-                {/* Nav — sticky: once the page scrolls it tightens and lifts. */}
+                {/* Nav — sticky: once the page scrolls it tightens and lifts.
+                    For guests the private beta bar closes it off and casts the
+                    shadow, so the header's own edge would only show as a line. */}
                 <header
                     className={cn(
-                        'sticky top-0 z-40 border-b bg-white/90 backdrop-blur-md transition-[border-color,box-shadow] duration-300 ease-out motion-reduce:transition-none',
-                        scrolled
-                            ? 'border-cc-border shadow-[0_10px_30px_-22px_color-mix(in_oklab,var(--color-cc-ink)_45%,transparent)]'
-                            : 'border-transparent',
+                        'sticky top-0 z-40 bg-white/90 backdrop-blur-md transition-[border-color,box-shadow] duration-300 ease-out motion-reduce:transition-none',
+                        auth.user && 'border-b',
+                        auth.user &&
+                            (scrolled
+                                ? 'border-cc-border shadow-[0_10px_30px_-22px_color-mix(in_oklab,var(--color-cc-ink)_45%,transparent)]'
+                                : 'border-transparent'),
                     )}
                 >
                     <nav
@@ -517,19 +523,24 @@ export default function Welcome() {
                                 </PillLink>
                             ) : (
                                 <>
-                                    <Link
+                                    <PillLink
                                         href={login()}
-                                        className="px-3 py-2.5 text-[15px] font-semibold text-cc-ink no-underline transition-colors hover:text-cc-accent-deep"
+                                        variant="outline"
+                                        size="md"
+                                        className="min-h-9 gap-1.5 px-4 text-[13px]"
                                     >
+                                        <LogIn
+                                            aria-hidden="true"
+                                            className="size-3.5"
+                                            strokeWidth={2.6}
+                                        />
                                         {t('Log in')}
-                                    </Link>
-                                    <PillLink href="#demo" size="md">
-                                        {t('Book a demo')}
                                     </PillLink>
                                 </>
                             )}
                         </div>
                     </nav>
+                    <PrivateBetaBar />
                 </header>
 
                 {/* 1. Hero */}
@@ -537,7 +548,7 @@ export default function Welcome() {
                     id="top"
                     className={cn(
                         container,
-                        'flex scroll-mt-20 flex-wrap items-center gap-[clamp(40px,6vw,80px)] pt-[clamp(40px,6vw,88px)] pb-[clamp(72px,9vw,128px)] lg:flex-nowrap lg:items-start',
+                        'flex scroll-mt-32 flex-wrap items-center gap-[clamp(40px,6vw,80px)] pt-[clamp(40px,6vw,88px)] pb-[clamp(72px,9vw,128px)] lg:flex-nowrap lg:items-start',
                     )}
                 >
                     {/* The first heading line runs on over the image column,
@@ -567,9 +578,6 @@ export default function Welcome() {
                         <div className="flex flex-wrap gap-3">
                             <PillLink href={register()} arrow>
                                 {t('Start your free build-up phase')}
-                            </PillLink>
-                            <PillLink href="#demo" variant="outline">
-                                {t('Book a 15-minute demo')}
                             </PillLink>
                         </div>
                         <ul className="m-0 mt-9 flex list-none flex-col gap-3 p-0 font-semibold">
@@ -820,7 +828,7 @@ export default function Welcome() {
                 </section>
 
                 {/* 4. How easy */}
-                <section id="how" className="scroll-mt-20 bg-cc-wash">
+                <section id="how" className="scroll-mt-32 bg-cc-wash">
                     <div
                         className={cn(
                             container,
@@ -908,7 +916,7 @@ export default function Welcome() {
                     className={cn(
                         container,
                         sectionY,
-                        'flex scroll-mt-20 flex-col gap-14',
+                        'flex scroll-mt-32 flex-col gap-14',
                     )}
                 >
                     <SectionHeading className="max-w-[760px]">
@@ -971,7 +979,7 @@ export default function Welcome() {
                 {/* 6. Safe by design */}
                 <section
                     id="security"
-                    className="scroll-mt-24 px-[clamp(16px,4vw,40px)]"
+                    className="scroll-mt-36 px-[clamp(16px,4vw,40px)]"
                 >
                     <div className="mx-auto flex max-w-[1400px] flex-col gap-14 rounded-[32px] bg-cc-dark px-[clamp(24px,6vw,80px)] py-[clamp(40px,7vw,96px)] text-white">
                         <div className="flex flex-wrap items-end gap-x-20 gap-y-6">
@@ -1091,7 +1099,7 @@ export default function Welcome() {
                 </section>
 
                 {/* 8. Pricing */}
-                <section id="pricing" className="scroll-mt-20 bg-cc-bg">
+                <section id="pricing" className="scroll-mt-32 bg-cc-bg">
                     <div
                         className={cn(
                             container,
@@ -1174,7 +1182,7 @@ export default function Welcome() {
                     className={cn(
                         container,
                         sectionY,
-                        'flex scroll-mt-20 flex-wrap gap-x-20 gap-y-12',
+                        'flex scroll-mt-32 flex-wrap gap-x-20 gap-y-12',
                     )}
                 >
                     <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
@@ -1191,9 +1199,17 @@ export default function Welcome() {
                                 t(
                                     'Something else on your mind? :mark and ask us directly.',
                                 ),
-                                <a href="#demo" className={inlineLink}>
-                                    {t('Book a 15-minute demo')}
-                                </a>,
+                                <ContactDialog>
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            inlineLink,
+                                            'cursor-pointer',
+                                        )}
+                                    >
+                                        {t('Contact us')}
+                                    </button>
+                                </ContactDialog>,
                             )}
                         </p>
                     </div>
@@ -1213,7 +1229,7 @@ export default function Welcome() {
                 {/* 10. Final CTA */}
                 <section
                     id="demo"
-                    className="scroll-mt-24 px-[clamp(16px,4vw,40px)] pb-[clamp(48px,6vw,80px)]"
+                    className="scroll-mt-36 px-[clamp(16px,4vw,40px)] pb-[clamp(48px,6vw,80px)]"
                 >
                     <div className="mx-auto flex max-w-[1400px] flex-wrap items-end gap-x-20 gap-y-8 rounded-[32px] bg-cc-accent px-[clamp(24px,6vw,80px)] py-[clamp(40px,7vw,96px)]">
                         <div className="flex min-w-0 flex-[2_1_520px] flex-col gap-5">
@@ -1234,9 +1250,6 @@ export default function Welcome() {
                         <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-3">
                             <PillLink href={register()} variant="ink" block>
                                 {t('Start your free build-up phase')}
-                            </PillLink>
-                            <PillLink href="#demo" variant="white" block>
-                                {t('Book a 15-minute demo')}
                             </PillLink>
                         </div>
                     </div>
@@ -1260,6 +1273,14 @@ export default function Welcome() {
                                 {t(label)}
                             </a>
                         ))}
+                        <ContactDialog>
+                            <button
+                                type="button"
+                                className="cursor-pointer text-cc-muted transition-colors hover:text-cc-accent-deep"
+                            >
+                                {t('Contact')}
+                            </button>
+                        </ContactDialog>
                     </div>
                     <div className="flex items-center gap-5">
                         <LanguageSwitcher variant="flag" side="top" />
