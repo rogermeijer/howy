@@ -361,7 +361,7 @@ function SecurityPoint({
     desc: string;
 }) {
     return (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2.5 md:col-span-2 xl:col-span-1">
             <Icon
                 aria-hidden="true"
                 className="size-[26px] text-cc-accent"
@@ -997,7 +997,8 @@ export default function Welcome() {
                                 )}
                             </p>
                         </div>
-                        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-8 border-t border-white/14 pt-10">
+                        {/* Five in a row, else three and two (never four and one). */}
+                        <div className="grid grid-cols-1 gap-8 border-t border-white/14 pt-10 sm:grid-cols-2 md:grid-cols-6 xl:grid-cols-5">
                             {securityPoints.map(({ icon, title, desc }) => (
                                 <SecurityPoint
                                     key={title}
