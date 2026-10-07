@@ -7,8 +7,10 @@ use App\Concerns\AccountValidationRules;
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
 use App\Models\User;
+use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
 class CreateNewUser implements CreatesNewUsers
@@ -32,12 +34,30 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return DB::transaction(function () use ($input): User {
-            $user = User::create([
+        $code = session(Voucher::SESSION_KEY);
+
+        $user = DB::transaction(function () use ($input, $code): User {
+            // Private beta: the code is checked again under a row lock, so two
+            // people racing for the last use of a code cannot both get in.
+            $voucher = is_string($code)
+                ? Voucher::query()->where('code', $code)->lockForUpdate()->first()
+                : null;
+
+            if ($voucher === null || ! $voucher->isRedeemable()) {
+                throw ValidationException::withMessages([
+                    'voucher' => __('Your invite code is no longer valid. Enter another one to continue.'),
+                ]);
+            }
+
+            $voucher->increment('uses');
+
+            $user = new User([
                 'name' => $input['name'],
                 'email' => $input['email'],
                 'password' => $input['password'],
             ]);
+            $user->voucher()->associate($voucher);
+            $user->save();
 
             // The account inherits whatever locale the registration page was being
             // read in, so someone who switched to English lands in an English account.
@@ -45,5 +65,9 @@ class CreateNewUser implements CreatesNewUsers
 
             return $user->refresh();
         });
+
+        session()->forget(Voucher::SESSION_KEY);
+
+        return $user;
     }
 }
