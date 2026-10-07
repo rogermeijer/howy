@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     BarChart3,
@@ -8,7 +8,6 @@ import {
     Home,
     Lock,
     type LucideIcon,
-    Plus,
     Search,
     ShieldCheck,
     TrendingUp,
@@ -28,7 +27,9 @@ import {
 import { HowyLogo } from '@/components/brand/howy-logo';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { CheckItem } from '@/components/marketing/check-item';
+import { Disclosure } from '@/components/marketing/disclosure';
 import { PillLink } from '@/components/marketing/pill-link';
+import { useActiveSection } from '@/hooks/use-active-section';
 import { useScrolled } from '@/hooks/use-scrolled';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
@@ -223,6 +224,9 @@ const navLinks: { href: string; label: string }[] = [
     { href: '#pricing', label: 'Pricing' },
     { href: '#faq', label: 'FAQ' },
 ];
+
+/** The sections the nav follows, for the active-link marker. */
+const navSections = navLinks.map(({ href }) => href.slice(1));
 
 const footerLinks: { href: string; label: string }[] = [
     { href: '#security', label: 'Privacy & GDPR' },
@@ -427,34 +431,20 @@ function PlanCard({
     );
 }
 
-function FaqItem({
-    question,
-    answer,
-    defaultOpen = false,
-}: {
-    question: string;
-    answer: string;
-    defaultOpen?: boolean;
-}) {
-    return (
-        <details open={defaultOpen} className="group border-b border-cc-border">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-6 text-[19px] font-bold tracking-[-0.02em] [&::-webkit-details-marker]:hidden">
-                {question}
-                <Plus
-                    aria-hidden="true"
-                    className="size-[22px] shrink-0 text-cc-ink transition-transform duration-200 ease-out group-open:rotate-45 motion-reduce:transition-none"
-                    strokeWidth={2}
-                />
-            </summary>
-            <p className="m-0 mb-6 max-w-[660px] text-cc-muted">{answer}</p>
-        </details>
-    );
-}
-
 export default function Welcome() {
     const { auth } = usePage<{ auth: Auth }>().props;
     const t = useTranslations();
     const scrolled = useScrolled();
+    const activeSection = useActiveSection(navSections);
+
+    // In-page links glide to their section while this page is open. Only
+    // here: Inertia's own scroll resets elsewhere should stay instant.
+    useEffect(() => {
+        const root = document.documentElement;
+        root.classList.add('motion-safe:scroll-smooth');
+
+        return () => root.classList.remove('motion-safe:scroll-smooth');
+    }, []);
 
     return (
         <>
@@ -489,18 +479,38 @@ export default function Welcome() {
                             <HowyLogo size={26} />
                         </a>
                         <div className="hidden flex-1 flex-wrap gap-x-7 gap-y-1 text-[15px] font-medium lg:flex">
-                            {navLinks.map(({ href, label }) => (
-                                <a
-                                    key={href}
-                                    href={href}
-                                    className="text-cc-muted no-underline transition-colors hover:text-cc-accent-deep"
-                                >
-                                    {t(label)}
-                                </a>
-                            ))}
+                            {navLinks.map(({ href, label }) => {
+                                const active = activeSection === href.slice(1);
+
+                                return (
+                                    <a
+                                        key={href}
+                                        href={href}
+                                        aria-current={
+                                            active ? 'location' : undefined
+                                        }
+                                        className={cn(
+                                            'relative no-underline transition-[color,scale] duration-300 ease-out active:scale-95 motion-reduce:transition-none',
+                                            active
+                                                ? 'text-cc-ink'
+                                                : 'text-cc-muted hover:text-cc-ink',
+                                        )}
+                                    >
+                                        {t(label)}
+                                        <span
+                                            aria-hidden="true"
+                                            className={cn(
+                                                'absolute inset-x-0 -bottom-1 h-[3px] origin-left rounded-full bg-cc-accent transition-transform duration-300 ease-out motion-reduce:transition-none',
+                                                active
+                                                    ? 'scale-x-100'
+                                                    : 'scale-x-0',
+                                            )}
+                                        />
+                                    </a>
+                                );
+                            })}
                         </div>
                         <div className="ml-auto flex items-center gap-2 lg:ml-0">
-                            <LanguageSwitcher />
                             {auth.user ? (
                                 <PillLink href={dashboard()} size="md">
                                     {t('Dashboard')}
@@ -513,11 +523,7 @@ export default function Welcome() {
                                     >
                                         {t('Log in')}
                                     </Link>
-                                    <PillLink
-                                        href="#demo"
-                                        size="md"
-                                        className="hidden sm:inline-flex"
-                                    >
+                                    <PillLink href="#demo" size="md">
                                         {t('Book a demo')}
                                     </PillLink>
                                 </>
@@ -871,21 +877,25 @@ export default function Welcome() {
                     </div>
                 </section>
 
-                {/* Photo band */}
+                {/* Photo band — always one row: three photos on wide
+                    screens, two from sm, one on phones. */}
                 <div
                     className={cn(
                         container,
-                        'grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] gap-4',
+                        'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
                     )}
                 >
-                    {photos.map(({ src, alt, position }) => (
+                    {photos.map(({ src, alt, position }, index) => (
                         <img
                             key={src}
                             src={src}
                             alt={t(alt)}
                             loading="lazy"
                             className={cn(
-                                'block aspect-[4/3] w-full rounded-[32px] object-cover',
+                                'aspect-[4/3] w-full rounded-[32px] object-cover',
+                                index === 0 && 'block',
+                                index === 1 && 'hidden sm:block',
+                                index === 2 && 'hidden lg:block',
                                 position,
                             )}
                         />
@@ -1188,12 +1198,13 @@ export default function Welcome() {
                     </div>
                     <div className="flex min-w-0 flex-[2_1_560px] flex-col">
                         {faqs.map(({ q, a }, index) => (
-                            <FaqItem
+                            <Disclosure
                                 key={q}
                                 question={t(q)}
-                                answer={t(a)}
                                 defaultOpen={index === 0}
-                            />
+                            >
+                                {t(a)}
+                            </Disclosure>
                         ))}
                     </div>
                 </section>
@@ -1249,8 +1260,13 @@ export default function Welcome() {
                             </a>
                         ))}
                     </div>
-                    <div>
-                        {t('© :year Howy', { year: new Date().getFullYear() })}
+                    <div className="flex items-center gap-5">
+                        <LanguageSwitcher variant="flag" side="top" />
+                        <span>
+                            {t('© :year Howy', {
+                                year: new Date().getFullYear(),
+                            })}
+                        </span>
                     </div>
                 </footer>
             </div>
