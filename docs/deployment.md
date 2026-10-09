@@ -133,7 +133,9 @@ Forge → site → **Daemons** (or the Horizon toggle in the site's Laravel pane
 
 Horizon runs two supervisors (`config/horizon.php`): `default` for mail sync and imports, `knowledge` for
 document processing. Keep `retry_after` (960s, `config/queue.php`) above the knowledge jobs' 900s timeout.
-The dashboard at `/horizon` is open to super-admins only.
+The dashboard at `/horizon` is open to super-admins only. The same applies to
+`/log-viewer` (opcodesio/log-viewer): enabled in production, session-authenticated,
+and gated on `users.is_admin`.
 
 ## 7. Scheduler
 
