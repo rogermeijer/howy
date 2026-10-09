@@ -154,7 +154,7 @@ links is split. AI-made folders are `review_status = new` until approved. Anythi
 `howy_testing` databases, set `QUEUE_CONNECTION=redis` and the `KNOWLEDGE_*` binary paths if your PHP processes
 do not see `/opt/homebrew/bin`. `composer dev` starts Horizon, which works the `default` and `knowledge` queues.
 
-**Server (Ubuntu, Forge-like):**
+**Server (Ubuntu, Forge-like):** the full runbook is `docs/deployment.md`; in short:
 
 ```bash
 # PostgreSQL 18 + pgvector from the PGDG repository
