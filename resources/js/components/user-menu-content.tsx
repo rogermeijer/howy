@@ -1,5 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { Check, LogOut, Settings, UserRound } from 'lucide-react';
+import { Check, LogOut, Settings, ShieldCheck, UserRound } from 'lucide-react';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -11,6 +11,7 @@ import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { cn } from '@/lib/utils';
 import { logout } from '@/routes';
 import { settings } from '@/routes';
+import { index as admin } from '@/routes/admin';
 import { update as updateCurrentAccount } from '@/routes/current-account';
 import { edit as editProfile } from '@/routes/profile';
 import { useTranslations } from '@/hooks/use-translations';
@@ -108,6 +109,19 @@ export function UserMenuContent({ user }: Props) {
                         {t('Settings')}
                     </Link>
                 </DropdownMenuItem>
+                {user.is_admin && (
+                    <DropdownMenuItem asChild>
+                        <Link
+                            className="block w-full cursor-pointer"
+                            href={admin()}
+                            onClick={cleanup}
+                            data-test="admin-link"
+                        >
+                            <ShieldCheck className="mr-2" />
+                            {t('Admin panel')}
+                        </Link>
+                    </DropdownMenuItem>
+                )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>

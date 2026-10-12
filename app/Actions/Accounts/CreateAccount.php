@@ -15,9 +15,14 @@ use Illuminate\Support\Facades\DB;
  */
 class CreateAccount
 {
-    public function handle(User $owner, string $name, ?string $locale = null, ?string $timezone = null): Account
+    /**
+     * @param  bool  $activate  Point the owner at the new account. Registration does; an
+     *                          admin creating an account for someone already working
+     *                          elsewhere should not pull them out of it.
+     */
+    public function handle(User $owner, string $name, ?string $locale = null, ?string $timezone = null, bool $activate = true): Account
     {
-        return DB::transaction(function () use ($owner, $name, $locale, $timezone): Account {
+        return DB::transaction(function () use ($owner, $name, $locale, $timezone, $activate): Account {
             $account = Account::create(array_filter([
                 'name' => $name,
                 'locale' => $locale,
@@ -29,8 +34,10 @@ class CreateAccount
             // there is a consumer to validate them against.
             $account->users()->attach($owner, ['is_admin' => true]);
 
-            $owner->active_account_id = $account->id;
-            $owner->save();
+            if ($activate || $owner->active_account_id === null) {
+                $owner->active_account_id = $account->id;
+                $owner->save();
+            }
 
             return $account;
         });

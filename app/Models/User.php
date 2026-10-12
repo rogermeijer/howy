@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -26,7 +27,6 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $password
  * @property bool $is_admin
  * @property int|null $active_account_id
- * @property int|null $voucher_id
  * @property Locale|null $locale
  * @property string|null $timezone
  * @property string|null $two_factor_secret
@@ -37,7 +37,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Account> $accounts
  * @property-read Account|null $activeAccount
- * @property-read Voucher|null $voucher
+ * @property-read BetaAccessRequest|null $betaAccessRequest
  */
 #[Fillable(['name', 'email', 'password', 'locale', 'timezone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -74,13 +74,13 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
-     * The private beta invite code this user registered with.
+     * The private beta invite this user registered with.
      *
-     * @return BelongsTo<Voucher, $this>
+     * @return HasOne<BetaAccessRequest, $this>
      */
-    public function voucher(): BelongsTo
+    public function betaAccessRequest(): HasOne
     {
-        return $this->belongsTo(Voucher::class);
+        return $this->hasOne(BetaAccessRequest::class);
     }
 
     /**

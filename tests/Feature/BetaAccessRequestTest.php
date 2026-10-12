@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\BetaAccessRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class BetaAccessRequestTest extends TestCase
@@ -23,6 +24,20 @@ class BetaAccessRequestTest extends TestCase
         $this->assertNotNull($request->locale);
     }
 
+    public function test_a_request_gets_a_code_but_nothing_is_sent(): void
+    {
+        Mail::fake();
+
+        $this->post(route('beta-access.store'), ['email' => 'someone@example.com']);
+
+        $request = BetaAccessRequest::query()->sole();
+
+        $this->assertMatchesRegularExpression('/^HOWY-[A-Z2-9]{4}-[A-Z2-9]{4}$/', $request->code);
+        $this->assertSame('pending', $request->status());
+        $this->assertTrue($request->isRedeemable());
+        Mail::assertNothingOutgoing();
+    }
+
     public function test_asking_twice_keeps_one_request(): void
     {
         $this->post(route('beta-access.store'), ['email' => 'someone@example.com']);
@@ -30,6 +45,16 @@ class BetaAccessRequestTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame(1, BetaAccessRequest::query()->count());
+    }
+
+    public function test_asking_twice_keeps_the_same_code(): void
+    {
+        $this->post(route('beta-access.store'), ['email' => 'someone@example.com']);
+        $code = BetaAccessRequest::query()->sole()->code;
+
+        $this->post(route('beta-access.store'), ['email' => 'someone@example.com']);
+
+        $this->assertSame($code, BetaAccessRequest::query()->sole()->code);
     }
 
     public function test_the_email_must_be_valid(): void

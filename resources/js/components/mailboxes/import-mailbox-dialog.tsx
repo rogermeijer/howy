@@ -182,7 +182,7 @@ export function ImportMailboxDialog({
                         </div>
                         <div className="flex items-center gap-2.5">
                             {mailboxes.length > 1 && (
-                                <label className="flex h-10 items-center rounded-[10px] border-[1.5px] border-cc-border-strong px-3">
+                                <label className="flex h-10 items-center rounded-full border-[1.5px] border-cc-border-strong px-3">
                                     <span className="sr-only">
                                         {t('Mailbox')}
                                     </span>
@@ -219,7 +219,7 @@ export function ImportMailboxDialog({
                     </div>
 
                     <form onSubmit={onSearch} className="flex gap-2.5">
-                        <label className="flex h-11 flex-1 items-center gap-2.5 rounded-[10px] border-[1.5px] border-cc-border-strong bg-cc-panel px-3.5 focus-within:border-cc-ink">
+                        <label className="flex h-11 flex-1 items-center gap-2.5 rounded-full border-[1.5px] border-cc-border-strong bg-cc-panel px-3.5 focus-within:border-cc-ink">
                             <Search className="size-4 shrink-0 text-cc-subtle" />
                             <span className="sr-only">
                                 {t('Search the mailbox')}

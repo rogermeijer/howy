@@ -1,0 +1,24 @@
+/* After react-day-picker/style.css — replaces default --rdp-accent-color: blue. */
+.rdp-root {
+    --rdp-accent-color: var(--color-cc-accent-deep);
+    --rdp-accent-background-color: var(--color-cc-accent-tint);
+    --rdp-today-color: var(--color-cc-accent-deep);
+    --rdp-selected-border: 2px solid transparent;
+    --rdp-range_start-color: var(--primary-foreground);
+    --rdp-range_end-color: var(--primary-foreground);
+    --rdp-range_start-date-background-color: var(--color-cc-accent);
+    --rdp-range_end-date-background-color: var(--color-cc-accent);
+    --rdp-range_middle-background-color: var(--color-cc-accent-tint);
+    --rdp-range_middle-color: var(--color-cc-ink);
+}
+
+.rdp-root .rdp-selected .rdp-day_button {
+    border-color: transparent;
+    background-color: var(--color-cc-accent);
+    color: var(--color-cc-ink);
+}
+
+.rdp-root .rdp-selected .rdp-day_button:hover {
+    background-color: var(--color-cc-accent-hover);
+    color: var(--color-cc-ink);
+}

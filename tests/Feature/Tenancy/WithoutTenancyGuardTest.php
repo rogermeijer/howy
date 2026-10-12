@@ -6,13 +6,17 @@ use Symfony\Component\Finder\Finder;
 use Tests\TestCase;
 
 /**
- * Pins the one sanctioned request-path use of withoutTenancy().
+ * Pins the sanctioned request-path uses of withoutTenancy().
  *
- * Gmail's Pub/Sub push has no session, so the webhook must look across accounts
- * to learn which account owns the pushed address. That exception is written up
- * in CLAUDE.md rule 5. This test keeps it from spreading: any other call in
- * app/ fails here. Migrations, commands and tests live outside app/ or must be
- * added deliberately, with a reason, to the list below.
+ * 1. Gmail's Pub/Sub push has no session, so the webhook must look across
+ *    accounts to learn which account owns the pushed address.
+ * 2. The admin AI log (/admin/ai, super-admins only) reports AI usage across
+ *    every account. It only reads, maps to arrays inside the bypass, and loads
+ *    a single call's payload back inside Tenancy::for() of its own account.
+ *
+ * Both are written up in CLAUDE.md rule 5. This test keeps them from spreading:
+ * any other call in app/ fails here. Migrations, commands and tests live
+ * outside app/ or must be added deliberately, with a reason, to the list below.
  */
 class WithoutTenancyGuardTest extends TestCase
 {
@@ -21,6 +25,7 @@ class WithoutTenancyGuardTest extends TestCase
      */
     private const array ALLOWED = [
         'Http/Controllers/Webhooks/GmailWebhookController.php',
+        'Services/Admin/AiUsageLog.php',
     ];
 
     public function test_without_tenancy_is_only_called_where_sanctioned(): void

@@ -61,7 +61,7 @@ export function ContactDialog({ children }: { children: ReactNode }) {
                     <button
                         type="button"
                         onClick={copy}
-                        className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-semibold text-cc-muted transition-colors hover:bg-cc-raised hover:text-cc-ink"
+                        className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-cc-muted transition-colors hover:bg-cc-raised hover:text-cc-ink"
                     >
                         {copied ? (
                             <Check

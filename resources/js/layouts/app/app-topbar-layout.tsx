@@ -104,7 +104,7 @@ function TopBar() {
                             router.get(knowledgeRoutes.search().url, { q });
                         }
                     }}
-                    className="hidden h-10 w-[300px] shrink-0 items-center gap-2.5 rounded-[10px] border-[1.5px] border-cc-border bg-cc-panel px-3.5 text-cc-subtle focus-within:border-cc-ink lg:flex"
+                    className="hidden h-10 w-[300px] shrink-0 items-center gap-2.5 rounded-full border-[1.5px] border-cc-border bg-cc-panel px-3.5 text-cc-subtle focus-within:border-cc-ink lg:flex"
                 >
                     <Search className="size-4 shrink-0" />
                     <input
@@ -119,7 +119,7 @@ function TopBar() {
                 <button
                     type="button"
                     aria-label={t('Notifications')}
-                    className="hidden size-10 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-[1.5px] border-cc-border bg-cc-panel text-cc-ink transition-colors hover:border-cc-border-strong sm:flex"
+                    className="hidden size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-[1.5px] border-cc-border bg-cc-panel text-cc-ink transition-colors hover:border-cc-border-strong sm:flex"
                 >
                     <Bell className="size-[18px]" />
                 </button>

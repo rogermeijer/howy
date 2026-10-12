@@ -5,3 +5,4 @@ export type * from './mailboxes';
 export type * from './ui';
 export type * from './knowledge';
 export type * from './interpretations';
+export type * from './admin';

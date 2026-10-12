@@ -4,7 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
-use App\Models\Voucher;
+use App\Models\BetaAccessRequest;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -71,7 +71,7 @@ class FortifyServiceProvider extends ServiceProvider
         // Private beta: without a checked invite code the page asks for one first.
         Fortify::registerView(fn (Request $request) => Inertia::render('auth/register', [
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
-            'voucher' => $this->rememberedVoucher($request)?->code,
+            'code' => $this->rememberedInvite($request)?->code,
         ]));
 
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
@@ -85,16 +85,16 @@ class FortifyServiceProvider extends ServiceProvider
     /**
      * The invite code from the code step, while it can still be redeemed.
      */
-    private function rememberedVoucher(Request $request): ?Voucher
+    private function rememberedInvite(Request $request): ?BetaAccessRequest
     {
-        $code = $request->session()->get(Voucher::SESSION_KEY);
-        $voucher = is_string($code) ? Voucher::findRedeemable($code) : null;
+        $code = $request->session()->get(BetaAccessRequest::SESSION_KEY);
+        $invite = is_string($code) ? BetaAccessRequest::findRedeemable($code) : null;
 
-        if ($voucher === null) {
-            $request->session()->forget(Voucher::SESSION_KEY);
+        if ($invite === null) {
+            $request->session()->forget(BetaAccessRequest::SESSION_KEY);
         }
 
-        return $voucher;
+        return $invite;
     }
 
     private function configureRateLimiting(): void

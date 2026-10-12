@@ -58,7 +58,12 @@ From the terminal: `php artisan knowledge:search {account} "question" --tokens=1
 
 Everything goes through `App\Services\Knowledge\Ai\AiGateway` (laravel/ai): it checks a provider is
 configured, picks the model per step from `config('knowledge.llm.models')`, and records every call in
-`ai_usage_records` (tokens, cached tokens, estimated cost per account and step). Agents live in
+`ai_usage_records` (tokens, cached tokens, estimated cost per account and step, plus the agent, latency,
+outcome — failed calls too — and, for mail, the provider thread). What was sent and received goes, encrypted,
+into `ai_call_payloads`; `knowledge:prune-ai-payloads` (daily) deletes those after
+`AI_LOG_PAYLOAD_RETENTION_DAYS` (30), while the usage records stay for cost analysis. Super-admins read both
+at `/admin/ai`, across accounts, through `App\Services\Admin\AiUsageLog` (the sanctioned exception in
+CLAUDE.md rule 5). Prices in `knowledge.pricing` also match dated snapshots (`gpt-6-luna-2026-…`). Agents live in
 `app/Services/Knowledge/Ai/Agents`. The Batch API runs through `OpenAiBatchRunner` (plain HTTP; laravel/ai has
 no batch support).
 
@@ -70,6 +75,8 @@ names, ids or addresses. `OPENAI_STORE=false` is the default.
 | `OPENAI_API_KEY`                                         | — (without it: extraction + full-text search only) |
 | `KNOWLEDGE_ENRICHMENT_MODE`                              | `batch` (`sync` locally)                           |
 | `KNOWLEDGE_MODEL_*`                                      | `gpt-6-luna` for every LLM step                    |
+| `AI_LOG_PAYLOADS`                                        | `true` (keep what was sent, encrypted)             |
+| `AI_LOG_PAYLOAD_RETENTION_DAYS`                          | `30`                                               |
 | `KNOWLEDGE_PDFTOHTML`, `…_PDFINFO`, `…_QPDF`, `…_PANDOC` | the bare command name                              |
 
 ## Mail to a mailbox
@@ -154,7 +161,7 @@ links is split. AI-made folders are `review_status = new` until approved. Anythi
 `howy_testing` databases, set `QUEUE_CONNECTION=redis` and the `KNOWLEDGE_*` binary paths if your PHP processes
 do not see `/opt/homebrew/bin`. `composer dev` starts Horizon, which works the `default` and `knowledge` queues.
 
-**Server (Ubuntu, Forge-like):**
+**Server (Ubuntu, Forge-like):** the full runbook is `docs/deployment.md`; in short:
 
 ```bash
 # PostgreSQL 18 + pgvector from the PGDG repository
@@ -187,6 +194,7 @@ The directory is gitignored: snapshots contain the documents themselves and stay
   fact rate, tokens and latency per category; reports land in `storage/app/private/eval/`. The bundled set
   covers the example handbook in `tests/Fixtures/Knowledge`; extend it with real documents per tenant.
 - `php artisan knowledge:usage --since=2026-10-01` — tokens and estimated cost per account, step and model.
+  `/admin/ai` shows the same with filters, per thread and message, and every call with its payload.
 
 ## Tests
 

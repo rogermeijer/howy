@@ -93,6 +93,7 @@ export default defineConfig(({ mode }) => {
             ignorePatterns: [
                 '.github/**',
                 'composer.json',
+                'public/vendor/**',
                 'resources/js/components/ui/*',
                 'resources/views/mail/*',
             ],

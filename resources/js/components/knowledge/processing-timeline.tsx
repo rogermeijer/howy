@@ -138,23 +138,6 @@ export function ProcessingTimeline({ steps }: { steps: ProcessingStepView[] }) {
                                     ))}
                                 </dl>
                             )}
-                            {step.usage && (
-                                <p className="text-[13px] text-cc-subtle">
-                                    {t(
-                                        ':calls calls · :input input tokens (:cached cached) · :output output tokens · $:cost',
-                                        {
-                                            calls: step.usage.calls,
-                                            input: step.usage.inputTokens.toLocaleString(),
-                                            cached: step.usage.cachedInputTokens.toLocaleString(),
-                                            output: step.usage.outputTokens.toLocaleString(),
-                                            cost: (
-                                                step.usage.costMicros /
-                                                1_000_000
-                                            ).toFixed(4),
-                                        },
-                                    )}
-                                </p>
-                            )}
                         </div>
                     </li>
                 );

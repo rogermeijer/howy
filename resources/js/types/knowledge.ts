@@ -112,13 +112,6 @@ export type ProcessingStepView = {
     finishedAt: string | null;
     error: string | null;
     meta: Record<string, unknown>;
-    usage: {
-        calls: number;
-        inputTokens: number;
-        cachedInputTokens: number;
-        outputTokens: number;
-        costMicros: number;
-    } | null;
 };
 
 export type VersionOption = {

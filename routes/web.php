@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Auth\RegistrationVoucherController;
+use App\Http\Controllers\Auth\RegistrationCodeController;
 use App\Http\Controllers\BetaAccessRequestController;
 use App\Http\Controllers\CurrentAccountController;
 use App\Http\Controllers\EmailController;
@@ -38,11 +38,15 @@ Route::post('beta-access', [BetaAccessRequestController::class, 'store'])
     ->name('beta-access.store');
 
 Route::middleware('guest')->group(function () {
-    Route::post('register/voucher', [RegistrationVoucherController::class, 'store'])
+    Route::post('register/code', [RegistrationCodeController::class, 'store'])
         ->middleware('throttle:10,1')
-        ->name('register.voucher.store');
-    Route::delete('register/voucher', [RegistrationVoucherController::class, 'destroy'])
-        ->name('register.voucher.destroy');
+        ->name('register.code.store');
+    Route::delete('register/code', [RegistrationCodeController::class, 'destroy'])
+        ->name('register.code.destroy');
+    // The link in an invite mail.
+    Route::get('register/invite/{code}', [RegistrationCodeController::class, 'show'])
+        ->middleware('throttle:10,1')
+        ->name('register.invite');
 });
 
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
@@ -108,3 +112,4 @@ Route::post('webhooks/gmail', GmailWebhookController::class)
     ->name('webhooks.gmail');
 
 require __DIR__.'/settings.php';
+require __DIR__.'/admin.php';

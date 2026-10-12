@@ -31,7 +31,7 @@ type Props = {
 };
 
 const fieldClass =
-    'rounded-[10px] border-[1.5px] border-cc-border-strong bg-cc-panel';
+    'rounded-full border-[1.5px] border-cc-border-strong bg-cc-panel';
 
 /**
  * Who Howy may reply to from one mailbox. The list shown follows the policy:

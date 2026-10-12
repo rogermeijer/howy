@@ -392,7 +392,7 @@ function Statement({
                             type="button"
                             disabled={busy}
                             onClick={() => decide('approve')}
-                            className="flex h-11 cursor-pointer items-center gap-1.5 rounded-[10px] bg-cc-ink px-4 text-[14px] font-semibold text-cc-bg transition-colors hover:bg-cc-dark-2 disabled:opacity-60"
+                            className="flex h-11 cursor-pointer items-center gap-1.5 rounded-full bg-cc-ink px-4 text-[14px] font-semibold text-cc-bg transition-colors hover:bg-cc-dark-2 disabled:opacity-60"
                         >
                             <Check className="size-4" />
                             {statement.verdict === 'conflict'
@@ -403,7 +403,7 @@ function Statement({
                             type="button"
                             disabled={busy}
                             onClick={() => decide('reject')}
-                            className="flex h-11 cursor-pointer items-center gap-1.5 rounded-[10px] border-[1.5px] border-cc-border-strong px-4 text-[14px] font-semibold text-cc-ink transition-colors hover:border-cc-ink disabled:opacity-60"
+                            className="flex h-11 cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-cc-border-strong px-4 text-[14px] font-semibold text-cc-ink transition-colors hover:border-cc-ink disabled:opacity-60"
                         >
                             <X className="size-4" />
                             {t('Reject')}
