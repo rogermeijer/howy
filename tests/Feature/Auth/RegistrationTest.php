@@ -3,8 +3,8 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
+use App\Models\BetaAccessRequest;
 use App\Models\User;
-use App\Models\Voucher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Fortify\Features;
 use Tests\TestCase;
@@ -29,7 +29,7 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register()
     {
-        $response = $this->withVoucher()->post(route('register.store'), $this->payload());
+        $response = $this->withCode()->post(route('register.store'), $this->payload());
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
@@ -37,7 +37,7 @@ class RegistrationTest extends TestCase
 
     public function test_registration_requires_an_account_name()
     {
-        $response = $this->withVoucher()->post(route('register.store'), $this->payload(['account_name' => '']));
+        $response = $this->withCode()->post(route('register.store'), $this->payload(['account_name' => '']));
 
         $response->assertSessionHasErrors('account_name');
         $this->assertGuest();
@@ -45,7 +45,7 @@ class RegistrationTest extends TestCase
 
     public function test_registration_creates_an_account_and_makes_the_user_its_admin()
     {
-        $this->withVoucher()->post(route('register.store'), $this->payload());
+        $this->withCode()->post(route('register.store'), $this->payload());
 
         $user = User::whereEmail('test@example.com')->sole();
         $account = Account::whereName('Test Company')->sole();
@@ -59,7 +59,7 @@ class RegistrationTest extends TestCase
 
     public function test_registration_sets_the_active_account()
     {
-        $this->withVoucher()->post(route('register.store'), $this->payload());
+        $this->withCode()->post(route('register.store'), $this->payload());
 
         $user = User::whereEmail('test@example.com')->sole();
 
@@ -68,7 +68,7 @@ class RegistrationTest extends TestCase
 
     public function test_registration_cannot_mint_a_platform_administrator()
     {
-        $this->withVoucher()->post(route('register.store'), $this->payload(['is_admin' => true]));
+        $this->withCode()->post(route('register.store'), $this->payload(['is_admin' => true]));
 
         $this->assertFalse(User::whereEmail('test@example.com')->sole()->is_admin);
     }
@@ -76,11 +76,11 @@ class RegistrationTest extends TestCase
     /**
      * Registration needs a checked invite code in the session, as the code step leaves it.
      */
-    private function withVoucher(?Voucher $voucher = null): static
+    private function withCode(?BetaAccessRequest $invite = null): static
     {
-        $voucher ??= Voucher::factory()->create();
+        $invite ??= BetaAccessRequest::factory()->create();
 
-        return $this->withSession([Voucher::SESSION_KEY => $voucher->code]);
+        return $this->withSession([BetaAccessRequest::SESSION_KEY => $invite->code]);
     }
 
     /**

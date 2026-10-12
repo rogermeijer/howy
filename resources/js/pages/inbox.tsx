@@ -1,15 +1,15 @@
 import { Head, Link } from '@inertiajs/react';
 import { Inbox as InboxIcon, Paperclip } from 'lucide-react';
 import { WithHowy } from '@/components/brand/howy-name';
+import { Pager } from '@/components/admin/pager';
 import { PageHeader } from '@/components/cc/page-header';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { MailboxBanner } from '@/components/mailboxes/mailbox-banner';
-import { Button } from '@/components/ui/button';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { show } from '@/routes/emails';
-import type { InterpretationBrief } from '@/types';
+import type { InterpretationBrief, Paginated } from '@/types';
 
 type InboxThread = {
     id: number;
@@ -20,13 +20,6 @@ type InboxThread = {
     messagesCount: number;
     hasAttachments: boolean;
     interpretation: InterpretationBrief | null;
-};
-
-type Paginated<T> = {
-    data: T[];
-    total: number;
-    prev_page_url: string | null;
-    next_page_url: string | null;
 };
 
 type Props = {
@@ -165,32 +158,11 @@ export default function Inbox({
                     </div>
                 )}
 
-                {(threads.prev_page_url || threads.next_page_url) && (
-                    <div className="flex justify-between">
-                        {threads.prev_page_url ? (
-                            <Button asChild variant="outline" className="h-10">
-                                <Link
-                                    href={threads.prev_page_url}
-                                    preserveScroll
-                                >
-                                    {t('Newer')}
-                                </Link>
-                            </Button>
-                        ) : (
-                            <span />
-                        )}
-                        {threads.next_page_url && (
-                            <Button asChild variant="outline" className="h-10">
-                                <Link
-                                    href={threads.next_page_url}
-                                    preserveScroll
-                                >
-                                    {t('Older')}
-                                </Link>
-                            </Button>
-                        )}
-                    </div>
-                )}
+                <Pager
+                    page={threads}
+                    previousLabel={t('Newer')}
+                    nextLabel={t('Older')}
+                />
             </div>
         </>
     );

@@ -548,7 +548,7 @@ export default function Welcome() {
                     id="top"
                     className={cn(
                         container,
-                        'flex scroll-mt-32 flex-wrap items-center gap-[clamp(40px,6vw,80px)] pt-[clamp(40px,6vw,88px)] pb-[clamp(72px,9vw,128px)] lg:flex-nowrap lg:items-start',
+                        'flex scroll-mt-32 flex-wrap items-center gap-[clamp(40px,6vw,80px)] pt-14 pb-[clamp(72px,9vw,128px)] sm:pt-[clamp(40px,6vw,88px)] lg:flex-nowrap lg:items-start',
                     )}
                 >
                     {/* The first heading line runs on over the image column,

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Actions\Accounts\CreateAccount;
+use App\Models\BetaAccessRequest;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -46,6 +47,10 @@ class DatabaseSeeder extends Seeder
 
         $roger->active_account_id = $cc->id;
         $roger->save();
+
+        // A short private beta list for /admin/beta: one waiting, one invited.
+        BetaAccessRequest::submit('waiting@example.com', 'nl');
+        BetaAccessRequest::submit('invited@example.com', 'en')->forceFill(['invited_at' => now()])->save();
 
         // Processed knowledge bases exported with `php artisan knowledge:export-seed`.
         $this->call(KnowledgeSeeder::class);

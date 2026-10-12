@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Knowledge;
 use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Knowledge\DocumentResource;
-use App\Models\AiUsageRecord;
 use App\Models\Document;
 use App\Models\DocumentProcessingStep;
 use App\Models\DocumentSection;
@@ -20,7 +19,7 @@ use Inertia\Response;
 /**
  * "How is this stored": a document's section tree, and per section its chunks
  * with their context lines, its summary, facts and folders, plus a timeline
- * of how each version was processed and what it cost.
+ * of how each version was processed.
  */
 class DocumentInspectorController extends Controller
 {
@@ -127,38 +126,19 @@ class DocumentInspectorController extends Controller
      */
     private function steps(DocumentVersion $version): array
     {
-        $usage = AiUsageRecord::query()
-            ->where('subject_type', 'document_version')
-            ->where('subject_id', $version->id)
-            ->selectRaw('step, SUM(input_tokens) as input_tokens, SUM(cached_input_tokens) as cached_input_tokens, SUM(output_tokens) as output_tokens, SUM(estimated_cost_micros) as cost_micros, COUNT(*) as calls')
-            ->groupBy('step')
-            ->get()
-            ->keyBy('step');
-
         return DocumentProcessingStep::query()
             ->where('document_version_id', $version->id)
             ->orderBy('id')
             ->get()
-            ->map(function (DocumentProcessingStep $step) use ($usage): array {
-                $spent = $usage->get($step->step->value);
-
-                return [
-                    'step' => $step->step->value,
-                    'status' => $step->status->value,
-                    'attempts' => $step->attempts,
-                    'startedAt' => $step->started_at?->toIso8601String(),
-                    'finishedAt' => $step->finished_at?->toIso8601String(),
-                    'error' => $step->error,
-                    'meta' => $step->meta ?? (object) [],
-                    'usage' => $spent === null ? null : [
-                        'calls' => (int) $spent->getAttribute('calls'),
-                        'inputTokens' => (int) $spent->getAttribute('input_tokens'),
-                        'cachedInputTokens' => (int) $spent->getAttribute('cached_input_tokens'),
-                        'outputTokens' => (int) $spent->getAttribute('output_tokens'),
-                        'costMicros' => (int) $spent->getAttribute('cost_micros'),
-                    ],
-                ];
-            })
+            ->map(fn (DocumentProcessingStep $step): array => [
+                'step' => $step->step->value,
+                'status' => $step->status->value,
+                'attempts' => $step->attempts,
+                'startedAt' => $step->started_at?->toIso8601String(),
+                'finishedAt' => $step->finished_at?->toIso8601String(),
+                'error' => $step->error,
+                'meta' => $step->meta ?? (object) [],
+            ])
             ->values()
             ->all();
     }

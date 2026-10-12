@@ -6,8 +6,8 @@ use App\Actions\Accounts\CreateAccount;
 use App\Concerns\AccountValidationRules;
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
+use App\Models\BetaAccessRequest;
 use App\Models\User;
-use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -34,30 +34,28 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        $code = session(Voucher::SESSION_KEY);
+        $code = session(BetaAccessRequest::SESSION_KEY);
 
         $user = DB::transaction(function () use ($input, $code): User {
             // Private beta: the code is checked again under a row lock, so two
-            // people racing for the last use of a code cannot both get in.
-            $voucher = is_string($code)
-                ? Voucher::query()->where('code', $code)->lockForUpdate()->first()
+            // people racing for the same code cannot both get in.
+            $invite = is_string($code)
+                ? BetaAccessRequest::query()->where('code', $code)->lockForUpdate()->first()
                 : null;
 
-            if ($voucher === null || ! $voucher->isRedeemable()) {
+            if ($invite === null || ! $invite->isRedeemable()) {
                 throw ValidationException::withMessages([
-                    'voucher' => __('Your invite code is no longer valid. Enter another one to continue.'),
+                    'code' => __('Your invite code is no longer valid. Enter another one to continue.'),
                 ]);
             }
 
-            $voucher->increment('uses');
-
-            $user = new User([
+            $user = User::create([
                 'name' => $input['name'],
                 'email' => $input['email'],
                 'password' => $input['password'],
             ]);
-            $user->voucher()->associate($voucher);
-            $user->save();
+
+            $invite->forceFill(['redeemed_at' => now(), 'user_id' => $user->id])->save();
 
             // The account inherits whatever locale the registration page was being
             // read in, so someone who switched to English lands in an English account.
@@ -66,7 +64,7 @@ class CreateNewUser implements CreatesNewUsers
             return $user->refresh();
         });
 
-        session()->forget(Voucher::SESSION_KEY);
+        session()->forget(BetaAccessRequest::SESSION_KEY);
 
         return $user;
     }

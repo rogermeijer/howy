@@ -335,7 +335,7 @@ function OpenMessage({
                         onClick={onSelect}
                         aria-pressed={selected}
                         className={cn(
-                            'flex min-h-10 cursor-pointer items-center gap-2.5 self-start rounded-[10px] border-[1.5px] px-3 text-[13px] font-medium transition-colors',
+                            'flex min-h-10 cursor-pointer items-center gap-2.5 self-start rounded-full border-[1.5px] px-3 text-[13px] font-medium transition-colors',
                             selected
                                 ? 'border-cc-ink text-cc-ink'
                                 : 'border-cc-border-strong text-cc-muted hover:border-cc-ink hover:text-cc-ink',

@@ -3,16 +3,16 @@
 What a fresh Forge server needs before Howy deploys and runs. Forge provisions PHP, Nginx, Node, Redis and
 PostgreSQL; the items below are what Howy adds on top. Commands run over SSH as the `forge` user unless noted.
 
-| Needed for                         | What                                                     | Forge installs it? |
-| ---------------------------------- | -------------------------------------------------------- | ------------------ |
-| Embeddings, hybrid search          | PostgreSQL extension `vector` (pgvector)                 | No                 |
-| Topic folder tree                  | PostgreSQL extension `ltree` (contrib)                   | Package yes, extension no |
-| PDF extraction                     | `pdftohtml`, `pdfinfo`, `pdftoppm` (`poppler-utils`)     | No                 |
-| Scanned-PDF fallback               | `qpdf`                                                   | No                 |
-| DOCX extraction                    | `pandoc`                                                 | No                 |
-| Queues (`default`, `knowledge`)    | Redis + Horizon daemon                                   | Redis yes, daemon no |
-| Gmail watch renewal, polling, Batch API | Scheduler (`schedule:run` every minute)             | No (toggle)        |
-| Frontend build                     | Node 22                                                  | Check version      |
+| Needed for                              | What                                                 | Forge installs it?        |
+| --------------------------------------- | ---------------------------------------------------- | ------------------------- |
+| Embeddings, hybrid search               | PostgreSQL extension `vector` (pgvector)             | No                        |
+| Topic folder tree                       | PostgreSQL extension `ltree` (contrib)               | Package yes, extension no |
+| PDF extraction                          | `pdftohtml`, `pdfinfo`, `pdftoppm` (`poppler-utils`) | No                        |
+| Scanned-PDF fallback                    | `qpdf`                                               | No                        |
+| DOCX extraction                         | `pandoc`                                             | No                        |
+| Queues (`default`, `knowledge`)         | Redis + Horizon daemon                               | Redis yes, daemon no      |
+| Gmail watch renewal, polling, Batch API | Scheduler (`schedule:run` every minute)              | No (toggle)               |
+| Frontend build                          | Node 22                                              | Check version             |
 
 ## 1. PostgreSQL: pgvector and ltree
 

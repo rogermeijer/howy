@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { register } from '@/routes';
@@ -86,12 +87,18 @@ export function PrivateBetaBar({ className }: { className?: string }) {
  * Closing it unmounts the form, so it opens fresh each time.
  */
 export function RequestAccessDialog({ children }: { children: ReactNode }) {
+    const isMobile = useIsMobile();
     const t = useTranslations();
 
     return (
         <Dialog>
             <DialogTrigger asChild>{children}</DialogTrigger>
-            <DialogContent className="gap-0 rounded-[20px] border-cc-border bg-cc-panel p-0 text-cc-ink sm:max-w-[460px]">
+            <DialogContent
+                className="gap-0 rounded-[20px] border-cc-border bg-cc-panel p-0 text-cc-ink sm:max-w-[460px]"
+                onOpenAutoFocus={
+                    isMobile ? (event) => event.preventDefault() : undefined
+                }
+            >
                 <Form
                     {...store.form()}
                     options={{ preserveScroll: true, preserveState: true }}
@@ -152,10 +159,10 @@ export function RequestAccessDialog({ children }: { children: ReactNode }) {
                                         type="email"
                                         name="email"
                                         required
-                                        autoFocus
+                                        autoFocus={!isMobile}
                                         autoComplete="email"
                                         placeholder={t('name@company.com')}
-                                        className="h-12 rounded-[10px] border-[1.5px] border-cc-border-strong bg-white px-4 text-[15px] md:text-[15px]"
+                                        className="h-12 rounded-full border-[1.5px] border-cc-border-strong bg-white px-4 text-[15px] md:text-[15px]"
                                     />
                                     <InputError message={errors.email} />
                                 </div>

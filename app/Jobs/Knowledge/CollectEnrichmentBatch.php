@@ -8,6 +8,8 @@ use App\Enums\StepStatus;
 use App\Models\DocumentProcessingStep;
 use App\Models\DocumentSection;
 use App\Models\DocumentVersion;
+use App\Services\Knowledge\Ai\Agents\SectionEnricher;
+use App\Services\Knowledge\Ai\AiCallDetails;
 use App\Services\Knowledge\Ai\AiGateway;
 use App\Services\Knowledge\Ai\Batch\BatchRunner;
 use App\Services\Knowledge\Ai\Batch\BatchStatus;
@@ -68,7 +70,10 @@ class CollectEnrichmentBatch extends KnowledgeJob implements ShouldBeUnique
                 continue;
             }
 
-            $ai->record('summary', $version, $ai->provider(), $result->model, $result->inputTokens, $result->cachedInputTokens, $result->outputTokens, batch: true);
+            $ai->record('summary', $version, $ai->provider(), $result->model, $result->inputTokens, $result->cachedInputTokens, $result->outputTokens, batch: true, details: new AiCallDetails(
+                agent: class_basename(SectionEnricher::class),
+                output: (string) json_encode($result->structured, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE),
+            ));
             $facts += $enrichment->apply($section, $version, $result->structured, $result->model);
         }
 

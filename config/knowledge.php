@@ -142,4 +142,18 @@ return [
         'text-embedding-3-large' => ['input' => 0.13, 'cached_input' => 0.13, 'output' => 0.0],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | AI call log
+    |--------------------------------------------------------------------------
+    |
+    | Every call's tokens, cost, latency and outcome are kept for good. What was
+    | sent and received (customer text) is kept encrypted for a while so an
+    | admin can see how the app uses AI, then pruned by knowledge:prune-ai-payloads.
+    */
+    'ai_log' => [
+        'payloads' => (bool) env('AI_LOG_PAYLOADS', true),
+        'payload_retention_days' => (int) env('AI_LOG_PAYLOAD_RETENTION_DAYS', 30),
+    ],
+
 ];

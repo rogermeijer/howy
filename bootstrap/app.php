@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireAccountAdmin;
+use App\Http\Middleware\RequireSuperAdmin;
 use App\Http\Middleware\RequireTenantContext;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantContext;
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => RequireTenantContext::class,
             'account.admin' => RequireAccountAdmin::class,
+            'super-admin' => RequireSuperAdmin::class,
         ]);
 
         $middleware->web(append: [

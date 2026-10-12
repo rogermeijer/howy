@@ -11,25 +11,25 @@ import { login } from '@/routes';
 import { RequestAccessDialog } from '@/components/marketing/private-beta';
 import { store } from '@/routes/register';
 import {
-    destroy as forgetVoucher,
-    store as checkVoucher,
-} from '@/routes/register/voucher';
+    destroy as forgetCode,
+    store as checkCode,
+} from '@/routes/register/code';
 import { useTranslations } from '@/hooks/use-translations';
 
 type Props = {
     passwordRules: string;
     /** The checked invite code, or null while the code step still has to be done. */
-    voucher: string | null;
+    code: string | null;
 };
 
-export default function Register({ passwordRules, voucher }: Props) {
+export default function Register({ passwordRules, code }: Props) {
     const t = useTranslations();
 
     return (
         <>
             <Head title={t('Create an account')} />
-            {voucher ? (
-                <DetailsStep passwordRules={passwordRules} voucher={voucher} />
+            {code ? (
+                <DetailsStep passwordRules={passwordRules} code={code} />
             ) : (
                 <CodeStep />
             )}
@@ -43,14 +43,14 @@ export default function Register({ passwordRules, voucher }: Props) {
  */
 function CodeStep() {
     const t = useTranslations();
-    // A code that ran out between the two steps comes back as a `voucher`
-    // error from the registration itself, not from this form.
+    // A code that ran out between the two steps, or a dead invite link, comes
+    // back as a `code` error from outside this form.
     const { errors: pageErrors } = usePage().props;
 
     return (
         <div className="flex flex-col gap-6">
             <Form
-                {...checkVoucher.form()}
+                {...checkCode.form()}
                 disableWhileProcessing
                 className="flex flex-col gap-6"
             >
@@ -83,14 +83,14 @@ function CodeStep() {
                                 className="font-mono tracking-[0.12em] uppercase placeholder:tracking-[0.12em]"
                             />
                             <InputError
-                                message={errors.code ?? pageErrors.voucher}
+                                message={errors.code ?? pageErrors.code}
                             />
                         </div>
 
                         <Button
                             type="submit"
                             className="w-full"
-                            data-test="check-voucher-button"
+                            data-test="check-code-button"
                         >
                             {processing && <Spinner />}
                             {t('Continue')}
@@ -122,7 +122,7 @@ function CodeStep() {
     );
 }
 
-function DetailsStep({ passwordRules, voucher }: Props & { voucher: string }) {
+function DetailsStep({ passwordRules, code }: Props & { code: string }) {
     const t = useTranslations();
 
     return (
@@ -141,12 +141,12 @@ function DetailsStep({ passwordRules, voucher }: Props & { voucher: string }) {
                             {t('Invite code')}
                         </div>
                         <div className="truncate font-mono text-sm font-semibold tracking-[0.08em] text-cc-bg">
-                            {voucher}
+                            {code}
                         </div>
                     </div>
                 </div>
                 <Link
-                    href={forgetVoucher()}
+                    href={forgetCode()}
                     as="button"
                     className="shrink-0 cursor-pointer rounded-full px-3 py-1.5 text-[13px] font-semibold text-cc-dark-text transition-colors hover:text-cc-accent"
                 >

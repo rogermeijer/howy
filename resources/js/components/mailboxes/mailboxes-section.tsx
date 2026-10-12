@@ -232,8 +232,8 @@ function MailboxRow({
                 <div
                     className={
                         needsReauth
-                            ? 'flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-cc-pending-bg text-cc-pending-fg'
-                            : 'flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-cc-raised text-cc-ink'
+                            ? 'flex size-10 shrink-0 items-center justify-center rounded-full bg-cc-pending-bg text-cc-pending-fg'
+                            : 'flex size-10 shrink-0 items-center justify-center rounded-full bg-cc-raised text-cc-ink'
                     }
                 >
                     {needsReauth ? (

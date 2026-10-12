@@ -57,7 +57,7 @@ export function LanguageSwitcher({
                     aria-label={t('Change language')}
                     title={flags ? current?.label : undefined}
                     className={cn(
-                        'flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-[10px] border-[1.5px] border-cc-border bg-cc-panel px-3 text-sm font-medium text-cc-ink transition-colors hover:border-cc-border-strong',
+                        'flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full border-[1.5px] border-cc-border bg-cc-panel px-3 text-sm font-medium text-cc-ink transition-colors hover:border-cc-border-strong',
                         flags && 'rounded-full pr-2.5 pl-3',
                         className,
                     )}
