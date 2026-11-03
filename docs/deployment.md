@@ -12,7 +12,7 @@ PostgreSQL; the items below are what Howy adds on top. Commands run over SSH as 
 | DOCX extraction                         | `pandoc`                                             | No                        |
 | Queues (`default`, `knowledge`)         | Redis + Horizon daemon                               | Redis yes, daemon no      |
 | Gmail watch renewal, polling, Batch API | Scheduler (`schedule:run` every minute)              | No (toggle)               |
-| Frontend build                          | Node 22                                              | Check version             |
+| Frontend build                          | Node 24 (major from `.node-version`)                 | Check version             |
 
 ## 1. PostgreSQL: pgvector and ltree
 
@@ -106,11 +106,31 @@ The `knowledge` disk lives in `storage/app/private/knowledge`. With Forge's zero
 
 ## 5. Deploy script
 
-Node must be 20.19+ (Vite 8); use 22, like CI. `npm run build` also runs `php artisan wayfinder:generate`
-through the Wayfinder Vite plugin, so it needs PHP and a working `.env`.
+`.node-version` pins the Node version; CI reads it via `node-version-file`, and the server must run the same
+major (vite-plus needs at least 22.18 or 24.11). Forge may provision an older Node, so check with `node -v` and,
+if needed, install Node 24 from NodeSource (it ships npm 11):
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt install -y nodejs
+node -v
+```
+
+The project uses npm: `package-lock.json` is the only lockfile, so deploy with `npm ci`, never pnpm or
+`npm install`. `npm run build` also runs `php artisan wayfinder:generate` through the Wayfinder Vite plugin,
+so it needs PHP and a working `.env`.
+
+The deploy script stops before touching anything when the server's Node major does not match `.node-version`;
+with zero-downtime deployments the failed release is never activated.
 
 ```bash
 cd $FORGE_RELEASE_DIRECTORY   # or $FORGE_SITE_PATH without zero-downtime
+
+REQUIRED_NODE="$(cut -d. -f1 .node-version)"
+if [ "$(node -p 'process.versions.node.split(".")[0]')" != "$REQUIRED_NODE" ]; then
+    echo "Node $REQUIRED_NODE required (.node-version), found $(node -v)"
+    exit 1
+fi
 
 $FORGE_COMPOSER install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
