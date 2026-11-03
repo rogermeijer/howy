@@ -102,7 +102,7 @@ waarde. Een wijziging vraagt een nieuwe migratie en een re-embed-command (`knowl
 - Elke versie krijgt eigen chunk-rijen (een goedkope DB-kopie) in plaats van rijen te delen tussen versies.
   Dat kost iets meer opslag, maar houdt de herleiding chunk → versie → sectie → pagina eenvoudig en juist.
 - HNSW met een tenant-filter vindt soms te weinig resultaten. Daarom `SET LOCAL hnsw.iterative_scan =
-relaxed_order`. Bij ~5k chunks per tenant kiest de planner vaak gewoon een exacte scan via de account-index,
+  relaxed_order`. Bij ~5k chunks per tenant kiest de planner vaak gewoon een exacte scan via de account-index,
   wat ook prima is.
 
 ## 2. Upload en deduplicatie
