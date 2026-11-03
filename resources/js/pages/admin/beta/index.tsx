@@ -108,7 +108,7 @@ export default function AdminBeta({
         })[status];
 
     const statusTone = (status: BetaStatus) =>
-        (({ pending: 'warn', invited: 'info', registered: 'good' }) as const)[
+        ({ pending: 'warn', invited: 'info', registered: 'good' } as const)[
             status
         ];
 

@@ -380,6 +380,35 @@
     background-color: #14272b;
 }
 
+.cc-auth-card .cc-auth-checkbox {
+    height: 1rem;
+    width: 1rem;
+    flex-shrink: 0;
+    cursor: pointer;
+    appearance: none;
+    border-radius: 4px;
+    border: 1.5px solid #2a4146;
+    background-color: #84919a;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.cc-auth-card .cc-auth-checkbox:checked {
+    border-color: #cdf464;
+    background-color: #cdf464;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230d1b1e' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    background-size: 0.75rem;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.cc-auth-card .cc-auth-checkbox:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(205, 244, 100, 0.45);
+}
+
 /* Password reveal toggle sits inside the ivory field. */
 .cc-auth-card .relative > button[type='button'] {
     color: #5f6d73;

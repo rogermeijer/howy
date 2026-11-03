@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\ForwardTunnelledOAuthCallback;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireAccountAdmin;
 use App\Http\Middleware\RequireSuperAdmin;
@@ -22,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // The locale cookie joins sidebar_state as an unencrypted UI preference.
         $middleware->encryptCookies(except: ['sidebar_state', SetLocale::COOKIE]);
+
+        $middleware->prepend(ForwardTunnelledOAuthCallback::class);
 
         $middleware->alias([
             'tenant' => RequireTenantContext::class,

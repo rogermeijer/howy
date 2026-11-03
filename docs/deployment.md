@@ -12,7 +12,7 @@ PostgreSQL; the items below are what Howy adds on top. Commands run over SSH as 
 | DOCX extraction                         | `pandoc`                                             | No                        |
 | Queues (`default`, `knowledge`)         | Redis + Horizon daemon                               | Redis yes, daemon no      |
 | Gmail watch renewal, polling, Batch API | Scheduler (`schedule:run` every minute)              | No (toggle)               |
-| Frontend build                          | Node 22                                              | Check version             |
+| Frontend build                          | Node 24 (major from `.node-version`)                 | Check version             |
 
 ## 1. PostgreSQL: pgvector and ltree
 
@@ -106,11 +106,31 @@ The `knowledge` disk lives in `storage/app/private/knowledge`. With Forge's zero
 
 ## 5. Deploy script
 
-Node must be 20.19+ (Vite 8); use 22, like CI. `npm run build` also runs `php artisan wayfinder:generate`
-through the Wayfinder Vite plugin, so it needs PHP and a working `.env`.
+`.node-version` pins the Node version; CI reads it via `node-version-file`, and the server must run the same
+major (vite-plus needs at least 22.18 or 24.11). Forge may provision an older Node, so check with `node -v` and,
+if needed, install Node 24 from NodeSource (it ships npm 11):
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt install -y nodejs
+node -v
+```
+
+The project uses npm: `package-lock.json` is the only lockfile, so deploy with `npm ci`, never pnpm or
+`npm install`. `npm run build` also runs `php artisan wayfinder:generate` through the Wayfinder Vite plugin,
+so it needs PHP and a working `.env`.
+
+The deploy script stops before touching anything when the server's Node major does not match `.node-version`;
+with zero-downtime deployments the failed release is never activated.
 
 ```bash
 cd $FORGE_RELEASE_DIRECTORY   # or $FORGE_SITE_PATH without zero-downtime
+
+REQUIRED_NODE="$(cut -d. -f1 .node-version)"
+if [ "$(node -p 'process.versions.node.split(".")[0]')" != "$REQUIRED_NODE" ]; then
+    echo "Node $REQUIRED_NODE required (.node-version), found $(node -v)"
+    exit 1
+fi
 
 $FORGE_COMPOSER install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
@@ -139,9 +159,17 @@ and gated on `users.is_admin`.
 
 ## 7. Scheduler
 
-Forge → site → **Scheduler** (or the toggle in the Laravel panel): `php artisan schedule:run` every minute.
-It runs `mailboxes:renew-watches` (daily — Gmail watches expire after 7 days), `mailboxes:poll` and
-`knowledge:poll-batches` (every five minutes).
+Not part of the deploy script: the schedule itself lives in `routes/console.php`, and the server only needs one
+cron entry. Either toggle **Scheduler** in the site's Laravel panel, or add a scheduled job under Forge → server
+→ **Scheduled jobs**:
+
+- Command: `php /home/forge/<site>/current/artisan schedule:run` (drop `/current` without zero-downtime)
+- User: `forge`, not root, so files in `storage/` stay writable for php-fpm and Horizon
+- Frequency: every minute
+
+Use one of the two, not both. It runs `mailboxes:renew-watches` (daily — Gmail watches expire after 7 days),
+`mailboxes:poll` and `knowledge:poll-batches` (every five minutes), and `knowledge:prune-ai-payloads` (daily —
+removes stored AI prompts and responses after `AI_LOG_PAYLOAD_RETENTION_DAYS`, default 30).
 
 ## 8. Optional: Inertia SSR
 
@@ -161,7 +189,7 @@ callback URL to the OAuth client.
 sudo -u postgres psql -d forge -c '\dx'        # vector, ltree
 php artisan migrate:status                      # all Ran
 php artisan horizon:status                      # running
-php artisan schedule:list                       # three commands
+php artisan schedule:list                       # four commands
 ```
 
 Then upload a PDF and a DOCX in the knowledge base and check that both are processed.

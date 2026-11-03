@@ -30,8 +30,7 @@ type Props = {
     onOpenChange: (open: boolean) => void;
 };
 
-const fieldClass =
-    'rounded-full border-[1.5px] border-cc-border-strong bg-cc-panel';
+const fieldClass = 'border-[1.5px] border-cc-border-strong bg-cc-panel';
 
 /**
  * Who Howy may reply to from one mailbox. The list shown follows the policy:
@@ -104,7 +103,7 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
                                     >
                                         <SelectTrigger
                                             id="send_policy"
-                                            className={`h-11 ${fieldClass}`}
+                                            className={`h-11 rounded-full ${fieldClass}`}
                                         >
                                             <SelectValue />
                                         </SelectTrigger>
@@ -141,7 +140,7 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
                                             placeholder={t(
                                                 'One address or domain per line, e.g. jan@example.com or example.com',
                                             )}
-                                            className={`min-h-28 ${fieldClass}`}
+                                            className={`min-h-28 rounded-2xl px-4 py-3 ${fieldClass}`}
                                         />
                                         <InputError
                                             message={listError(
@@ -174,7 +173,7 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
                                             placeholder={t(
                                                 'One address or domain per line, e.g. jan@example.com or example.com',
                                             )}
-                                            className={`min-h-28 ${fieldClass}`}
+                                            className={`min-h-28 rounded-2xl px-4 py-3 ${fieldClass}`}
                                         />
                                         <p className="cc-caption">
                                             {t(
