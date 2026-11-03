@@ -77,5 +77,11 @@ ngrok hostname and run `composer dev` — ngrok starts alongside `php artisan se
 You can keep browsing on Valet (`APP_URL=https://cc.test`) and use the tunnel URL when you need a public
 endpoint. Vite keeps serving from `https://cc.test:5173`; with `NGROK_DOMAIN` set, that dev server also
 allows the ngrok origin so the UI works on both hosts. Point the Pub/Sub subscription (and
-`GOOGLE_PUBSUB_AUDIENCE`) at `https://<ngrok-host>/webhooks/gmail`. For Gmail OAuth over the tunnel, add
-that host’s callback URL in Google Cloud or temporarily set `GOOGLE_REDIRECT_URI` to match.
+`GOOGLE_PUBSUB_AUDIENCE`) at `https://<ngrok-host>/webhooks/gmail`.
+
+Google does not accept a `.test` host as redirect URI, so Gmail OAuth also goes through the tunnel. Register
+`https://<ngrok-host>/settings/mailboxes/gmail/callback` in Google Cloud and set `GOOGLE_REDIRECT_URI` to it.
+Keep starting the connect flow on `APP_URL`, where you are logged in: when the callback comes back over the
+tunnel, `ForwardTunnelledOAuthCallback` sends it on to the same path on `APP_URL` with its query intact, so
+the session, the OAuth state and the account checks run there as usual. Only that GET path on the
+`NGROK_DOMAIN` host is forwarded; the webhook and everything else over the tunnel are left alone.
