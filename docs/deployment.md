@@ -159,9 +159,17 @@ and gated on `users.is_admin`.
 
 ## 7. Scheduler
 
-Forge → site → **Scheduler** (or the toggle in the Laravel panel): `php artisan schedule:run` every minute.
-It runs `mailboxes:renew-watches` (daily — Gmail watches expire after 7 days), `mailboxes:poll` and
-`knowledge:poll-batches` (every five minutes).
+Not part of the deploy script: the schedule itself lives in `routes/console.php`, and the server only needs one
+cron entry. Either toggle **Scheduler** in the site's Laravel panel, or add a scheduled job under Forge → server
+→ **Scheduled jobs**:
+
+- Command: `php /home/forge/<site>/current/artisan schedule:run` (drop `/current` without zero-downtime)
+- User: `forge`, not root, so files in `storage/` stay writable for php-fpm and Horizon
+- Frequency: every minute
+
+Use one of the two, not both. It runs `mailboxes:renew-watches` (daily — Gmail watches expire after 7 days),
+`mailboxes:poll` and `knowledge:poll-batches` (every five minutes), and `knowledge:prune-ai-payloads` (daily —
+removes stored AI prompts and responses after `AI_LOG_PAYLOAD_RETENTION_DAYS`, default 30).
 
 ## 8. Optional: Inertia SSR
 
@@ -181,7 +189,7 @@ callback URL to the OAuth client.
 sudo -u postgres psql -d forge -c '\dx'        # vector, ltree
 php artisan migrate:status                      # all Ran
 php artisan horizon:status                      # running
-php artisan schedule:list                       # three commands
+php artisan schedule:list                       # four commands
 ```
 
 Then upload a PDF and a DOCX in the knowledge base and check that both are processed.
