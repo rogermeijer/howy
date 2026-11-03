@@ -34,7 +34,7 @@ class DatabaseSeeder extends Seeder
 
         $devkids = User::factory()->create([
             'name' => 'Roger Meijer',
-            'email' => 'rogermeijer@gmail.com',
+            'email' => 'info@devkids.nl',
             'password' => Hash::make('admin'),
         ]);
 

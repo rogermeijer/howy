@@ -3,7 +3,6 @@ import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -81,16 +80,21 @@ export default function Login({ status, canResetPassword }: Props) {
                                 <InputError message={errors.password} />
                             </div>
 
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
+                            <label
+                                htmlFor="remember"
+                                className="flex cursor-pointer items-center gap-3"
+                            >
+                                <input
                                     id="remember"
+                                    type="checkbox"
                                     name="remember"
                                     tabIndex={3}
+                                    className="cc-auth-checkbox"
                                 />
-                                <Label htmlFor="remember">
+                                <span className="text-sm leading-none font-medium">
                                     {t('Stay logged in')}
-                                </Label>
-                            </div>
+                                </span>
+                            </label>
 
                             <Button
                                 type="submit"

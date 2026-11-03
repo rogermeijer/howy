@@ -33,4 +33,40 @@ class LogViewerAccessTest extends TestCase
         $this->get(route('log-viewer.index'))
             ->assertOk();
     }
+
+    public function test_super_admins_can_fetch_log_viewer_api_with_session(): void
+    {
+        $user = User::factory()->superAdmin()->withAccount()->create();
+
+        $this->actingAs($user)
+            ->withHeader('Referer', config('app.url').'/log-viewer')
+            ->getJson(route('log-viewer.files'))
+            ->assertOk();
+    }
+
+    public function test_guests_cannot_fetch_log_viewer_api(): void
+    {
+        $this->withHeader('Referer', config('app.url').'/log-viewer')
+            ->getJson(route('log-viewer.files'))
+            ->assertForbidden();
+    }
+
+    public function test_non_super_admin_users_cannot_fetch_log_viewer_api(): void
+    {
+        $user = User::factory()->withAccount()->create();
+
+        $this->actingAs($user)
+            ->withHeader('Referer', config('app.url').'/log-viewer')
+            ->getJson(route('log-viewer.files'))
+            ->assertForbidden();
+    }
+
+    public function test_super_admins_can_fetch_log_viewer_api_without_referer(): void
+    {
+        $user = User::factory()->superAdmin()->withAccount()->create();
+
+        $this->actingAs($user)
+            ->getJson(route('log-viewer.files'))
+            ->assertOk();
+    }
 }

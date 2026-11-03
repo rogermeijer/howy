@@ -24,7 +24,7 @@ class KnowledgeSeeder extends Seeder
         foreach ($files as $file) {
             /** @var array{account?: string} $head */
             $head = json_decode((string) gzdecode((string) file_get_contents($file)), true);
-            $account = Account::query()->where('name', $head['account'] ?? null)->first();
+            $account = $this->accountForSnapshot($head);
 
             if ($account === null) {
                 $this->command->warn('No account named "'.($head['account'] ?? '?').'" for '.basename($file).'; skipped.');
@@ -43,5 +43,25 @@ class KnowledgeSeeder extends Seeder
                 $this->command->info("{$account->name}: {$counts['document']} documents, {$counts['knowledge_chunk']} chunks, {$counts['knowledge_fact']} facts, {$counts['knowledge_topic']} folders.");
             });
         }
+    }
+
+    /**
+     * Snapshots label the account by name. Older exports used the former product
+     * name "cc:"; DatabaseSeeder creates "Howy" instead.
+     *
+     * @param  array{account?: string}  $head
+     */
+    private function accountForSnapshot(array $head): ?Account
+    {
+        $name = match ($head['account'] ?? null) {
+            'cc:', 'cc' => 'Howy',
+            default => $head['account'] ?? null,
+        };
+
+        if ($name === null) {
+            return null;
+        }
+
+        return Account::query()->where('name', $name)->first();
     }
 }
