@@ -19,6 +19,7 @@ use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeFact;
 use App\Models\KnowledgeTopic;
 use App\Models\KnowledgeTopicLink;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -161,7 +162,7 @@ class DocumentInspectorController extends Controller
 
         $sources = DocumentSource::query()->with(['user', 'email'])->where('document_version_id', $version->id)->orderBy('id')->get();
         $facts = KnowledgeFact::query()
-            ->with(['relatedFact.document', 'relatedFact.version'])
+            ->with(['section:id,heading_path,ordinal', 'relatedFact.document', 'relatedFact.version'])
             ->where('document_version_id', $version->id)
             ->where('status', FactStatus::Proposed)
             ->orderBy('id')
@@ -169,6 +170,8 @@ class DocumentInspectorController extends Controller
 
         return [
             'replaces' => $previous === null || $previous->id !== $document->current_version_id ? null : $previous->version_number,
+            // Nothing to compare with: every section is simply there.
+            'firstVersion' => $previous === null,
             'uploadedBy' => $version->uploadedBy?->name,
             // Every upload and every mail thread that brought this file.
             'sources' => $sources->map(fn (DocumentSource $source): array => [
@@ -198,12 +201,34 @@ class DocumentInspectorController extends Controller
             ],
             'conflicts' => $facts->where('review_verdict', 'conflict')->map($this->judgedFact(...))->values()->all(),
             'duplicates' => $facts->where('review_verdict', 'duplicate')->take(20)->map($this->judgedFact(...))->values()->all(),
+            // What approving adds, in the order of the document.
+            'newFacts' => $this->listed($facts->where('review_verdict', 'new')),
+            'uncheckedFacts' => $this->listed($facts->whereNull('review_verdict')),
             'folders' => $topics->map(fn (KnowledgeTopic $topic): array => [
                 'id' => $topic->id,
                 'name' => $topic->name,
                 'isNew' => $topic->review_status === TopicReview::New,
             ])->values()->all(),
         ];
+    }
+
+    /**
+     * Facts by where they are in the document, with the section they come from.
+     *
+     * @param  Collection<int, KnowledgeFact>  $facts
+     * @return list<array{id: int, statement: string, sectionId: int|null, heading: string|null}>
+     */
+    private function listed(Collection $facts): array
+    {
+        return array_values($facts
+            ->sortBy(fn (KnowledgeFact $fact): array => [$fact->section->ordinal ?? PHP_INT_MAX, $fact->id])
+            ->map(fn (KnowledgeFact $fact): array => [
+                'id' => $fact->id,
+                'statement' => $fact->statement,
+                'sectionId' => $fact->section_id,
+                'heading' => $fact->section?->heading_path,
+            ])
+            ->all());
     }
 
     /**

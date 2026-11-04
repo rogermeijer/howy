@@ -146,8 +146,18 @@ export type DocumentSourceView = {
     createdAt: string | null;
 };
 
+/** A fact of a version waiting for approval, with where it is in the document. */
+export type ReviewFact = {
+    id: number;
+    statement: string;
+    sectionId: number | null;
+    heading: string | null;
+};
+
 export type VersionReview = {
     replaces: number | null;
+    /** No earlier version to compare with. */
+    firstVersion: boolean;
     uploadedBy: string | null;
     sources: DocumentSourceView[];
     summary: string | null;
@@ -174,6 +184,8 @@ export type VersionReview = {
     };
     conflicts: JudgedFact[];
     duplicates: JudgedFact[];
+    newFacts: ReviewFact[];
+    uncheckedFacts: ReviewFact[];
     folders: { id: number; name: string; isNew: boolean }[];
 };
 

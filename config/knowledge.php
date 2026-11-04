@@ -150,9 +150,10 @@ return [
     ],
 
     'review' => [
-        // New facts of a version held against what is known, and how many go
-        // to the conflict check per request.
-        'max_facts' => 200,
+        // New facts of a version held against what is known (a ceiling against
+        // runaway cost, not a sample: every fact of a real document fits), and
+        // how many go to the conflict check per request.
+        'max_facts' => 20000,
         'conflict_group_size' => 20,
         'conflict_candidates' => 5,
         'min_similarity' => 0.5,

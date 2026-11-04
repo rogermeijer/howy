@@ -2,6 +2,7 @@ import { Form, Link } from '@inertiajs/react';
 import {
     AlertTriangle,
     Check,
+    ChevronDown,
     FolderOpen,
     Hourglass,
     Link2,
@@ -28,7 +29,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import documentRoutes from '@/routes/knowledge/documents';
 import topicRoutes from '@/routes/knowledge/topics';
-import type { JudgedFact, VersionReview } from '@/types';
+import type { JudgedFact, ReviewFact, VersionReview } from '@/types';
 
 type Props = {
     documentId: number;
@@ -58,17 +59,28 @@ export function VersionReviewPanel({
     const mailed = review.sources.filter((source) => source.kind === 'mail');
     const placement = review.placement;
 
-    // A first version has nothing to compare with: every section is new.
-    const counts = (
-        [
-            ['unchanged', t('Unchanged sections')],
-            ['changed', t('Changed sections')],
-            ['added', t('New sections')],
-            ['removed', t('Removed sections')],
-        ] as const
-    )
-        .filter(([key]) => review.replaces !== null || key === 'added')
-        .map(([key, label]) => ({ key, label, value: review.sections[key] }));
+    // A first version has nothing to compare with: its sections are simply
+    // there, not new.
+    const counts = review.firstVersion
+        ? [
+              {
+                  key: 'added',
+                  label: t('Sections, first version'),
+                  value: review.sections.added,
+              },
+          ]
+        : (
+              [
+                  ['unchanged', t('Unchanged sections')],
+                  ['changed', t('Changed sections')],
+                  ['added', t('New sections')],
+                  ['removed', t('Removed sections')],
+              ] as const
+          ).map(([key, label]) => ({
+              key,
+              label,
+              value: review.sections[key],
+          }));
 
     return (
         <div className="cc-panel flex flex-col gap-5 border-[1.5px] border-cc-pending-fg/30 p-6">
@@ -275,6 +287,34 @@ export function VersionReviewPanel({
                         ))}
                     </ul>
                 </div>
+            )}
+
+            {review.newFacts.length > 0 && (
+                <FactGroups
+                    title={t('New facts (:count)', {
+                        count: review.newFacts.length,
+                    })}
+                    caption={t(
+                        'What approving adds to the knowledge base, by section.',
+                    )}
+                    facts={review.newFacts}
+                    documentId={documentId}
+                    open={review.newFacts.length <= 40}
+                />
+            )}
+
+            {review.uncheckedFacts.length > 0 && (
+                <FactGroups
+                    title={t('Not checked (:count)', {
+                        count: review.uncheckedFacts.length,
+                    })}
+                    caption={t(
+                        'These were not compared with what the knowledge base knows, because the check did not finish. Processing the document again checks them.',
+                    )}
+                    facts={review.uncheckedFacts}
+                    documentId={documentId}
+                    open={false}
+                />
             )}
 
             {review.duplicates.length > 0 && (
@@ -501,5 +541,84 @@ function JudgedFactItem({
                 </label>
             )}
         </li>
+    );
+}
+
+/**
+ * Facts under the section they come from, each heading a link to it.
+ */
+function FactGroups({
+    title,
+    caption,
+    facts,
+    documentId,
+    open,
+}: {
+    title: string;
+    caption: string;
+    facts: ReviewFact[];
+    documentId: number;
+    /** Open from the start; a long list starts folded. */
+    open: boolean;
+}) {
+    const t = useTranslations();
+    const groups: {
+        sectionId: number | null;
+        heading: string | null;
+        facts: ReviewFact[];
+    }[] = [];
+
+    for (const fact of facts) {
+        const last = groups.at(-1);
+
+        if (last && last.sectionId === fact.sectionId) {
+            last.facts.push(fact);
+        } else {
+            groups.push({
+                sectionId: fact.sectionId,
+                heading: fact.heading,
+                facts: [fact],
+            });
+        }
+    }
+
+    return (
+        <details open={open} className="group flex flex-col gap-2">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3">
+                <span className="cc-label">{title}</span>
+                <ChevronDown className="size-4 text-cc-subtle transition-transform group-open:rotate-180" />
+            </summary>
+            <p className="cc-caption">{caption}</p>
+            <div className="mt-2 flex flex-col gap-3">
+                {groups.map((group, index) => (
+                    <div key={index} className="flex flex-col gap-1.5">
+                        {group.sectionId !== null ? (
+                            <Link
+                                href={documentRoutes.show(documentId, {
+                                    query: { section: group.sectionId },
+                                })}
+                                className="cc-caption self-start font-semibold text-cc-muted hover:text-cc-ink hover:underline"
+                            >
+                                {group.heading || t('(introduction)')}
+                            </Link>
+                        ) : (
+                            <span className="cc-caption font-semibold">
+                                {t('(introduction)')}
+                            </span>
+                        )}
+                        <ul className="flex flex-col gap-1.5">
+                            {group.facts.map((fact) => (
+                                <li
+                                    key={fact.id}
+                                    className="rounded-lg bg-cc-bg px-3 py-2 text-[14px] leading-[1.5]"
+                                >
+                                    {fact.statement}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </div>
+        </details>
     );
 }

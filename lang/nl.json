@@ -1230,5 +1230,11 @@
     "Version :number, replaces version :replaces": "Versie :number, vervangt versie :replaces",
     "New document": "Nieuw document",
     "Same text as :title": "Zelfde tekst als :title",
-    "Looks like :title": "Lijkt op :title"
+    "Looks like :title": "Lijkt op :title",
+    "Sections, first version": "Secties, eerste versie",
+    "New facts (:count)": "Nieuwe feiten (:count)",
+    "What approving adds to the knowledge base, by section.": "Wat goedkeuren aan de kennisbank toevoegt, per sectie.",
+    "Not checked (:count)": "Niet gecontroleerd (:count)",
+    "These were not compared with what the knowledge base knows, because the check did not finish. Processing the document again checks them.": "Deze zijn niet vergeleken met wat de kennisbank weet, omdat de controle niet is afgerond. Opnieuw verwerken controleert ze alsnog.",
+    "(introduction)": "(inleiding)"
 }

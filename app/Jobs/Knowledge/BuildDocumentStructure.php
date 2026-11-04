@@ -2,12 +2,14 @@
 
 namespace App\Jobs\Knowledge;
 
+use App\Enums\FactStatus;
 use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
 use App\Enums\SectionChange;
 use App\Models\DocumentSection;
 use App\Models\DocumentVersion;
 use App\Models\KnowledgeChunk;
+use App\Models\KnowledgeFact;
 use App\Services\Knowledge\Chunking\StructuralChunker;
 use App\Services\Knowledge\StepRecorder;
 use App\Services\Knowledge\Structure\SectionMatcher;
@@ -62,6 +64,12 @@ class BuildDocumentStructure extends KnowledgeJob
                 // Idempotent: a retry or "process again" starts from scratch.
                 KnowledgeChunk::query()->where('source_type', 'document_version')->where('source_id', $version->id)->delete();
                 DocumentSection::query()->where('document_version_id', $version->id)->delete();
+
+                // What a version waiting for approval proposed is proposed again
+                // from the new sections; left behind, it would be counted twice.
+                if (! $version->isApproved()) {
+                    KnowledgeFact::query()->where('document_version_id', $version->id)->where('status', FactStatus::Proposed)->delete();
+                }
 
                 $ids = [];
                 $chunks = 0;

@@ -11,6 +11,7 @@ use App\Models\DocumentVersion;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeFact;
 use App\Models\User;
+use App\Services\Knowledge\Ai\Agents\SectionEnricher;
 use App\Services\Knowledge\Search\KnowledgeSearch;
 use App\Services\Knowledge\Search\SearchQuery;
 use App\Services\Knowledge\Search\SearchResult;
@@ -69,8 +70,13 @@ class DocumentReviewTest extends TestCase
             ->get(route('knowledge.documents.show', $document))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('review.replaces', null)
+                ->where('review.firstVersion', true)
                 ->where('review.uploadedBy', $this->admin->name)
                 ->where('review.sections.added', 11)
+                // Every new fact is listed under its section, in document order.
+                ->where('review.newFacts.0.statement', 'Regel uit Personeelshandboek Noordkade.')
+                ->where('review.newFacts.0.heading', 'Personeelshandboek Noordkade')
+                ->has('review.uncheckedFacts', 0)
                 ->has('review.folders'));
 
         $this->approve($document)->assertRedirect(route('knowledge.documents.show', $document));
@@ -109,12 +115,36 @@ class DocumentReviewTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('version.version_number', 2)
                 ->where('review.replaces', 1)
+                ->where('review.firstVersion', false)
                 ->where('review.sections.changed', 1)
-                ->where('review.sections.unchanged', 10));
+                ->where('review.sections.unchanged', 10)
+                // Only the changed section brings something new.
+                ->has('review.newFacts', 1)
+                ->where('review.newFacts.0.heading', 'Personeelshandboek Noordkade › 3 Ziekmelding'));
 
         $this->approve($document);
 
         Tenancy::for($this->account, fn () => $this->assertStringContainsString('08:30', $this->search()->passages[0]->text ?? ''));
+    }
+
+    public function test_processing_a_waiting_version_again_replaces_what_it_proposed(): void
+    {
+        $document = $this->upload('v1');
+        $count = Tenancy::for($this->account, fn () => KnowledgeFact::query()->count());
+
+        // Read again, the same sections come out worded differently.
+        SectionEnricher::fake(function (string $prompt): array {
+            preg_match('/Section: ([^\n]+)/', $prompt, $section);
+
+            return ['summary' => 'Opnieuw.', 'facts' => [['statement' => 'Opnieuw gelezen: '.trim($section[1] ?? '').'.', 'subject' => 'x', 'valid_from' => null, 'confidence' => 0.9]]];
+        });
+
+        $this->actingAs($this->admin)->post(route('knowledge.documents.reprocess', $document))->assertRedirect();
+
+        Tenancy::for($this->account, function () use ($count) {
+            $this->assertSame($count, KnowledgeFact::query()->count());
+            $this->assertTrue(KnowledgeFact::query()->get()->every(fn (KnowledgeFact $fact) => str_starts_with($fact->statement, 'Opnieuw gelezen: ') && $fact->section_id !== null));
+        });
     }
 
     public function test_rejecting_the_first_version_hides_the_document_but_remembers_the_file(): void
