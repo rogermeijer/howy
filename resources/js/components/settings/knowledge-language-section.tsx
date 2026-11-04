@@ -79,7 +79,7 @@ export function KnowledgeLanguageSection({
                         <Select value={selected} onValueChange={setSelected}>
                             <SelectTrigger
                                 id="knowledge_locale"
-                                className="h-11"
+                                className="h-11 w-full"
                             >
                                 <SelectValue />
                             </SelectTrigger>
