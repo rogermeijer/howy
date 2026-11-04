@@ -681,11 +681,16 @@ function ConflictCard({
     const t = useTranslations();
     const heading = fact.heading?.split(' › ').at(-1);
 
+    // A click anywhere on the card picks it; the section button is the way
+    // there by keyboard.
     return (
         <article
+            onClick={onSelect}
             className={cn(
-                'flex flex-col gap-3 rounded-2xl border-[1.5px] bg-cc-panel p-4',
-                selected ? 'border-cc-ink' : 'border-cc-border',
+                'flex cursor-pointer flex-col gap-3 rounded-2xl border-[1.5px] bg-cc-panel p-4 transition-colors',
+                selected
+                    ? 'border-cc-ink'
+                    : 'border-cc-border hover:border-cc-border-strong',
             )}
         >
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -808,7 +813,10 @@ function FactRow({
             {canManage && (
                 <button
                     type="button"
-                    onClick={onToggle}
+                    onClick={() => {
+                        onToggle();
+                        onSelect();
+                    }}
                     className="h-8 shrink-0 cursor-pointer rounded-lg border border-cc-border bg-cc-panel px-2.5 text-[12px] font-semibold text-cc-muted transition-colors hover:text-cc-ink"
                 >
                     {omitted ? t('Put back') : t('Leave out')}
