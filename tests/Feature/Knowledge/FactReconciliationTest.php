@@ -7,6 +7,7 @@ use App\Facades\Tenancy;
 use App\Models\Account;
 use App\Models\Document;
 use App\Models\DocumentSection;
+use App\Models\DocumentVersion;
 use App\Models\Email;
 use App\Models\KnowledgeFact;
 use App\Models\User;
@@ -112,13 +113,28 @@ class FactReconciliationTest extends TestCase
                 ->where('section.facts.0.explanation', 'Het tijdstip is vervroegd van 09:00 naar 08:00.'));
     }
 
-    public function test_approving_replaces_the_contradicted_fact(): void
+    public function test_approving_without_choosing_for_every_conflict_is_refused(): void
     {
         [, $sick] = $this->knownFacts();
         $this->fakeConflictChecker($sick);
         $document = $this->upload();
 
-        $this->approve($document);
+        $version = Tenancy::for($this->account, fn () => $document->latestVersion()->value('id'));
+        $this->actingAs($this->admin)
+            ->post(route('knowledge.documents.versions.approve', [$document, $version]))
+            ->assertSessionHasErrors('conflicts');
+
+        Tenancy::for($this->account, fn () => $this->assertNull(DocumentVersion::query()->whereKey($version)->value('approved_at')));
+    }
+
+    public function test_choosing_the_new_fact_replaces_the_contradicted_one(): void
+    {
+        [, $sick] = $this->knownFacts();
+        $this->fakeConflictChecker($sick);
+        $document = $this->upload();
+        $conflictId = Tenancy::for($this->account, fn () => KnowledgeFact::query()->where('statement', self::SICK_NEW)->value('id'));
+
+        $this->approve($document, ['conflicts' => [$conflictId => 'new']]);
 
         Tenancy::for($this->account, function () use ($sick) {
             $new = KnowledgeFact::query()->where('statement', self::SICK_NEW)->sole();
@@ -137,7 +153,7 @@ class FactReconciliationTest extends TestCase
         $document = $this->upload();
         $conflictId = Tenancy::for($this->account, fn () => KnowledgeFact::query()->where('statement', self::SICK_NEW)->value('id'));
 
-        $this->approve($document, ['keep_existing' => [$conflictId]]);
+        $this->approve($document, ['conflicts' => [$conflictId => 'keep']]);
 
         Tenancy::for($this->account, function () use ($sick) {
             $this->assertFalse(KnowledgeFact::query()->where('statement', self::SICK_NEW)->exists());

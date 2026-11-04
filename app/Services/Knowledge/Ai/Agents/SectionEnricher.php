@@ -36,6 +36,9 @@ class SectionEnricher implements Agent, HasProviderOptions, HasStructuredOutput
            ("Medewerkers met een fulltime dienstverband hebben recht op 25 vakantiedagen per
            kalenderjaar."). One claim per fact; split "and" rules. Only what the text literally
            says: no advice, no interpretation, no facts about the document itself.
+           - quote: the words in the section that state it, copied exactly as they stand there,
+             in the section's own language: the sentence, or the shortest part of it (a table
+             row) that carries the claim. Never translated or rephrased.
            - subject: a short lowercase topic label for the fact ("vakantiedagen", "ziekmelding").
            - valid_from: an ISO date (YYYY-MM-DD) if the text says from when it applies, else null.
            - confidence: 0 to 1, how unambiguously the text states it.
@@ -50,6 +53,7 @@ class SectionEnricher implements Agent, HasProviderOptions, HasStructuredOutput
             'facts' => $schema->array()->items(
                 $schema->object([
                     'statement' => $schema->string()->required(),
+                    'quote' => $schema->string()->required(),
                     'subject' => $schema->string()->required(),
                     'valid_from' => $schema->string()->nullable()->required(),
                     'confidence' => $schema->number()->required(),

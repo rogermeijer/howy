@@ -9,6 +9,7 @@ use App\Http\Controllers\EmailStatementController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\Knowledge\ApprovalController;
 use App\Http\Controllers\Knowledge\DocumentController;
+use App\Http\Controllers\Knowledge\DocumentFactSourceController;
 use App\Http\Controllers\Knowledge\DocumentInspectorController;
 use App\Http\Controllers\Knowledge\DocumentReviewController;
 use App\Http\Controllers\Knowledge\DocumentVersionController;
@@ -80,6 +81,7 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
         Route::get('folders/{topic}', [KnowledgeTopicController::class, 'show'])->name('topics.show');
         Route::get('documents', [DocumentController::class, 'index'])->name('documents.index');
         Route::get('documents/{document}', [DocumentInspectorController::class, 'show'])->name('documents.show');
+        Route::get('documents/{document}/facts/{fact}/source', DocumentFactSourceController::class)->name('documents.facts.source');
         Route::get('documents/{document}/versions/{version}/file', [DocumentVersionController::class, 'file'])
             ->scopeBindings()
             ->name('documents.versions.file');

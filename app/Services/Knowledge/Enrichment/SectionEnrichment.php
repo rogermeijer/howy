@@ -13,6 +13,7 @@ use App\Models\KnowledgeSummary;
 use App\Models\KnowledgeTopicLink;
 use App\Services\Knowledge\Ai\Agents\SectionEnricher;
 use App\Services\Knowledge\Ai\Batch\BatchRequest;
+use App\Services\Knowledge\Facts\FactPassage;
 use App\Services\Knowledge\Facts\FactSources;
 use App\Services\Knowledge\KnowledgeLanguage;
 use App\Services\Knowledge\TokenEstimator;
@@ -230,7 +231,7 @@ class SectionEnrichment
             return 0;
         }
 
-        /** @var list<array{statement?: string, subject?: string, valid_from?: string|null, confidence?: float|int}> $facts */
+        /** @var list<array{statement?: string, quote?: string, subject?: string, valid_from?: string|null, confidence?: float|int}> $facts */
         $facts = is_array($result['facts'] ?? null) ? $result['facts'] : [];
         $created = 0;
 
@@ -244,6 +245,11 @@ class SectionEnrichment
             $subject = mb_strtolower(trim((string) ($fact['subject'] ?? ''))) ?: null;
             $hash = hash('sha256', mb_strtolower((string) preg_replace('/\s+/u', ' ', $statement)));
 
+            // Kept only when it really stands in the section: the words a
+            // reviewer is shown, and the chunk that holds them.
+            $quote = trim((string) ($fact['quote'] ?? ''));
+            $quoted = $quote === '' ? null : $section->chunks->first(fn (KnowledgeChunk $chunk): bool => FactPassage::locate($chunk->content, $quote) !== null);
+
             // The same claim twice in one version is one fact.
             if (KnowledgeFact::query()->where('document_version_id', $version->id)->where('content_hash', $hash)->exists()) {
                 continue;
@@ -255,8 +261,9 @@ class SectionEnrichment
                 'document_id' => $version->document_id,
                 'document_version_id' => $version->id,
                 'section_id' => $section->id,
-                'chunk_id' => $this->bestChunk($section->chunks, $statement)?->id,
+                'chunk_id' => ($quoted ?? $this->bestChunk($section->chunks, $statement))?->id,
                 'statement' => $statement,
+                'quote' => $quoted === null ? null : $quote,
                 'subject' => $subject === null ? null : mb_substr($subject, 0, 120),
                 'status' => match (true) {
                     ! $version->isApproved() => FactStatus::Proposed,

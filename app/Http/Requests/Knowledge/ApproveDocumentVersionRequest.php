@@ -5,9 +5,10 @@ namespace App\Http\Requests\Knowledge;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Approving a version, with the conflicts the reviewer settles in favour of
- * what is known. The fact ids are resolved against this version's own facts
- * through the tenant scope, never trusted as they come.
+ * Approving a version: per conflict what holds ("new" replaces the known
+ * fact, "keep" keeps it), and the new facts the reviewer leaves out. Fact
+ * ids are resolved against this version's own facts through the tenant
+ * scope, never trusted as they come.
  */
 class ApproveDocumentVersionRequest extends FormRequest
 {
@@ -17,8 +18,10 @@ class ApproveDocumentVersionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'keep_existing' => ['sometimes', 'array'],
-            'keep_existing.*' => ['integer'],
+            'conflicts' => ['sometimes', 'array'],
+            'conflicts.*' => ['string', 'in:new,keep'],
+            'omit' => ['sometimes', 'array'],
+            'omit.*' => ['integer'],
         ];
     }
 }

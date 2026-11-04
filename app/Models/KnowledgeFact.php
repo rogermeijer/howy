@@ -31,6 +31,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $section_id
  * @property int|null $chunk_id
  * @property string $statement
+ * @property string|null $quote the words in the source that state it, as they stand there
  * @property string|null $subject
  * @property FactStatus $status
  * @property string|null $review_verdict
@@ -62,7 +63,7 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable([
     'source_type', 'source_id', 'document_id', 'document_version_id', 'section_id', 'chunk_id',
-    'statement', 'subject', 'status', 'review_verdict', 'related_fact_id', 'review_explanation', 'valid_from', 'valid_until', 'superseded_by_id',
+    'statement', 'quote', 'subject', 'status', 'review_verdict', 'related_fact_id', 'review_explanation', 'valid_from', 'valid_until', 'superseded_by_id',
     'confidence', 'page_from', 'page_to', 'content_hash', 'embedding', 'embedding_model',
     'search_config',
 ])]

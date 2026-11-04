@@ -148,6 +148,21 @@ class DocumentReviewTest extends TestCase
         });
     }
 
+    public function test_facts_the_reviewer_leaves_out_are_not_added(): void
+    {
+        $document = $this->upload('v1');
+        [$left, $kept] = Tenancy::for($this->account, fn () => KnowledgeFact::query()->orderBy('id')->take(2)->get()->all());
+
+        $this->actingAs($this->admin)
+            ->post(route('knowledge.documents.versions.approve', [$document, $this->latest($document)]), ['omit' => [$left->id]])
+            ->assertRedirect();
+
+        Tenancy::for($this->account, function () use ($left, $kept) {
+            $this->assertFalse(KnowledgeFact::query()->whereKey($left->id)->exists());
+            $this->assertSame(FactStatus::Core, $kept->refresh()->status);
+        });
+    }
+
     public function test_processing_a_waiting_version_again_replaces_what_it_proposed(): void
     {
         $document = $this->upload('v1');

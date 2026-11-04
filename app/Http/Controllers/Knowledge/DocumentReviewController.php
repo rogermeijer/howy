@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Knowledge;
 
+use App\Enums\FactStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Knowledge\ApproveDocumentVersionRequest;
 use App\Models\Document;
@@ -9,6 +10,7 @@ use App\Models\DocumentVersion;
 use App\Models\KnowledgeFact;
 use App\Services\Knowledge\Review\DocumentReview;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use InvalidArgumentException;
 
@@ -20,17 +22,26 @@ use InvalidArgumentException;
  */
 class DocumentReviewController extends Controller
 {
+    /**
+     * Every conflict needs a decision: nothing replaces what is known, or is
+     * kept against a newer source, without someone choosing it.
+     */
     public function approve(ApproveDocumentVersionRequest $request, Document $document, DocumentVersion $version, DocumentReview $review): RedirectResponse
     {
-        /** @var list<int> $keep */
-        $keep = KnowledgeFact::query()
-            ->where('document_version_id', $version->id)
-            ->whereIn('id', array_map(intval(...), (array) $request->validated('keep_existing', [])))
-            ->pluck('id')
-            ->map(intval(...))
-            ->all();
+        $proposed = KnowledgeFact::query()->where('document_version_id', $version->id)->where('status', FactStatus::Proposed);
 
-        $this->decide(fn () => $review->approve($version, $request->user(), $keep));
+        /** @var array<int|string, string> $decisions */
+        $decisions = (array) $request->validated('conflicts', []);
+        $conflicts = (clone $proposed)->where('review_verdict', 'conflict')->pluck('id')->map(intval(...));
+
+        if ($conflicts->contains(fn (int $id): bool => ! isset($decisions[$id]))) {
+            throw ValidationException::withMessages(['conflicts' => __('Choose for every conflict what holds.')]);
+        }
+
+        $keep = array_values($conflicts->filter(fn (int $id): bool => $decisions[$id] === 'keep')->all());
+        $omit = array_values((clone $proposed)->whereIn('id', array_map(intval(...), (array) $request->validated('omit', [])))->pluck('id')->map(intval(...))->all());
+
+        $this->decide(fn () => $review->approve($version, $request->user(), $keep, $omit));
 
         Inertia::flash('toast', [
             'type' => 'success',

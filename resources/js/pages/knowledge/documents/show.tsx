@@ -8,7 +8,11 @@ import { isProcessing } from '@/components/knowledge/labels';
 import { ProcessingTimeline } from '@/components/knowledge/processing-timeline';
 import { SectionTree, changeLabels } from '@/components/knowledge/section-tree';
 import { StatusPipeline } from '@/components/knowledge/status-pipeline';
-import { VersionReviewPanel } from '@/components/knowledge/version-review-panel';
+import {
+    ReviewDecision,
+    ReviewTab,
+    useReviewChoices,
+} from '@/components/knowledge/version-review';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -49,7 +53,7 @@ type Props = {
     canManage: boolean;
 };
 
-type Tab = 'structure' | 'processing';
+type Tab = 'review' | 'structure' | 'processing';
 
 const factStatusStyles = {
     core: 'bg-cc-knowledge-bg text-cc-knowledge-fg',
@@ -94,7 +98,11 @@ export default function DocumentInspector({
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
-    const [tab, setTab] = useState<Tab>('structure');
+    // A version waiting for approval opens on what there is to decide.
+    const [chosenTab, setTab] = useState<Tab>(review ? 'review' : 'structure');
+    const tab: Tab =
+        chosenTab === 'review' && !review ? 'structure' : chosenTab;
+    const choices = useReviewChoices(review);
 
     const current = versions.find((item) => item.id === version?.id);
     const processing = isProcessing(current?.status);
@@ -244,18 +252,44 @@ export default function DocumentInspector({
                 />
 
                 {review && current && (
-                    <VersionReviewPanel
+                    <ReviewDecision
                         documentId={document.id}
                         versionId={current.id}
                         versionNumber={current.number}
                         review={review}
+                        choices={choices}
                         canManage={canManage}
                     />
                 )}
 
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex gap-2" role="tablist">
-                        {(['structure', 'processing'] as const).map((item) => (
+                <div className="flex flex-wrap items-end justify-between gap-3 border-b border-cc-border">
+                    <div className="flex flex-wrap gap-1.5" role="tablist">
+                        {(
+                            [
+                                ...(review
+                                    ? [
+                                          [
+                                              'review',
+                                              t('Review'),
+                                              t(':count to look at', {
+                                                  count:
+                                                      review.conflicts.length +
+                                                      review.newFacts.length +
+                                                      review.expiring.length,
+                                              }),
+                                          ] as const,
+                                      ]
+                                    : []),
+                                [
+                                    'structure',
+                                    t('Document'),
+                                    t(':count sections', {
+                                        count: sections.length,
+                                    }),
+                                ] as const,
+                                ['processing', t('Processing'), ''] as const,
+                            ] as const
+                        ).map(([item, label, meta]) => (
                             <button
                                 key={item}
                                 type="button"
@@ -263,13 +297,18 @@ export default function DocumentInspector({
                                 aria-selected={tab === item}
                                 onClick={() => setTab(item)}
                                 className={cn(
-                                    'cc-pill',
-                                    tab === item && 'cc-pill-active',
+                                    '-mb-px inline-flex h-11 cursor-pointer items-center gap-2 border-b-2 px-3.5 text-[14px] transition-colors',
+                                    tab === item
+                                        ? 'border-cc-ink font-bold text-cc-ink'
+                                        : 'border-transparent font-medium text-cc-subtle hover:text-cc-ink',
                                 )}
                             >
-                                {item === 'structure'
-                                    ? t('Structure')
-                                    : t('Processing')}
+                                {label}
+                                {meta && (
+                                    <span className="text-[12px] font-medium text-cc-subtle">
+                                        {meta}
+                                    </span>
+                                )}
                             </button>
                         ))}
                     </div>
@@ -286,7 +325,19 @@ export default function DocumentInspector({
                     )}
                 </div>
 
-                {tab === 'processing' ? (
+                {tab === 'review' && review ? (
+                    <ReviewTab
+                        documentId={document.id}
+                        review={review}
+                        choices={choices}
+                        canManage={canManage}
+                        fileUrl={fileUrl()}
+                        onOpenSection={(id) => {
+                            setTab('structure');
+                            visit({ section: id });
+                        }}
+                    />
+                ) : tab === 'processing' ? (
                     <div className="cc-panel px-6 py-2">
                         <ProcessingTimeline steps={steps} />
                     </div>

@@ -40,9 +40,15 @@ one; `failed` (protected, oversized or empty files fail once, without retries) a
 Every new version — uploaded or mailed — is processed in full and then stops at `review`: its chunks are not
 current and its facts stay `proposed`, so nothing of it is searched. `documents.current_version_id` is the
 **published** version; a new version of a live document leaves the old one answering until it is approved.
-The inspector shows a review panel (`DocumentInspectorController::review`): what it replaces, its sources,
-where it was placed, sections unchanged / changed / added / removed, its new facts as new, already known or
-contradicting (side by side, with the explanation), and the folders it would be filed in.
+A version waiting for approval opens on its **Review** tab (`DocumentInspectorController::review`,
+`version-review.tsx`); the document's sections and its processing are tabs beside it. A decision bar on top
+holds Approve and Reject: approving needs a choice per conflict ("the new fact" or "the known fact";
+`DocumentReviewController` refuses without), and takes the new facts the reviewer left out (`omit`), which are
+never added. Below: conflicts side by side with the known fact and its source, new facts per section, what
+expires, and folded rows for what needs no decision (already known, carried over, stays elsewhere). Picking a
+fact shows where the document says it (`knowledge.documents.facts.source`, `FactPassage`): the section's
+passage with the words marked — the `quote` the enricher copied from the section, kept only when it really
+stands there; for facts from before quotes, the sentence sharing the most names and numbers with the fact.
 
 **One approval place.** Everything that waits — document versions, uploaded or mailed, and the statements mail
 would add or change — is listed on _Knowledge base → Ready for approval_ (`knowledge.approvals`,

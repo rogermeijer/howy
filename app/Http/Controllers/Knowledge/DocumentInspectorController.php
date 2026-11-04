@@ -146,7 +146,7 @@ class DocumentInspectorController extends Controller
                 // Waiting for approval, what counts is how it compares with what is known.
                 'verdict' => $fact->status === FactStatus::Proposed ? (isset($repeats[$fact->id]) ? 'carried' : ($fact->review_verdict ?? 'unchecked')) : null,
                 'known' => $fact->status === FactStatus::Proposed ? $this->judgedFact($fact)['existing'] : null,
-                'explanation' => $fact->status === FactStatus::Proposed ? $fact->review_explanation : null,
+                'explanation' => $fact->status === FactStatus::Proposed ? $this->readable($fact->review_explanation) : null,
                 'validFrom' => $fact->valid_from?->toDateString(),
                 'validUntil' => $fact->valid_until?->toDateString(),
                 'pageFrom' => $fact->page_from,
@@ -350,7 +350,9 @@ class DocumentInspectorController extends Controller
         return [
             'id' => $fact->id,
             'statement' => $fact->statement,
-            'explanation' => $fact->review_explanation,
+            'explanation' => $this->readable($fact->review_explanation),
+            'sectionId' => $fact->section_id,
+            'heading' => $fact->section?->heading_path,
             'existing' => $known === null ? null : [
                 'statement' => $known->statement,
                 'status' => $known->status->value,
@@ -359,6 +361,15 @@ class DocumentInspectorController extends Controller
                     : ['type' => 'document', 'id' => $known->document_id, 'title' => $known->documentTitle(), 'versionNumber' => $known->version?->version_number],
             ],
         ];
+    }
+
+    /**
+     * Explanations written before the check stopped naming facts by id read
+     * "fact 182 says": say "the known fact" instead.
+     */
+    private function readable(?string $explanation): ?string
+    {
+        return $explanation === null ? null : (string) preg_replace('/\b(?:fact|feit)\s+#?\d+\b/iu', __('the known fact'), $explanation);
     }
 
     /**

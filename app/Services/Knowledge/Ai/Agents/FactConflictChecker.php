@@ -32,7 +32,9 @@ class FactConflictChecker implements Agent, HasStructuredOutput
 
         For "duplicate" and "contradicts", give the id of that existing fact in
         existing_fact_id; otherwise null. For "contradicts", explain in one or two sentences, in
-        the requested language, what the conflict is. Otherwise leave the explanation empty.
+        the requested language, what the conflict is, in terms of what the two say ("the
+        statement names 5 staff, the existing fact 4"). Never mention ids or numbers of facts or
+        statements: the reader does not see them. Otherwise leave the explanation empty.
         TEXT;
     }
 

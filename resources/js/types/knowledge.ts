@@ -274,6 +274,8 @@ export type JudgedFact = {
     id: number;
     statement: string;
     explanation: string | null;
+    sectionId: number | null;
+    heading: string | null;
     existing: {
         statement: string;
         status: FactStatus;

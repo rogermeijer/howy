@@ -43,15 +43,20 @@ class DocumentReview
     /**
      * @param  list<int>  $keepExisting  new facts that contradict a known fact the
      *                                   reviewer keeps instead: these new ones go
+     * @param  list<int>  $omit  new facts the reviewer leaves out: never added
      */
-    public function approve(DocumentVersion $version, User $reviewer, array $keepExisting = []): void
+    public function approve(DocumentVersion $version, User $reviewer, array $keepExisting = [], array $omit = []): void
     {
         if ($version->status !== ProcessingStatus::Review || $version->isApproved()) {
             throw new InvalidArgumentException('This version is not waiting for approval.');
         }
 
-        DB::transaction(function () use ($version, $reviewer, $keepExisting): void {
+        DB::transaction(function () use ($version, $reviewer, $keepExisting, $omit): void {
             $document = $version->document;
+
+            // What the reviewer left out does not go in.
+            KnowledgeTopicLink::query()->where('linkable_type', 'knowledge_fact')->whereIn('linkable_id', $omit)->delete();
+            KnowledgeFact::query()->where('document_version_id', $version->id)->where('status', FactStatus::Proposed)->whereKey($omit)->delete();
 
             $version->update(['approved_at' => now(), 'approved_by_user_id' => $reviewer->id, 'status' => ProcessingStatus::Ready]);
             $version->makeCurrent();
