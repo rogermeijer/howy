@@ -121,6 +121,11 @@ return [
         'suggestion_min_confidence' => (float) env('KNOWLEDGE_MAIL_SUGGESTION_MIN_CONFIDENCE', 0.75),
         // Characters of the message a reply answers, given as context.
         'context_max_chars' => 3000,
+        // Read once: a paragraph needs this many letters and digits to be
+        // recognised again (shorter ones are greetings and sign-offs), and a
+        // quoted message counts as read when this share of it was.
+        'min_paragraph_chars' => 40,
+        'quote_known_ratio' => 0.8,
     ],
 
     'topics' => [

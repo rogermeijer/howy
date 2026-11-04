@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Facades\Tenancy;
 use App\Models\Email;
 use App\Services\Mail\Interpretation\InterpretationPresenter;
-use Illuminate\Database\Eloquent\Collection;
+use App\Services\Mail\MailNovelty;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -18,7 +18,7 @@ class EmailController extends Controller
      *
      * Typed binding, so another account's email 404s through the tenant scope.
      */
-    public function show(Request $request, Email $email, InterpretationPresenter $presenter): Response
+    public function show(Request $request, Email $email, InterpretationPresenter $presenter, MailNovelty $novelty): Response
     {
         $thread = Email::query()
             ->with('interpretation')
@@ -64,28 +64,11 @@ class EmailController extends Controller
                         'date' => $quote['date'],
                         'dateText' => $quote['date_text'],
                         'text' => $quote['text'],
-                        'messageId' => $this->quotedMessage($quote, $item, $thread)?->id,
+                        'messageId' => $novelty->quotedEmail($quote, $item, $thread)?->id,
                     ],
                     $item->quotes ?? [],
                 ),
             ])->values(),
         ]);
-    }
-
-    /**
-     * The earlier message in this conversation that a quote repeats, if any:
-     * same sender, and its own text matches the start of the quote.
-     *
-     * @param  array{name: string|null, email: string|null, date: string|null, date_text: string|null, text: string}  $quote
-     * @param  Collection<int, Email>  $thread
-     */
-    private function quotedMessage(array $quote, Email $quoting, Collection $thread): ?Email
-    {
-        $needle = Str::limit(Str::squish($quote['text']), 80, '');
-
-        return $thread->first(fn (Email $candidate): bool => ! $candidate->is($quoting)
-            && ($quote['email'] === null || $quote['email'] === $candidate->from_email)
-            && $needle !== ''
-            && str_starts_with(Str::squish($candidate->content_text ?? $candidate->body_text ?? ''), $needle));
     }
 }

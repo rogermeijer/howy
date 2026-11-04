@@ -4,6 +4,7 @@ namespace App\Services\Mail\Interpretation;
 
 use App\Enums\EmailIntent;
 use App\Enums\FactStatus;
+use App\Enums\FingerprintUse;
 use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
@@ -20,6 +21,9 @@ use App\Services\Knowledge\Search\FactHit;
 use App\Services\Knowledge\Search\KnowledgeSearch;
 use App\Services\Knowledge\Search\Passage;
 use App\Services\Knowledge\Search\SearchQuery;
+use App\Services\Mail\MailFingerprints;
+use App\Services\Mail\MailNovelty;
+use App\Services\Mail\MailReading;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
@@ -37,6 +41,11 @@ use Illuminate\Support\Str;
  * Every step is written to the interpretation, so the mail always shows how
  * it was read and what followed.
  *
+ * Mail is read once. The same mail through a second mailbox is not read
+ * again, and of a forward or a reply only what Howy has not read before is a
+ * source; what it has read is context. A mail with nothing new is not sent
+ * to a model at all.
+ *
  * @phpstan-import-type Citation from EmailInterpretation
  * @phpstan-import-type Statement from EmailInterpretation
  */
@@ -52,6 +61,8 @@ class EmailInterpreter
         private readonly ThreadReplier $replier,
         private readonly EmailEligibility $eligibility,
         private readonly MailFactWriter $facts,
+        private readonly MailNovelty $novelty,
+        private readonly MailFingerprints $fingerprints,
     ) {}
 
     public function interpret(Email $email): EmailInterpretation
@@ -60,6 +71,39 @@ class EmailInterpreter
             ['email_id' => $email->id],
             ['mode' => $this->eligibility->role($email, $email->mailbox)],
         );
+
+        $twin = $this->readElsewhere($email, $interpretation);
+
+        if ($twin !== null) {
+            $interpretation->update([
+                'status' => InterpretationStatus::Skipped,
+                'error' => __('This mail was already read through :mailbox.', ['mailbox' => $twin->mailbox->email_address ?? '']),
+                'processed_at' => now(),
+            ]);
+
+            return $interpretation;
+        }
+
+        $novelty = $this->novelty->read($email);
+
+        if ($novelty->nothingNew() && ! $this->isDirect($email, $interpretation)) {
+            $interpretation->update([
+                'status' => InterpretationStatus::Done,
+                'intent' => null,
+                'outcome' => InterpretationOutcome::Duplicate,
+                'summary' => __('Nothing new: this mail only repeats what is already known.'),
+                'statements' => null,
+                // Where it was read first, to look it up there.
+                'citations' => Email::query()->whereKey($novelty->knownFrom)->whereKeyNot($email->id)->get(['id', 'subject'])->map(fn (Email $known): array => [
+                    'type' => 'email', 'id' => $known->id, 'title' => (string) $known->subject, 'section_id' => null, 'heading_path' => null, 'page' => null,
+                ])->values()->all(),
+                'needs_review' => false,
+                'error' => null,
+                'processed_at' => now(),
+            ]);
+
+            return $interpretation;
+        }
 
         if (! $this->ai->enabled()) {
             $interpretation->update([
@@ -93,7 +137,7 @@ class EmailInterpreter
             'error' => null,
         ]);
 
-        $reading = $this->ai->structured(new EmailClassifier, $this->mailPrompt($email, $this->earlier($email)), 'mail_classify', $email);
+        $reading = $this->ai->structured(new EmailClassifier, $this->mailPrompt($email, $novelty, $this->earlier($email)), 'mail_classify', $email);
 
         $intent = EmailIntent::tryFrom((string) ($reading['intent'] ?? '')) ?? EmailIntent::Other;
         $language = Str::limit(strtolower(trim((string) ($reading['language'] ?? ''))), 10, '');
@@ -115,7 +159,42 @@ class EmailInterpreter
 
         $interpretation->fill(['status' => InterpretationStatus::Done, 'processed_at' => now()])->save();
 
+        // Read: from now on this text is recognised wherever it turns up.
+        $this->fingerprints->record($email, (string) ($email->content_text ?? $email->body_text ?? ''), FingerprintUse::Read);
+
         return $interpretation;
+    }
+
+    /**
+     * The same message (by its Message-ID), already read through another of
+     * the account's mailboxes in at least the role it has here: copied twice
+     * is read once, but a question addressed here is still answered.
+     */
+    private function readElsewhere(Email $email, EmailInterpretation $interpretation): ?Email
+    {
+        if ($email->message_id_header === null) {
+            return null;
+        }
+
+        return Email::query()
+            ->with('mailbox')
+            ->where('message_id_header', $email->message_id_header)
+            ->where('mailbox_id', '!=', $email->mailbox_id)
+            ->whereHas('interpretation', fn (Builder $query) => $query
+                ->where('status', InterpretationStatus::Done)
+                ->when($interpretation->mode === InterpretationMode::Addressed, fn (Builder $query) => $query->where('mode', InterpretationMode::Addressed)))
+            ->first();
+    }
+
+    /**
+     * A new mail written to Howy itself, not a reply or a forward: whoever
+     * asks again deserves an answer again.
+     */
+    private function isDirect(Email $email, EmailInterpretation $interpretation): bool
+    {
+        return $interpretation->mode === InterpretationMode::Addressed
+            && $email->in_reply_to === null
+            && ($email->quotes ?? []) === [];
     }
 
     /**
@@ -471,9 +550,10 @@ class EmailInterpreter
      * replies to. No envelope, and addresses in the text are masked, as
      * AiGateway promises.
      */
-    private function mailPrompt(Email $email, ?string $earlier = null): string
+    private function mailPrompt(Email $email, MailReading $novelty, ?string $earlier = null): string
     {
-        $text = $email->content_text ?? $email->body_text ?? $email->snippet ?? '';
+        // What it says that was read before is left out, marked […].
+        $text = $novelty->remaining > 0 ? $novelty->text : ($email->content_text ?? $email->body_text ?? $email->snippet ?? '');
         $prompt = "<subject>\n".trim((string) $email->subject)."\n</subject>\n\n<mail>\n".Str::limit(trim($this->mask($text)), self::MAX_PROMPT_CHARS)."\n</mail>";
 
         return $earlier === null ? $prompt : $prompt."\n\n<earlier>\n".$this->mask($earlier)."\n</earlier>";

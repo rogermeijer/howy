@@ -11,6 +11,11 @@ use Throwable;
  * Gmail returns headers already decoded to UTF-8, but part bodies come as
  * base64url bytes in whatever charset the sender used, so bodies are decoded
  * and normalised here. Every timestamp leaves this class in UTC.
+ *
+ * A mail forwarded as an attachment (message/rfc822) is kept apart, with the
+ * Message-ID it carries, so it is recognised when Howy read it before.
+ *
+ * @phpstan-type Forwarded array{message_id: string|null, from_name: string|null, from_email: string|null, subject: string|null, date: string|null, body_text: string|null, body_html: string|null}
  */
 class GmailMessageParser
 {
@@ -35,6 +40,7 @@ class GmailMessageParser
      *     label_ids: list<string>,
      *     attachments: list<array{filename: string, mime_type: string, size: int, attachment_id: string|null}>,
      *     has_attachments: bool,
+     *     forwarded: list<Forwarded>,
      * }
      */
     public function parse(array $message): array
@@ -48,7 +54,8 @@ class GmailMessageParser
         $text = null;
         $html = null;
         $attachments = [];
-        $this->walk($payload, $text, $html, $attachments);
+        $forwarded = [];
+        $this->walk($payload, $text, $html, $attachments, $forwarded);
 
         $received = isset($message['internalDate']) && is_numeric($message['internalDate'])
             ? Carbon::createFromTimestampMs((int) $message['internalDate'], 'UTC')
@@ -76,6 +83,7 @@ class GmailMessageParser
             'label_ids' => $labels,
             'attachments' => $attachments,
             'has_attachments' => $attachments !== [],
+            'forwarded' => $forwarded,
         ];
     }
 
@@ -171,8 +179,9 @@ class GmailMessageParser
     /**
      * @param  array<string, mixed>  $part
      * @param  list<array{filename: string, mime_type: string, size: int, attachment_id: string|null}>  $attachments
+     * @param  list<Forwarded>  $forwarded
      */
-    private function walk(array $part, ?string &$text, ?string &$html, array &$attachments): void
+    private function walk(array $part, ?string &$text, ?string &$html, array &$attachments, array &$forwarded): void
     {
         $mime = strtolower((string) ($part['mimeType'] ?? ''));
         $filename = (string) ($part['filename'] ?? '');
@@ -201,9 +210,54 @@ class GmailMessageParser
         /** @var list<array<string, mixed>> $children */
         $children = is_array($part['parts'] ?? null) ? $part['parts'] : [];
 
-        foreach ($children as $child) {
-            $this->walk($child, $text, $html, $attachments);
+        // A mail inside the mail: its own text, its own headers.
+        if ($mime === 'message/rfc822') {
+            $forwarded[] = $this->forwarded($part, $children, $attachments, $forwarded);
+
+            return;
         }
+
+        foreach ($children as $child) {
+            $this->walk($child, $text, $html, $attachments, $forwarded);
+        }
+    }
+
+    /**
+     * Gmail puts the forwarded message's headers on the part itself or on its
+     * first child, depending on how it was attached; either is read.
+     *
+     * @param  array<string, mixed>  $part
+     * @param  list<array<string, mixed>>  $children
+     * @param  list<array{filename: string, mime_type: string, size: int, attachment_id: string|null}>  $attachments
+     * @param  list<Forwarded>  $forwarded
+     * @return Forwarded
+     */
+    private function forwarded(array $part, array $children, array &$attachments, array &$forwarded): array
+    {
+        $headers = $this->headers($part);
+
+        if (! isset($headers['message-id']) && ! isset($headers['from']) && isset($children[0])) {
+            $headers = $this->headers($children[0]);
+        }
+
+        $text = null;
+        $html = null;
+
+        foreach ($children as $child) {
+            $this->walk($child, $text, $html, $attachments, $forwarded);
+        }
+
+        $from = $this->addresses($headers['from'] ?? '')[0] ?? null;
+
+        return [
+            'message_id' => $headers['message-id'] ?? null,
+            'from_name' => $from['name'] ?? null,
+            'from_email' => $from['email'] ?? null,
+            'subject' => $headers['subject'] ?? null,
+            'date' => $this->date($headers['date'] ?? null)?->toIso8601String(),
+            'body_text' => $text,
+            'body_html' => $html,
+        ];
     }
 
     /**

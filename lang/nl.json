@@ -1174,5 +1174,8 @@
     "Version :version of :title is now in the knowledge base.": "Versie :version van :title staat nu in de kennisbank.",
     "Version :version of :title is kept out of the knowledge base.": "Versie :version van :title blijft buiten de kennisbank.",
     "This version is not waiting for approval.": "Deze versie wacht niet op goedkeuring.",
-    "Replaced by version :version before it was approved.": "Vervangen door versie :version voordat deze werd goedgekeurd."
+    "Replaced by version :version before it was approved.": "Vervangen door versie :version voordat deze werd goedgekeurd.",
+    "This mail was already read through :mailbox.": "Deze mail is al gelezen via :mailbox.",
+    "Nothing new: this mail only repeats what is already known.": "Niets nieuws: deze mail herhaalt alleen wat al bekend is.",
+    "Read before in": "Eerder gelezen in"
 }

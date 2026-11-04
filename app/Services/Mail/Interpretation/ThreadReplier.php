@@ -2,12 +2,14 @@
 
 namespace App\Services\Mail\Interpretation;
 
+use App\Enums\FingerprintUse;
 use App\Enums\ReplyStatus;
 use App\Exceptions\MailboxNeedsReauthException;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
 use App\Services\Gmail\GmailClient;
 use App\Services\Gmail\GmailMessageParser;
+use App\Services\Mail\MailFingerprints;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Str;
@@ -22,7 +24,10 @@ use Symfony\Component\Mime\Email as MimeEmail;
  */
 class ThreadReplier
 {
-    public function __construct(private readonly GmailMessageParser $parser) {}
+    public function __construct(
+        private readonly GmailMessageParser $parser,
+        private readonly MailFingerprints $fingerprints,
+    ) {}
 
     /**
      * Answer the sender (Reply-To when set, else From), with everyone else
@@ -123,6 +128,9 @@ class ThreadReplier
 
         $interpretation->fill(['reply_provider_message_id' => $sent['id'], 'replied_at' => now()]);
         $this->finish($interpretation, ReplyStatus::Sent);
+
+        // Quoted back under the next reply, Howy's own words are not news.
+        $this->fingerprints->record($email, $body->text, FingerprintUse::Reply);
     }
 
     /**

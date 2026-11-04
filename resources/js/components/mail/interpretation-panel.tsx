@@ -14,6 +14,7 @@ import type { ReactNode } from 'react';
 import type { InterpretationKind } from '@/components/cc/tag';
 import { Tag } from '@/components/cc/tag';
 import { WithHowy } from '@/components/brand/howy-name';
+import { EmailSourceChip } from '@/components/knowledge/source-chip';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
@@ -109,6 +110,32 @@ export function InterpretationPanel({
                     {interpretation.summary && (
                         <Note>{interpretation.summary}</Note>
                     )}
+
+                    {interpretation.outcome === 'duplicate' &&
+                        interpretation.statements.length === 0 &&
+                        interpretation.citations.length > 0 && (
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-[12px] text-cc-faint">
+                                    {t('Read before in')}
+                                </span>
+                                <ul className="flex flex-wrap gap-1.5">
+                                    {interpretation.citations.map((source) => (
+                                        <li
+                                            key={source.id}
+                                            className="max-w-full"
+                                        >
+                                            <EmailSourceChip
+                                                subject={
+                                                    source.title ||
+                                                    t('(no subject)')
+                                                }
+                                                emailId={source.id}
+                                            />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
 
                     {(interpretation.status === 'queued' ||
                         interpretation.status === 'processing') && (

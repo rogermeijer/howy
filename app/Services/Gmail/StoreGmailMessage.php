@@ -9,6 +9,7 @@ use App\Models\EmailInterpretation;
 use App\Models\Mailbox;
 use App\Services\Mail\EmailContentExtractor;
 use App\Services\Mail\Interpretation\EmailEligibility;
+use App\Services\Mail\MailFingerprints;
 
 /**
  * Stores one Gmail message as an Email, idempotently.
@@ -17,6 +18,9 @@ use App\Services\Mail\Interpretation\EmailEligibility;
  * (Pub/Sub redelivers, a poll overlaps a push, someone imports what already came
  * in) updates the same row instead of duplicating it. A new message is queued
  * for interpretation.
+ *
+ * @phpstan-import-type Forwarded from GmailMessageParser
+ * @phpstan-import-type Quote from Email
  */
 class StoreGmailMessage
 {
@@ -32,6 +36,8 @@ class StoreGmailMessage
     public function store(Mailbox $mailbox, array $message, EmailSource $source, ?int $importedBy = null): Email
     {
         $attributes = $this->parser->parse($message);
+        $forwarded = $attributes['forwarded'];
+        unset($attributes['forwarded']);
 
         $email = Email::query()->firstOrNew([
             'mailbox_id' => $mailbox->id,
@@ -39,7 +45,14 @@ class StoreGmailMessage
         ]);
 
         $email->fill($attributes);
-        $email->fill($this->extractor->extract($attributes['body_html'], $attributes['body_text']));
+
+        $content = $this->extractor->extract($attributes['body_html'], $attributes['body_text']);
+        $email->fill([
+            ...$content,
+            // A mail forwarded as an attachment is history like a quote.
+            'quotes' => [...$content['quotes'], ...$this->forwardedQuotes($forwarded)],
+            'content_hash' => $content['content_text'] === null ? null : MailFingerprints::hash($content['content_text']),
+        ]);
 
         // The inbox groups by thread, so every email needs one. Gmail always
         // sends a threadId; a message without one is a thread of its own.
@@ -69,6 +82,37 @@ class StoreGmailMessage
         }
 
         return $email;
+    }
+
+    /**
+     * Each forwarded mail as a quote, with the history it carries itself.
+     *
+     * @param  list<Forwarded>  $forwarded
+     * @return list<Quote>
+     */
+    private function forwardedQuotes(array $forwarded): array
+    {
+        $quotes = [];
+
+        foreach ($forwarded as $mail) {
+            $content = $this->extractor->extract($mail['body_html'], $mail['body_text']);
+
+            if ($content['content_text'] !== null) {
+                $quotes[] = [
+                    'name' => $mail['from_name'],
+                    'email' => $mail['from_email'],
+                    'date' => $mail['date'],
+                    'date_text' => null,
+                    'text' => $content['content_text'],
+                    'message_id' => $mail['message_id'],
+                    'forwarded' => true,
+                ];
+            }
+
+            $quotes = [...$quotes, ...$content['quotes']];
+        }
+
+        return $quotes;
     }
 
     /**
