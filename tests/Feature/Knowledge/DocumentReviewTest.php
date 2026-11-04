@@ -4,9 +4,11 @@ namespace Tests\Feature\Knowledge;
 
 use App\Enums\FactStatus;
 use App\Enums\ProcessingStatus;
+use App\Enums\ProcessingStep;
 use App\Facades\Tenancy;
 use App\Models\Account;
 use App\Models\Document;
+use App\Models\DocumentProcessingStep;
 use App\Models\DocumentVersion;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeFact;
@@ -118,18 +120,32 @@ class DocumentReviewTest extends TestCase
                 ->where('review.firstVersion', false)
                 ->where('review.sections.changed', 1)
                 ->where('review.sections.unchanged', 10)
-                // Only the changed section brings something new.
-                ->has('review.newFacts', 1)
-                ->where('review.newFacts.0.heading', 'Personeelshandboek Noordkade › 3 Ziekmelding')
-                // And what it said before goes, replaced by what it says now.
-                ->where('review.facts.expire', 1)
-                ->where('review.expiring.0.heading', 'Personeelshandboek Noordkade › 3 Ziekmelding')
-                ->where('review.expiring.0.sectionRemoved', false)
-                ->where('review.expiring.0.replacedBy', 'Regel uit 3 Ziekmelding.'));
+                // The changed section states its rule word for word as before:
+                // that fact carries on, it is neither new nor expiring.
+                ->has('review.newFacts', 0)
+                ->where('review.facts.expire', 0)
+                ->has('review.carried', 1)
+                ->where('review.carried.0.statement', 'Regel uit 3 Ziekmelding.')
+                ->where('review.carried.0.heading', 'Personeelshandboek Noordkade › 3 Ziekmelding'));
+
+        $carried = Tenancy::for($this->account, fn () => KnowledgeFact::query()->where('statement', 'Regel uit 3 Ziekmelding.')->where('status', FactStatus::Core)->sole());
+
+        // Nothing changed about it, so nothing was sent to the fact check.
+        $check = Tenancy::for($this->account, fn () => DocumentProcessingStep::query()->whereHas('version', fn ($query) => $query->where('version_number', 2))->where('step', ProcessingStep::Reconcile)->sole());
+        $this->assertSame(0, $check->meta['checked'] ?? null);
 
         $this->approve($document);
 
-        Tenancy::for($this->account, fn () => $this->assertStringContainsString('08:30', $this->search()->passages[0]->text ?? ''));
+        Tenancy::for($this->account, function () use ($carried) {
+            $this->assertStringContainsString('08:30', $this->search()->passages[0]->text ?? '');
+
+            // The same fact, now in version 2's section; its repeat is gone.
+            $this->assertSame(1, KnowledgeFact::query()->where('statement', 'Regel uit 3 Ziekmelding.')->count());
+            $carried->refresh();
+            $this->assertSame(FactStatus::Core, $carried->status);
+            $this->assertSame(2, $carried->version?->version_number);
+            $this->assertSame('Personeelshandboek Noordkade › 3 Ziekmelding', $carried->section?->heading_path);
+        });
     }
 
     public function test_processing_a_waiting_version_again_replaces_what_it_proposed(): void

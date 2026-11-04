@@ -324,6 +324,20 @@ export function VersionReviewPanel({
                 />
             )}
 
+            {review.carried.length > 0 && (
+                <FactGroups
+                    title={t('Carried over unchanged (:count)', {
+                        count: review.carried.length,
+                    })}
+                    caption={t(
+                        'A changed section says these word for word as before: they carry on as they are.',
+                    )}
+                    facts={review.carried}
+                    documentId={documentId}
+                    open={false}
+                />
+            )}
+
             {review.staying.length > 0 && (
                 <details className="group flex flex-col gap-2">
                     <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3">

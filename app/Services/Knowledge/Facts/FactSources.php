@@ -101,11 +101,12 @@ class FactSources
      * handOverPlan() says beforehand.
      *
      * @param  array<int, DocumentSection>  $unchanged  previous section id => the same section in the new version
+     * @param  array<int, array{proposed: KnowledgeFact, from: int, to: DocumentSection}>  $carried  fact id => its word-for-word repeat in a changed section
      * @return array{facts: int, expired: int}
      */
-    public function handOver(DocumentVersion $previous, DocumentVersion $version, array $unchanged): array
+    public function handOver(DocumentVersion $previous, DocumentVersion $version, array $unchanged, array $carried = []): array
     {
-        $plan = $this->handOverPlan($previous, $unchanged);
+        $plan = $this->handOverPlan($previous, $unchanged, $carried);
         $moved = 0;
 
         foreach ($unchanged as $previousSectionId => $section) {
@@ -136,23 +137,42 @@ class FactSources
             }
         }
 
+        // Said word for word in a changed section: the fact carries on there,
+        // and its repeat goes.
+        foreach ($plan['carry'] as ['fact' => $fact, 'here' => $here, 'proposed' => $proposed, 'from' => $from, 'to' => $to]) {
+            $place = ['section_id' => $to->id, 'document_version_id' => $version->id, 'chunk_id' => $proposed->chunk_id, 'page_from' => $proposed->page_from, 'page_to' => $proposed->page_to];
+
+            KnowledgeFactSource::query()->whereKey($here->where('section_id', $from)->modelKeys())->update($place);
+            KnowledgeFactSource::query()->whereKey($here->where('section_id', '!=', $from)->modelKeys())->delete();
+
+            if ($fact->refresh()->document_version_id === $previous->id) {
+                $fact->update([...$place, 'source_type' => 'document_version', 'source_id' => $version->id, 'document_id' => $version->document_id]);
+            }
+
+            $this->forget($proposed);
+            $moved++;
+        }
+
         return ['facts' => $moved, 'expired' => count($plan['expire'])];
     }
 
     /**
      * What publishing a new version would do to the facts of the previous
      * one, without doing it. Facts stated in an unchanged section go along
-     * and are not listed. Of the rest, those stated nowhere else expire;
-     * those stated elsewhere too stay, cited from that other place
+     * and are not listed; those a changed section says word for word again
+     * carry on there (`carry`). Of the rest, those stated nowhere else
+     * expire; those stated elsewhere too stay, cited from that other place
      * (`elsewhere` true), or from an unchanged section of this document.
      *
      * @param  array<int, DocumentSection>  $unchanged  previous section id => the same section in the new version
-     * @return array{expire: list<KnowledgeFact>, keep: list<array{fact: KnowledgeFact, here: Collection<int, KnowledgeFactSource>, source: KnowledgeFactSource, elsewhere: bool}>}
+     * @param  array<int, array{proposed: KnowledgeFact, from: int, to: DocumentSection}>  $carried  fact id => its word-for-word repeat in a changed section
+     * @return array{expire: list<KnowledgeFact>, keep: list<array{fact: KnowledgeFact, here: Collection<int, KnowledgeFactSource>, source: KnowledgeFactSource, elsewhere: bool}>, carry: list<array{fact: KnowledgeFact, here: Collection<int, KnowledgeFactSource>, proposed: KnowledgeFact, from: int, to: DocumentSection}>}
      */
-    public function handOverPlan(DocumentVersion $previous, array $unchanged): array
+    public function handOverPlan(DocumentVersion $previous, array $unchanged, array $carried = []): array
     {
         $expire = [];
         $keep = [];
+        $carry = [];
 
         foreach ($this->stillIn('document_version_id', $previous->id) as [$fact, $here, $elsewhere]) {
             [$moving, $staying] = $here->partition(fn (KnowledgeFactSource $source): bool => isset($unchanged[(int) $source->section_id]));
@@ -161,6 +181,12 @@ class FactSources
                 if ($staying->isNotEmpty()) {
                     $keep[] = ['fact' => $fact, 'here' => $staying->values(), 'source' => $moving->first(), 'elsewhere' => false];
                 }
+
+                continue;
+            }
+
+            if (isset($carried[$fact->id])) {
+                $carry[] = ['fact' => $fact, 'here' => $here, ...$carried[$fact->id]];
 
                 continue;
             }
@@ -174,7 +200,7 @@ class FactSources
             $keep[] = ['fact' => $fact, 'here' => $here, 'source' => $elsewhere->first(), 'elsewhere' => true];
         }
 
-        return ['expire' => $expire, 'keep' => $keep];
+        return ['expire' => $expire, 'keep' => $keep, 'carry' => $carry];
     }
 
     /**

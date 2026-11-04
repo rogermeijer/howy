@@ -100,6 +100,19 @@ class KnowledgeEnrichmentTest extends TestCase
         $documentId = Tenancy::for($this->account, fn () => DocumentVersion::query()->sole()->document_id);
         $this->fakePoppler(str_replace('vóór 09:00 uur telefonisch', 'vóór 08:30 uur telefonisch', $this->xml));
 
+        // Read again, the changed section states its rule differently.
+        SectionEnricher::fake(function (string $prompt): array {
+            preg_match('/Section: ([^\n]+)/', $prompt, $section);
+            $heading = trim((string) last(explode(' › ', $section[1] ?? '')));
+
+            return ['summary' => "Samenvatting van {$heading}.", 'facts' => [[
+                'statement' => str_contains($prompt, '08:30') ? 'Ziekmelden gebeurt vóór 08:30 uur.' : "Regel uit {$heading}.",
+                'subject' => mb_strtolower((string) preg_replace('/^[\d.]+\s*/', '', $heading)),
+                'valid_from' => null,
+                'confidence' => 0.9,
+            ]]];
+        })->preventStrayPrompts();
+
         $this->actingAs($this->admin)->post(route('knowledge.documents.versions.store', $documentId), [
             'file' => UploadedFile::fake()->createWithContent('handboek.pdf', '%PDF-1.4 v2'),
         ])->assertSessionHasNoErrors();

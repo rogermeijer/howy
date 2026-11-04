@@ -90,7 +90,7 @@ class SectionEnrichment
         }
 
         return DB::transaction(function () use ($version, $previous): array {
-            $handedOver = $this->sources->handOver($previous, $version, $this->unchangedByPrevious($version));
+            $handedOver = $this->sources->handOver($previous, $version, $this->unchangedByPrevious($version), $this->carried($version));
 
             // Facts written while this version waited for review replace the
             // ones that only expired now.
@@ -112,13 +112,68 @@ class SectionEnrichment
      * What approving this version would do to the facts of the version it
      * follows, shown before anyone decides. Null for a first version.
      *
-     * @return array{previous: DocumentVersion, expire: list<KnowledgeFact>, keep: list<array{fact: KnowledgeFact, here: Collection<int, KnowledgeFactSource>, source: KnowledgeFactSource, elsewhere: bool}>}|null
+     * @return array{previous: DocumentVersion, expire: list<KnowledgeFact>, keep: list<array{fact: KnowledgeFact, here: Collection<int, KnowledgeFactSource>, source: KnowledgeFactSource, elsewhere: bool}>, carry: list<array{fact: KnowledgeFact, here: Collection<int, KnowledgeFactSource>, proposed: KnowledgeFact, from: int, to: DocumentSection}>}|null
      */
     public function handOverPlan(DocumentVersion $version): ?array
     {
         $previous = $version->previous();
 
-        return $previous === null ? null : ['previous' => $previous, ...$this->sources->handOverPlan($previous, $this->unchangedByPrevious($version))];
+        return $previous === null ? null : ['previous' => $previous, ...$this->sources->handOverPlan($previous, $this->unchangedByPrevious($version), $this->carried($version))];
+    }
+
+    /**
+     * What a changed section of this version states word for word as the
+     * section it was: the fact that carries on (by id), the proposed repeat
+     * that goes in its favour, and the section it moves from and to. Nothing
+     * about it changed, so it is not checked or decided on again.
+     *
+     * @return array<int, array{proposed: KnowledgeFact, from: int, to: DocumentSection}>
+     */
+    public function carried(DocumentVersion $version): array
+    {
+        $changed = DocumentSection::query()
+            ->where('document_version_id', $version->id)
+            ->where('change_type', SectionChange::Changed)
+            ->whereNotNull('previous_section_id')
+            ->get()
+            ->keyBy('id');
+
+        if ($changed->isEmpty()) {
+            return [];
+        }
+
+        $proposed = KnowledgeFact::query()
+            ->where('document_version_id', $version->id)
+            ->where('status', FactStatus::Proposed)
+            ->whereIn('section_id', $changed->keys())
+            ->orderBy('id')
+            ->get();
+
+        $before = KnowledgeFactSource::query()
+            ->with('fact')
+            ->whereIn('section_id', $changed->pluck('previous_section_id'))
+            ->whereHas('fact', fn ($query) => $query->where('status', '!=', FactStatus::Expired))
+            ->get();
+
+        $carried = [];
+
+        foreach ($proposed as $fact) {
+            $section = $changed->get((int) $fact->section_id);
+
+            if ($section === null) {
+                continue;
+            }
+
+            $source = $before->first(fn (KnowledgeFactSource $source): bool => $source->section_id === $section->previous_section_id
+                && $source->fact->content_hash === $fact->content_hash
+                && ! isset($carried[$source->knowledge_fact_id]));
+
+            if ($source !== null) {
+                $carried[$source->knowledge_fact_id] = ['proposed' => $fact, 'from' => (int) $section->previous_section_id, 'to' => $section];
+            }
+        }
+
+        return $carried;
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Models\DocumentVersion;
 use App\Models\KnowledgeFact;
 use App\Services\Knowledge\Ai\Agents\FactConflictChecker;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\Enrichment\SectionEnrichment;
 use App\Services\Knowledge\KnowledgeLanguage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -27,7 +28,10 @@ use Illuminate\Database\Eloquent\Model;
  */
 class FactReconciler
 {
-    public function __construct(private readonly AiGateway $ai) {}
+    public function __construct(
+        private readonly AiGateway $ai,
+        private readonly SectionEnrichment $enrichment,
+    ) {}
 
     /**
      * Ask the conflict check about claims that have candidates, in groups.
@@ -76,10 +80,15 @@ class FactReconciler
      */
     public function reconcile(DocumentVersion $version): array
     {
+        // What a changed section repeats word for word carries on as it is:
+        // nothing to check.
+        $repeats = array_map(fn (array $carried): int => $carried['proposed']->id, array_values($this->enrichment->carried($version)));
+
         $facts = KnowledgeFact::query()
             ->where('document_version_id', $version->id)
             ->where('status', FactStatus::Proposed)
             ->whereNull('review_verdict')
+            ->whereKeyNot($repeats)
             ->orderBy('id')
             ->limit((int) config('knowledge.review.max_facts'))
             ->get();

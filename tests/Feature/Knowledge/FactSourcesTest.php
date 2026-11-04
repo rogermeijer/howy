@@ -163,7 +163,7 @@ class FactSourcesTest extends TestCase
 
     public function test_the_review_says_beforehand_what_expires_and_what_stays(): void
     {
-        [$document, $replacement, $gone, $stays] = Tenancy::for($this->account, function (): array {
+        [$document, $replacement, $gone, $stays, $same, $now] = Tenancy::for($this->account, function (): array {
             $document = Document::factory()->withVersion()->create(['title' => 'Handboek']);
             $section = fn (string $heading, int $ordinal, ?DocumentVersion $version = null, array $attributes = []): DocumentSection => DocumentSection::factory()->create([
                 'document_id' => $document->id,
@@ -180,6 +180,7 @@ class FactSourcesTest extends TestCase
 
             KnowledgeFact::factory()->create(['section_id' => $kept->id, 'statement' => 'Iedereen heeft 25 vakantiedagen.']);
             KnowledgeFact::factory()->create(['section_id' => $changed->id, 'statement' => 'Ziekmelden voor 9 uur.', 'subject' => 'ziekmelding']);
+            $same = KnowledgeFact::factory()->create(['section_id' => $changed->id, 'statement' => 'Bel je leidinggevende.', 'content_hash' => MailFactWriter::hash('Bel je leidinggevende.')]);
             $gone = KnowledgeFact::factory()->create(['section_id' => $removed->id, 'statement' => 'Reiskosten worden vergoed.']);
             $stays = KnowledgeFact::factory()->create(['section_id' => $removed->id, 'statement' => 'Declareren kan tot 30 dagen achteraf.']);
 
@@ -191,8 +192,10 @@ class FactSourcesTest extends TestCase
             $section('Verlof', 1, $v2, ['previous_section_id' => $kept->id, 'change_type' => SectionChange::Unchanged]);
             $now = $section('Ziekte', 2, $v2, ['previous_section_id' => $changed->id, 'change_type' => SectionChange::Changed]);
             $replacement = KnowledgeFact::factory()->create(['section_id' => $now->id, 'statement' => 'Ziekmelden voor 8 uur.', 'subject' => 'ziekmelding', 'status' => FactStatus::Proposed]);
+            // Said again word for word.
+            KnowledgeFact::factory()->create(['section_id' => $now->id, 'statement' => 'Bel je leidinggevende.', 'content_hash' => MailFactWriter::hash('Bel je leidinggevende.'), 'status' => FactStatus::Proposed]);
 
-            return [$document, $replacement, $gone, $stays];
+            return [$document, $replacement, $gone, $stays, $same, $now];
         });
 
         $this->actingAs($this->admin)
@@ -207,14 +210,23 @@ class FactSourcesTest extends TestCase
                 ->where('review.expiring.1.replacedBy', null)
                 ->has('review.staying', 1)
                 ->where('review.staying.0.id', $stays->id)
-                ->where('review.staying.0.source.title', 'Arbobeleid'));
+                ->where('review.staying.0.source.title', 'Arbobeleid')
+                ->has('review.carried', 1)
+                ->where('review.carried.0.id', $same->id)
+                ->where('review.uncheckedFacts.0.statement', 'Ziekmelden voor 8 uur.')
+                ->has('review.uncheckedFacts', 1));
 
         // Approving does what it said.
         $this->actingAs($this->admin)
             ->post(route('knowledge.documents.versions.approve', [$document, $replacement->document_version_id]))
             ->assertRedirect();
 
-        Tenancy::for($this->account, function () use ($gone, $stays) {
+        Tenancy::for($this->account, function () use ($gone, $stays, $same, $now) {
+            $this->assertSame(1, KnowledgeFact::query()->where('statement', 'Bel je leidinggevende.')->count());
+            $this->assertSame(FactStatus::Core, $same->refresh()->status);
+            $this->assertSame($now->id, $same->section_id);
+            $this->assertSame([$now->id], $same->sources()->pluck('section_id')->all());
+
             $this->assertSame(FactStatus::Expired, $gone->refresh()->status);
             $this->assertSame(FactStatus::Core, $stays->refresh()->status);
             $this->assertSame('Arbobeleid', $stays->documentTitle());

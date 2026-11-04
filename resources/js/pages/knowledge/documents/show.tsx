@@ -71,6 +71,7 @@ const verdictStyles = {
     duplicate: 'bg-cc-raised text-cc-muted',
     conflict: 'bg-cc-action-bg text-cc-action-fg',
     unchecked: 'bg-cc-pending-bg text-cc-pending-fg',
+    carried: 'bg-cc-raised text-cc-muted',
 } as const;
 
 const verdictLabels = {
@@ -78,6 +79,7 @@ const verdictLabels = {
     duplicate: 'Already known',
     conflict: 'Conflict',
     unchecked: 'Not checked',
+    carried: 'Unchanged',
 } as const;
 
 export default function DocumentInspector({
@@ -401,7 +403,7 @@ export default function DocumentInspector({
                                             ) && (
                                                 <p className="cc-caption">
                                                     {t(
-                                                        'Waiting for approval. On approval a new fact is added, and an already known one becomes one more source of the known fact.',
+                                                        'Waiting for approval. On approval a new fact is added, an already known one becomes one more source of the known fact, and an unchanged one carries on as it is.',
                                                     )}
                                                 </p>
                                             )}

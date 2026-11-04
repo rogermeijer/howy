@@ -115,7 +115,7 @@ export type FactView = {
     /** Every place it is stated, the cited one first. */
     sources: FactSourceView[];
     /** Waiting for approval: how it compares with what is known. */
-    verdict: 'new' | 'duplicate' | 'conflict' | 'unchecked' | null;
+    verdict: 'new' | 'duplicate' | 'conflict' | 'unchecked' | 'carried' | null;
     /** The known fact it repeats or contradicts. */
     known: NonNullable<JudgedFact['existing']> | null;
     /** Why it contradicts the known fact. */
@@ -232,6 +232,8 @@ export type VersionReview = {
     uncheckedFacts: ReviewFact[];
     expiring: ExpiringFact[];
     staying: StayingFact[];
+    /** Said word for word again in a changed section: carries on as it is. */
+    carried: ReviewFact[];
     folders: { id: number; name: string; isNew: boolean }[];
 };
 

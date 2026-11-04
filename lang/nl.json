@@ -1252,7 +1252,6 @@
     "The knowledge base is now built in :language. Howy is translating what it already holds.": "De kennisbank wordt nu opgebouwd in :language. Howy vertaalt wat er al in staat.",
     "New fact": "Nieuw feit",
     "Known from": "Bekend uit",
-    "Waiting for approval. On approval a new fact is added, and an already known one becomes one more source of the known fact.": "Wacht op goedkeuring. Bij goedkeuren wordt een nieuw feit toegevoegd, en wordt een al bekend feit een extra bron van het bekende feit.",
     ":count changed": ":count gewijzigd",
     ":count added": ":count toegevoegd",
     ":count removed": ":count verwijderd",
@@ -1267,5 +1266,8 @@
     "Section changed": "Sectie gewijzigd",
     "Replaced by": "Vervangen door",
     "Stays, stated elsewhere too (:count)": "Blijft, staat ook elders (:count)",
-    "Not in this version any more, but another document or a mail states it too: the fact keeps counting, cited from there.": "Staat niet meer in deze versie, maar een ander document of een mail noemt het ook: het feit blijft gelden en verwijst voortaan daarheen."
+    "Not in this version any more, but another document or a mail states it too: the fact keeps counting, cited from there.": "Staat niet meer in deze versie, maar een ander document of een mail noemt het ook: het feit blijft gelden en verwijst voortaan daarheen.",
+    "Waiting for approval. On approval a new fact is added, an already known one becomes one more source of the known fact, and an unchanged one carries on as it is.": "Wacht op goedkeuring. Bij goedkeuren wordt een nieuw feit toegevoegd, wordt een al bekend feit een extra bron van het bekende feit, en loopt een ongewijzigd feit gewoon door.",
+    "Carried over unchanged (:count)": "Ongewijzigd overgenomen (:count)",
+    "A changed section says these word for word as before: they carry on as they are.": "Een gewijzigde sectie zegt deze letterlijk hetzelfde als eerst: ze lopen gewoon door."
 }

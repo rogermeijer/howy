@@ -109,6 +109,11 @@ class DocumentInspectorController extends Controller
             ->orderBy('id')
             ->get();
 
+        // Repeats of what the section said before, carried over on approval.
+        $repeats = $facts->contains('status', FactStatus::Proposed) && ! $section->version->isApproved()
+            ? array_flip(array_map(fn (array $carried): int => $carried['proposed']->id, array_values($this->enrichment->carried($section->version))))
+            : [];
+
         $topics = KnowledgeTopicLink::query()
             ->with('topic')
             ->where('linkable_type', 'document_section')
@@ -139,7 +144,7 @@ class DocumentInspectorController extends Controller
                 'statement' => $fact->statement,
                 'status' => $fact->status->value,
                 // Waiting for approval, what counts is how it compares with what is known.
-                'verdict' => $fact->status === FactStatus::Proposed ? ($fact->review_verdict ?? 'unchecked') : null,
+                'verdict' => $fact->status === FactStatus::Proposed ? (isset($repeats[$fact->id]) ? 'carried' : ($fact->review_verdict ?? 'unchecked')) : null,
                 'known' => $fact->status === FactStatus::Proposed ? $this->judgedFact($fact)['existing'] : null,
                 'explanation' => $fact->status === FactStatus::Proposed ? $fact->review_explanation : null,
                 'validFrom' => $fact->valid_from?->toDateString(),
@@ -180,21 +185,24 @@ class DocumentInspectorController extends Controller
             ->get();
 
         $sources = DocumentSource::query()->with(['user', 'email'])->where('document_version_id', $version->id)->orderBy('id')->get();
-        $facts = KnowledgeFact::query()
-            ->with(['section:id,heading_path,ordinal', 'relatedFact.document', 'relatedFact.version'])
-            ->where('document_version_id', $version->id)
-            ->where('status', FactStatus::Proposed)
-            ->orderBy('id')
-            ->get();
 
         // What approving does to the facts of the version this one follows.
         $plan = $this->enrichment->handOverPlan($version);
-        $expiring = $plan === null ? [] : $this->expiring($plan['expire'], $version);
+        $repeats = array_map(fn (array $carry): int => $carry['proposed']->id, $plan['carry'] ?? []);
+        $expiring = $plan === null ? [] : $this->expiring($plan['expire'], $version, $repeats);
         $staying = $plan === null ? [] : array_values(array_map(fn (array $keep): array => [
             'id' => $keep['fact']->id,
             'statement' => $keep['fact']->statement,
             'source' => $this->sources->one($keep['source']->loadMissing(['version', 'section'])),
         ], array_filter($plan['keep'], fn (array $keep): bool => $keep['elsewhere'])));
+
+        $facts = KnowledgeFact::query()
+            ->with(['section:id,heading_path,ordinal', 'relatedFact.document', 'relatedFact.version'])
+            ->where('document_version_id', $version->id)
+            ->where('status', FactStatus::Proposed)
+            ->whereKeyNot($repeats)
+            ->orderBy('id')
+            ->get();
 
         return [
             'replaces' => $previous === null || $previous->id !== $document->current_version_id ? null : $previous->version_number,
@@ -237,6 +245,13 @@ class DocumentInspectorController extends Controller
             // What goes on approval, and what stays because something else says it too.
             'expiring' => $expiring,
             'staying' => $staying,
+            // Said word for word again in a changed section: carries on as it is.
+            'carried' => array_map(fn (array $carry): array => [
+                'id' => $carry['fact']->id,
+                'statement' => $carry['fact']->statement,
+                'sectionId' => $carry['to']->id,
+                'heading' => $carry['to']->heading_path,
+            ], $plan['carry'] ?? []),
             'folders' => $topics->map(fn (KnowledgeTopic $topic): array => [
                 'id' => $topic->id,
                 'name' => $topic->name,
@@ -252,13 +267,14 @@ class DocumentInspectorController extends Controller
      * the section it became).
      *
      * @param  list<KnowledgeFact>  $facts
+     * @param  list<int>  $repeats  facts of this version that carry an old one on, not new
      * @return list<array{id: int, statement: string, sectionId: int|null, heading: string|null, sectionRemoved: bool, replacedBy: string|null}>
      */
-    private function expiring(array $facts, DocumentVersion $version): array
+    private function expiring(array $facts, DocumentVersion $version, array $repeats): array
     {
         $sections = DocumentSection::query()->whereKey(array_values(array_unique(array_filter(array_map(fn (KnowledgeFact $fact): ?int => $fact->section_id, $facts)))))->get()->keyBy('id');
         $became = DocumentSection::query()->where('document_version_id', $version->id)->whereNotNull('previous_section_id')->pluck('id', 'previous_section_id');
-        $proposed = KnowledgeFact::query()->where('document_version_id', $version->id)->where('status', FactStatus::Proposed)->get(['id', 'statement', 'subject', 'section_id', 'content_hash']);
+        $proposed = KnowledgeFact::query()->where('document_version_id', $version->id)->where('status', FactStatus::Proposed)->whereKeyNot($repeats)->get(['id', 'statement', 'subject', 'section_id', 'content_hash']);
 
         return array_values(collect($facts)
             ->sortBy(fn (KnowledgeFact $fact): array => [$sections->get((int) $fact->section_id)->ordinal ?? PHP_INT_MAX, $fact->id])

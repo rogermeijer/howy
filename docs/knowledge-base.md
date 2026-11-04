@@ -98,8 +98,9 @@ so a removed document can still be named.
   waiting elsewhere is not relied on, and the document keeps its own.
 - **Mail**: a statement that is already known adds the mail as a source of the known fact right away. It changes
   nothing that is known, so it waits for nobody.
-- **A new version**: what its unchanged sections state moves along. Every other source in the previous version
-  goes; a fact with no other place left expires (its sources kept as history), one stated elsewhere stays and is
+- **A new version**: what its unchanged sections state moves along, and so does what a changed section says word
+  for word again (same `content_hash`, `SectionEnrichment::carried`): that fact keeps its identity in the new
+  section, its repeat goes, and the fact check skips it. Every other source in the previous version goes; a fact with no other place left expires (its sources kept as history), one stated elsewhere stays and is
   cited from there (`FactSources::promote`). The review panel shows this before anyone decides, from the same
   plan approval executes (`FactSources::handOverPlan`): "Expires on approval", per section (removed or changed,
   with the new fact that replaces it: the same words, else the same subject), and "Stays, stated elsewhere too".
