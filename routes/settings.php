@@ -17,6 +17,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('tenant')->group(function () {
         Route::get('settings', [AccountController::class, 'edit'])->name('settings');
         Route::patch('settings', [AccountController::class, 'update'])->name('account.update');
+        Route::patch('settings/knowledge-language', [AccountController::class, 'updateKnowledgeLanguage'])->name('account.knowledge-language.update');
 
         // Mailboxes belong to the account, so only its administrators manage them.
         Route::middleware('account.admin')->prefix('settings/mailboxes')->name('mailboxes.')->group(function () {

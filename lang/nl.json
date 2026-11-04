@@ -1247,5 +1247,11 @@
     "Keep its facts": "Feiten behouden",
     "They keep counting and are cited as from the removed document.": "Ze blijven gelden en verwijzen naar het verwijderde document.",
     "Remove the facts only this document states": "Feiten verwijderen die alleen in dit document staan",
-    "Facts that something else states too stay, cited from there.": "Feiten die ook elders staan blijven, met daar hun bron."
+    "Facts that something else states too stay, cited from there.": "Feiten die ook elders staan blijven, met daar hun bron.",
+    "Knowledge base language": "Taal van de kennisbank",
+    "Howy writes facts, summaries, folder names and statements from mail in this language, whatever language a document or mail is in. The text of documents stays as it is.": "Howy schrijft feiten, samenvattingen, mapnamen en uitspraken uit mail in deze taal, in welke taal een document of mail ook is. De tekst van documenten blijft zoals hij is.",
+    "Build the knowledge base in :language?": "Kennisbank voortaan opbouwen in :language?",
+    "Howy translates what it already wrote (facts, summaries and folder names) into :language, in the background. This uses your AI provider. The text of documents stays as it is.": "Howy vertaalt wat het al schreef (feiten, samenvattingen en mapnamen) naar :language, op de achtergrond. Dit gebruikt je AI-provider. De tekst van documenten blijft zoals hij is.",
+    "Change and translate": "Wijzigen en vertalen",
+    "The knowledge base is now built in :language. Howy is translating what it already holds.": "De kennisbank wordt nu opgebouwd in :language. Howy vertaalt wat er al in staat."
 }

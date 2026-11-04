@@ -83,6 +83,8 @@ return [
             'mail_conflicts' => env('KNOWLEDGE_MODEL_MAIL_CONFLICTS', 'gpt-6-luna'),
             // A new document's facts held against the facts already known.
             'fact_conflicts' => env('KNOWLEDGE_MODEL_FACT_CONFLICTS', 'gpt-6-luna'),
+            // What was written in another language, into the knowledge base's.
+            'translate' => env('KNOWLEDGE_MODEL_TRANSLATE', 'gpt-6-luna'),
         ],
     ],
 
@@ -157,6 +159,11 @@ return [
         'conflict_group_size' => 20,
         'conflict_candidates' => 5,
         'min_similarity' => 0.5,
+    ],
+
+    'translation' => [
+        // Entries put into the knowledge base's language per request.
+        'group_size' => 25,
     ],
 
     'topics' => [

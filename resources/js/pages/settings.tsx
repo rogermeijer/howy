@@ -5,6 +5,7 @@ import { Section } from '@/components/cc/section';
 import InputError from '@/components/input-error';
 import { LocaleFields } from '@/components/locale-fields';
 import { MailboxesSection } from '@/components/mailboxes/mailboxes-section';
+import { KnowledgeLanguageSection } from '@/components/settings/knowledge-language-section';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ type Props = {
         id: number;
         name: string;
         locale: string;
+        knowledgeLocale: string;
         timezone: string;
     };
     canManageAccount: boolean;
@@ -110,6 +112,12 @@ export default function Settings({
                         </p>
                     )}
                 </Section>
+
+                <KnowledgeLanguageSection
+                    current={account.knowledgeLocale}
+                    locales={locales}
+                    canManage={canManageAccount}
+                />
             </div>
         </>
     );

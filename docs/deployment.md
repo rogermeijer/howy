@@ -209,3 +209,11 @@ before it, so forwards of older mail are recognised too:
 ```bash
 php artisan emails:fingerprint
 ```
+
+Once, after deploying the release with one knowledge base language: an account whose knowledge was built from
+documents in several languages gets it into its own language (facts and summaries; `--folders` for folder names
+too). It uses the AI provider, roughly one light-model call per 25 facts:
+
+```bash
+php artisan knowledge:translate {account} --queue
+```

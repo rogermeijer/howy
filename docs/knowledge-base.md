@@ -72,6 +72,16 @@ What stays in its own language: the document's text, its chunks and their contex
 quote the source, with the document's own search configuration); answers and replies to mail, in the
 sender's language; each user's interface language.
 
+**Changing it** (_Settings → Knowledge base language_, admins, confirmed) queues `TranslateKnowledge`:
+`KnowledgeTranslation` puts what is in another language into the new one with `KnowledgeTranslator` (step
+`translate`, `translation.group_size` entries per request): facts per document or mail (told by their text, or
+for a mail of a few statements by the language they were searched in), with their subject labels, new
+`content_hash`, `search_config` and embedding; the statements of mails waiting for approval along with them;
+section and document summaries per document; folder names, descriptions and summaries. Facts that then say the
+same thing word for word become one fact with all their sources, and versions waiting for approval are checked
+again. For knowledge built before there was one language: `php artisan knowledge:translate {account}
+[--folders] [--queue]`. Safe to rerun.
+
 A document's language is chosen at upload. A mailed file has nobody to choose it, and the mail's language is no
 guide (a Dutch mail carrying an English handbook), so the placement step reads it from the text
 (`TextLanguage`: the share of common words per shipped language; too little text or a mix is left alone).

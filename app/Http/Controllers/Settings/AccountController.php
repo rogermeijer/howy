@@ -8,6 +8,8 @@ use App\Enums\SendPolicy;
 use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\AccountUpdateRequest;
+use App\Http\Requests\Settings\KnowledgeLanguageUpdateRequest;
+use App\Jobs\Knowledge\TranslateKnowledge;
 use App\Models\Mailbox;
 use App\Services\Gmail\MailboxImporter;
 use DateTimeZone;
@@ -50,6 +52,7 @@ class AccountController extends Controller
                 'id' => $account->id,
                 'name' => $account->name,
                 'locale' => $account->locale->value,
+                'knowledgeLocale' => $account->knowledge_locale->value,
                 'timezone' => $account->timezone,
             ],
             'canManageAccount' => $isAdmin,
@@ -78,6 +81,27 @@ class AccountController extends Controller
         Tenancy::account()->fill($request->validated())->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Account updated.')]);
+
+        return to_route('settings');
+    }
+
+    /**
+     * The language the knowledge base is built in. Changed, what it holds is
+     * put into the new language in the background.
+     */
+    public function updateKnowledgeLanguage(KnowledgeLanguageUpdateRequest $request): RedirectResponse
+    {
+        $account = Tenancy::account();
+        $before = $account->knowledge_locale;
+        $account->update(['knowledge_locale' => $request->validated('knowledge_locale')]);
+
+        if ($account->knowledge_locale !== $before) {
+            TranslateKnowledge::dispatch(folders: true);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $account->knowledge_locale !== $before
+            ? __('The knowledge base is now built in :language. Howy is translating what it already holds.', ['language' => $account->knowledge_locale->label()])
+            : __('Account updated.')]);
 
         return to_route('settings');
     }
