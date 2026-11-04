@@ -173,7 +173,7 @@ export default function DocumentInspector({
                                     }
                                 >
                                     <SelectTrigger
-                                        className="h-10 w-[260px]"
+                                        className="h-10 w-[300px]"
                                         aria-label={t('Version')}
                                     >
                                         <SelectValue />

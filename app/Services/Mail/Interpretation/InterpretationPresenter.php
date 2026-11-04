@@ -2,6 +2,7 @@
 
 namespace App\Services\Mail\Interpretation;
 
+use App\Enums\InterpretationOutcome;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
 use App\Models\KnowledgeFact;
@@ -49,7 +50,9 @@ class InterpretationPresenter
             'confidence' => $interpretation->intent_confidence,
             'answerConfidence' => $interpretation->answer_confidence,
             'answerGaps' => $interpretation->answer_gaps,
-            'summary' => $interpretation->summary,
+            'summary' => $interpretation->summary ?? ($interpretation->outcome === InterpretationOutcome::Duplicate && $interpretation->statements === null
+                ? __('Nothing new: this mail only repeats what is already known.')
+                : null),
             'question' => $interpretation->question,
             'answer' => $interpretation->answer,
             'citations' => array_map($this->citation(...), $interpretation->citations ?? []),

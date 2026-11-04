@@ -115,8 +115,9 @@ class EmailInterpreter
             $interpretation->update([
                 'status' => InterpretationStatus::Done,
                 'intent' => null,
+                // Said in the reader's language when shown (InterpretationPresenter).
                 'outcome' => InterpretationOutcome::Duplicate,
-                'summary' => __('Nothing new: this mail only repeats what is already known.'),
+                'summary' => null,
                 'statements' => null,
                 // Where it was read first, to look it up there.
                 'citations' => Email::query()->whereKey($novelty->knownFrom)->whereKeyNot($email->id)->get(['id', 'subject'])->map(fn (Email $known): array => [

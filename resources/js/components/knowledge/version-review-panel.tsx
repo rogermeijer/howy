@@ -197,7 +197,7 @@ export function VersionReviewPanel({
                 </p>
             )}
 
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {counts.map((count) => (
                     <div
                         key={count.key}

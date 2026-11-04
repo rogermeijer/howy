@@ -17,6 +17,7 @@ use App\Models\Mailbox;
 use App\Services\Gmail\GmailClient;
 use App\Services\Gmail\StoreGmailMessage;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
+use App\Services\Mail\Interpretation\InterpretationPresenter;
 use App\Services\Mail\MailFingerprints;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -90,7 +91,8 @@ class MailNoveltyTest extends TestCase
 
         $this->assertSame(InterpretationStatus::Done, $interpretation->status);
         $this->assertSame(InterpretationOutcome::Duplicate, $interpretation->outcome);
-        $this->assertSame(__('Nothing new: this mail only repeats what is already known.'), $interpretation->summary);
+        $this->assertSame(__('Nothing new: this mail only repeats what is already known.'), app(InterpretationPresenter::class)->full($interpretation)['summary']);
+        $this->assertSame('email', $interpretation->citations[0]['type'] ?? null);
         EmailClassifier::assertPromptedTimes(1);
     }
 
