@@ -59,28 +59,17 @@ export function VersionReviewPanel({
     const mailed = review.sources.filter((source) => source.kind === 'mail');
     const placement = review.placement;
 
-    // A first version has nothing to compare with: its sections are simply
-    // there, not new.
-    const counts = review.firstVersion
-        ? [
-              {
-                  key: 'added',
-                  label: t('Sections, first version'),
-                  value: review.sections.added,
-              },
-          ]
-        : (
-              [
-                  ['unchanged', t('Unchanged sections')],
-                  ['changed', t('Changed sections')],
-                  ['added', t('New sections')],
-                  ['removed', t('Removed sections')],
-              ] as const
-          ).map(([key, label]) => ({
-              key,
-              label,
-              value: review.sections[key],
-          }));
+    // Only what differs from the version it follows. A first version has
+    // nothing to compare with, so it says nothing about its sections.
+    const differences = (
+        [
+            ['changed', ':count changed'],
+            ['added', ':count added'],
+            ['removed', ':count removed'],
+        ] as const
+    )
+        .filter(([key]) => review.sections[key] > 0)
+        .map(([key, label]) => t(label, { count: review.sections[key] }));
 
     return (
         <div className="cc-panel flex flex-col gap-5 border-[1.5px] border-cc-pending-fg/30 p-6">
@@ -210,20 +199,6 @@ export function VersionReviewPanel({
             )}
 
             <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {counts.map((count) => (
-                    <div
-                        key={count.key}
-                        className="flex flex-col gap-0.5 rounded-xl bg-cc-bg px-3 py-2.5"
-                    >
-                        <dt className="cc-caption">{count.label}</dt>
-                        <dd className="text-[18px] font-semibold">
-                            {count.value}
-                        </dd>
-                    </div>
-                ))}
-            </dl>
-
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {(
                     [
                         ['new', t('New facts')],
@@ -330,6 +305,21 @@ export function VersionReviewPanel({
                         ))}
                     </ul>
                 </details>
+            )}
+
+            {!review.firstVersion && (
+                <p className="cc-caption">
+                    {[
+                        review.replaces !== null
+                            ? t('Sections compared with version :version:', {
+                                  version: review.replaces,
+                              })
+                            : t('Sections compared with the previous version:'),
+                        differences.length > 0
+                            ? differences.join(' · ')
+                            : t('none changed'),
+                    ].join(' ')}
+                </p>
             )}
 
             {review.sources.length > 0 && (

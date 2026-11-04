@@ -1149,9 +1149,6 @@
     "ready for approval": "klaar voor goedkeuring",
     "rejected": "afgewezen",
     "Rejected": "Afgewezen",
-    "Changed sections": "Gewijzigde secties",
-    "New sections": "Nieuwe secties",
-    "Removed sections": "Verwijderde secties",
     "Version :version is new to the knowledge base": "Versie :version is nieuw in de kennisbank",
     "Version :version replaces version :old": "Versie :version vervangt versie :old",
     "Uploaded by :name. Nothing of it is searched until it is approved.": "Geüpload door :name. Er wordt niets in gezocht tot het is goedgekeurd.",
@@ -1230,7 +1227,6 @@
     "New document": "Nieuw document",
     "Same text as :title": "Zelfde tekst als :title",
     "Looks like :title": "Lijkt op :title",
-    "Sections, first version": "Secties, eerste versie",
     "New facts (:count)": "Nieuwe feiten (:count)",
     "What approving adds to the knowledge base, by section.": "Wat goedkeuren aan de kennisbank toevoegt, per sectie.",
     "Not checked (:count)": "Niet gecontroleerd (:count)",
@@ -1256,5 +1252,11 @@
     "The knowledge base is now built in :language. Howy is translating what it already holds.": "De kennisbank wordt nu opgebouwd in :language. Howy vertaalt wat er al in staat.",
     "New fact": "Nieuw feit",
     "Known from": "Bekend uit",
-    "Waiting for approval. On approval a new fact is added, and an already known one becomes one more source of the known fact.": "Wacht op goedkeuring. Bij goedkeuren wordt een nieuw feit toegevoegd, en wordt een al bekend feit een extra bron van het bekende feit."
+    "Waiting for approval. On approval a new fact is added, and an already known one becomes one more source of the known fact.": "Wacht op goedkeuring. Bij goedkeuren wordt een nieuw feit toegevoegd, en wordt een al bekend feit een extra bron van het bekende feit.",
+    ":count changed": ":count gewijzigd",
+    ":count added": ":count toegevoegd",
+    ":count removed": ":count verwijderd",
+    "Sections compared with version :version:": "Secties ten opzichte van versie :version:",
+    "Sections compared with the previous version:": "Secties ten opzichte van de vorige versie:",
+    "none changed": "niets gewijzigd"
 }
