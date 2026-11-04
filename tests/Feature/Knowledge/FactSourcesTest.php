@@ -4,6 +4,7 @@ namespace Tests\Feature\Knowledge;
 
 use App\Enums\FactSourceKind;
 use App\Enums\FactStatus;
+use App\Enums\SectionChange;
 use App\Facades\Tenancy;
 use App\Jobs\Mail\InterpretEmail;
 use App\Models\Account;
@@ -157,6 +158,68 @@ class FactSourcesTest extends TestCase
             $this->assertSame(FactStatus::Core, $both->status);
             $this->assertSame($elsewhere->id, $both->section_id);
             $this->assertSame(['Arbobeleid'], $both->sources()->pluck('title')->all());
+        });
+    }
+
+    public function test_the_review_says_beforehand_what_expires_and_what_stays(): void
+    {
+        [$document, $replacement, $gone, $stays] = Tenancy::for($this->account, function (): array {
+            $document = Document::factory()->withVersion()->create(['title' => 'Handboek']);
+            $section = fn (string $heading, int $ordinal, ?DocumentVersion $version = null, array $attributes = []): DocumentSection => DocumentSection::factory()->create([
+                'document_id' => $document->id,
+                'document_version_id' => $version->id ?? $document->current_version_id,
+                'heading' => $heading,
+                'heading_path' => $heading,
+                'ordinal' => $ordinal,
+                ...$attributes,
+            ]);
+
+            $kept = $section('Verlof', 1);
+            $changed = $section('Ziekte', 2);
+            $removed = $section('Reizen', 3);
+
+            KnowledgeFact::factory()->create(['section_id' => $kept->id, 'statement' => 'Iedereen heeft 25 vakantiedagen.']);
+            KnowledgeFact::factory()->create(['section_id' => $changed->id, 'statement' => 'Ziekmelden voor 9 uur.', 'subject' => 'ziekmelding']);
+            $gone = KnowledgeFact::factory()->create(['section_id' => $removed->id, 'statement' => 'Reiskosten worden vergoed.']);
+            $stays = KnowledgeFact::factory()->create(['section_id' => $removed->id, 'statement' => 'Declareren kan tot 30 dagen achteraf.']);
+
+            $other = DocumentSection::factory()->create(['document_id' => Document::factory()->withVersion()->create(['title' => 'Arbobeleid'])->id]);
+            $stays->sources()->create(['kind' => FactSourceKind::Document, 'document_id' => $other->document_id, 'document_version_id' => $other->document_version_id, 'section_id' => $other->id, 'title' => 'Arbobeleid']);
+
+            // Version 2: Verlof as it was, Ziekte changed, Reizen gone.
+            $v2 = DocumentVersion::factory()->awaitingReview()->for($document)->create(['version_number' => 2]);
+            $section('Verlof', 1, $v2, ['previous_section_id' => $kept->id, 'change_type' => SectionChange::Unchanged]);
+            $now = $section('Ziekte', 2, $v2, ['previous_section_id' => $changed->id, 'change_type' => SectionChange::Changed]);
+            $replacement = KnowledgeFact::factory()->create(['section_id' => $now->id, 'statement' => 'Ziekmelden voor 8 uur.', 'subject' => 'ziekmelding', 'status' => FactStatus::Proposed]);
+
+            return [$document, $replacement, $gone, $stays];
+        });
+
+        $this->actingAs($this->admin)
+            ->get(route('knowledge.documents.show', $document))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('review.facts.expire', 2)
+                ->where('review.expiring.0.heading', 'Ziekte')
+                ->where('review.expiring.0.sectionRemoved', false)
+                ->where('review.expiring.0.replacedBy', $replacement->statement)
+                ->where('review.expiring.1.id', $gone->id)
+                ->where('review.expiring.1.sectionRemoved', true)
+                ->where('review.expiring.1.replacedBy', null)
+                ->has('review.staying', 1)
+                ->where('review.staying.0.id', $stays->id)
+                ->where('review.staying.0.source.title', 'Arbobeleid'));
+
+        // Approving does what it said.
+        $this->actingAs($this->admin)
+            ->post(route('knowledge.documents.versions.approve', [$document, $replacement->document_version_id]))
+            ->assertRedirect();
+
+        Tenancy::for($this->account, function () use ($gone, $stays) {
+            $this->assertSame(FactStatus::Expired, $gone->refresh()->status);
+            $this->assertSame(FactStatus::Core, $stays->refresh()->status);
+            $this->assertSame('Arbobeleid', $stays->documentTitle());
+            $this->assertSame(FactStatus::Expired, KnowledgeFact::query()->where('statement', 'Ziekmelden voor 9 uur.')->value('status'));
+            $this->assertSame(FactStatus::Core, KnowledgeFact::query()->where('statement', 'Iedereen heeft 25 vakantiedagen.')->value('status'));
         });
     }
 

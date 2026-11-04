@@ -19,6 +19,7 @@ use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeFact;
 use App\Models\KnowledgeTopic;
 use App\Models\KnowledgeTopicLink;
+use App\Services\Knowledge\Enrichment\SectionEnrichment;
 use App\Services\Knowledge\Facts\FactSourcePresenter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -32,7 +33,10 @@ use Inertia\Response;
  */
 class DocumentInspectorController extends Controller
 {
-    public function __construct(private readonly FactSourcePresenter $sources) {}
+    public function __construct(
+        private readonly FactSourcePresenter $sources,
+        private readonly SectionEnrichment $enrichment,
+    ) {}
 
     public function show(Request $request, Document $document): Response
     {
@@ -183,8 +187,18 @@ class DocumentInspectorController extends Controller
             ->orderBy('id')
             ->get();
 
+        // What approving does to the facts of the version this one follows.
+        $plan = $this->enrichment->handOverPlan($version);
+        $expiring = $plan === null ? [] : $this->expiring($plan['expire'], $version);
+        $staying = $plan === null ? [] : array_values(array_map(fn (array $keep): array => [
+            'id' => $keep['fact']->id,
+            'statement' => $keep['fact']->statement,
+            'source' => $this->sources->one($keep['source']->loadMissing(['version', 'section'])),
+        ], array_filter($plan['keep'], fn (array $keep): bool => $keep['elsewhere'])));
+
         return [
             'replaces' => $previous === null || $previous->id !== $document->current_version_id ? null : $previous->version_number,
+            'previousVersionId' => $previous?->id,
             // Nothing to compare with: every section is simply there.
             'firstVersion' => $previous === null,
             'uploadedBy' => $version->uploadedBy?->name,
@@ -213,18 +227,57 @@ class DocumentInspectorController extends Controller
                 'duplicate' => $facts->where('review_verdict', 'duplicate')->count(),
                 'conflict' => $facts->where('review_verdict', 'conflict')->count(),
                 'unchecked' => $facts->whereNull('review_verdict')->count(),
+                'expire' => count($expiring),
             ],
             'conflicts' => $facts->where('review_verdict', 'conflict')->map($this->judgedFact(...))->values()->all(),
             'duplicates' => $facts->where('review_verdict', 'duplicate')->take(20)->map($this->judgedFact(...))->values()->all(),
             // What approving adds, in the order of the document.
             'newFacts' => $this->listed($facts->where('review_verdict', 'new')),
             'uncheckedFacts' => $this->listed($facts->whereNull('review_verdict')),
+            // What goes on approval, and what stays because something else says it too.
+            'expiring' => $expiring,
+            'staying' => $staying,
             'folders' => $topics->map(fn (KnowledgeTopic $topic): array => [
                 'id' => $topic->id,
                 'name' => $topic->name,
                 'isNew' => $topic->review_status === TopicReview::New,
             ])->values()->all(),
         ];
+    }
+
+    /**
+     * The facts of the previous version that expire on approval, in the order
+     * of that version: whether their section is gone or changed, and the new
+     * fact that takes their place (the same words, else the same subject in
+     * the section it became).
+     *
+     * @param  list<KnowledgeFact>  $facts
+     * @return list<array{id: int, statement: string, sectionId: int|null, heading: string|null, sectionRemoved: bool, replacedBy: string|null}>
+     */
+    private function expiring(array $facts, DocumentVersion $version): array
+    {
+        $sections = DocumentSection::query()->whereKey(array_values(array_unique(array_filter(array_map(fn (KnowledgeFact $fact): ?int => $fact->section_id, $facts)))))->get()->keyBy('id');
+        $became = DocumentSection::query()->where('document_version_id', $version->id)->whereNotNull('previous_section_id')->pluck('id', 'previous_section_id');
+        $proposed = KnowledgeFact::query()->where('document_version_id', $version->id)->where('status', FactStatus::Proposed)->get(['id', 'statement', 'subject', 'section_id', 'content_hash']);
+
+        return array_values(collect($facts)
+            ->sortBy(fn (KnowledgeFact $fact): array => [$sections->get((int) $fact->section_id)->ordinal ?? PHP_INT_MAX, $fact->id])
+            ->map(function (KnowledgeFact $fact) use ($sections, $became, $proposed): array {
+                $now = $became[(int) $fact->section_id] ?? null;
+                $there = $proposed->where('section_id', $now);
+                $replacement = $now === null ? null : ($there->firstWhere('content_hash', $fact->content_hash)
+                    ?? ($fact->subject === null ? null : $there->firstWhere('subject', $fact->subject)));
+
+                return [
+                    'id' => $fact->id,
+                    'statement' => $fact->statement,
+                    'sectionId' => $fact->section_id,
+                    'heading' => $sections->get((int) $fact->section_id)?->heading_path,
+                    'sectionRemoved' => $now === null,
+                    'replacedBy' => $replacement?->statement,
+                ];
+            })
+            ->all());
     }
 
     /**

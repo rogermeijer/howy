@@ -120,7 +120,12 @@ class DocumentReviewTest extends TestCase
                 ->where('review.sections.unchanged', 10)
                 // Only the changed section brings something new.
                 ->has('review.newFacts', 1)
-                ->where('review.newFacts.0.heading', 'Personeelshandboek Noordkade › 3 Ziekmelding'));
+                ->where('review.newFacts.0.heading', 'Personeelshandboek Noordkade › 3 Ziekmelding')
+                // And what it said before goes, replaced by what it says now.
+                ->where('review.facts.expire', 1)
+                ->where('review.expiring.0.heading', 'Personeelshandboek Noordkade › 3 Ziekmelding')
+                ->where('review.expiring.0.sectionRemoved', false)
+                ->where('review.expiring.0.replacedBy', 'Regel uit 3 Ziekmelding.'));
 
         $this->approve($document);
 

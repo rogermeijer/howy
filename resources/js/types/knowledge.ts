@@ -176,8 +176,29 @@ export type ReviewFact = {
     heading: string | null;
 };
 
+/** A fact of the previous version that expires when this one is approved. */
+export type ExpiringFact = {
+    id: number;
+    statement: string;
+    sectionId: number | null;
+    heading: string | null;
+    /** Its section is not in the new version at all (else it changed). */
+    sectionRemoved: boolean;
+    /** The new fact that takes its place, if any. */
+    replacedBy: string | null;
+};
+
+/** A fact of the previous version that stays because something else states it too. */
+export type StayingFact = {
+    id: number;
+    statement: string;
+    /** Where it is cited from once this version is approved. */
+    source: FactSourceView;
+};
+
 export type VersionReview = {
     replaces: number | null;
+    previousVersionId: number | null;
     /** No earlier version to compare with. */
     firstVersion: boolean;
     uploadedBy: string | null;
@@ -203,11 +224,14 @@ export type VersionReview = {
         duplicate: number;
         conflict: number;
         unchecked: number;
+        expire: number;
     };
     conflicts: JudgedFact[];
     duplicates: JudgedFact[];
     newFacts: ReviewFact[];
     uncheckedFacts: ReviewFact[];
+    expiring: ExpiringFact[];
+    staying: StayingFact[];
     folders: { id: number; name: string; isNew: boolean }[];
 };
 

@@ -29,7 +29,13 @@ import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import documentRoutes from '@/routes/knowledge/documents';
 import topicRoutes from '@/routes/knowledge/topics';
-import type { JudgedFact, ReviewFact, VersionReview } from '@/types';
+import { FactSources } from '@/components/knowledge/fact-sources';
+import type {
+    ExpiringFact,
+    JudgedFact,
+    ReviewFact,
+    VersionReview,
+} from '@/types';
 
 type Props = {
     documentId: number;
@@ -205,11 +211,13 @@ export function VersionReviewPanel({
                         ['duplicate', t('Already known')],
                         ['conflict', t('Contradict what is known')],
                         ['unchecked', t('Not checked')],
+                        ['expire', t('Expire')],
                     ] as const
                 )
                     .filter(
                         ([key]) =>
-                            key !== 'unchecked' || review.facts.unchecked > 0,
+                            (key !== 'unchecked' && key !== 'expire') ||
+                            review.facts[key] > 0,
                     )
                     .map(([key, label]) => (
                         <div
@@ -302,6 +310,44 @@ export function VersionReviewPanel({
                     <ul className="mt-2 flex flex-col gap-2">
                         {review.duplicates.map((fact) => (
                             <JudgedFactItem key={fact.id} fact={fact} />
+                        ))}
+                    </ul>
+                </details>
+            )}
+
+            {review.expiring.length > 0 && (
+                <ExpiringFacts
+                    facts={review.expiring}
+                    documentId={documentId}
+                    previousVersionId={review.previousVersionId}
+                    previousNumber={review.replaces}
+                />
+            )}
+
+            {review.staying.length > 0 && (
+                <details className="group flex flex-col gap-2">
+                    <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3">
+                        <span className="cc-label">
+                            {t('Stays, stated elsewhere too (:count)', {
+                                count: review.staying.length,
+                            })}
+                        </span>
+                        <ChevronDown className="size-4 text-cc-subtle transition-transform group-open:rotate-180" />
+                    </summary>
+                    <p className="cc-caption">
+                        {t(
+                            'Not in this version any more, but another document or a mail states it too: the fact keeps counting, cited from there.',
+                        )}
+                    </p>
+                    <ul className="mt-2 flex flex-col gap-1.5">
+                        {review.staying.map((fact) => (
+                            <li
+                                key={fact.id}
+                                className="flex flex-col gap-1.5 rounded-lg bg-cc-bg px-3 py-2 text-[14px] leading-[1.5]"
+                            >
+                                {fact.statement}
+                                <FactSources sources={[fact.source]} />
+                            </li>
                         ))}
                     </ul>
                 </details>
@@ -603,6 +649,128 @@ function FactGroups({
                                     className="rounded-lg bg-cc-bg px-3 py-2 text-[14px] leading-[1.5]"
                                 >
                                     {fact.statement}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </div>
+        </details>
+    );
+}
+
+/**
+ * The facts of the previous version that no longer hold once this one is
+ * approved, under the section they came from: gone from the document, or
+ * changed, with the new fact that takes their place.
+ */
+function ExpiringFacts({
+    facts,
+    documentId,
+    previousVersionId,
+    previousNumber,
+}: {
+    facts: ExpiringFact[];
+    documentId: number;
+    previousVersionId: number | null;
+    previousNumber: number | null;
+}) {
+    const t = useTranslations();
+    const groups: {
+        sectionId: number | null;
+        heading: string | null;
+        removed: boolean;
+        facts: ExpiringFact[];
+    }[] = [];
+
+    for (const fact of facts) {
+        const last = groups.at(-1);
+
+        if (last && last.sectionId === fact.sectionId) {
+            last.facts.push(fact);
+        } else {
+            groups.push({
+                sectionId: fact.sectionId,
+                heading: fact.heading,
+                removed: fact.sectionRemoved,
+                facts: [fact],
+            });
+        }
+    }
+
+    return (
+        <details
+            open={facts.length <= 40}
+            className="group flex flex-col gap-2"
+        >
+            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3">
+                <span className="cc-label">
+                    {t('Expires on approval (:count)', { count: facts.length })}
+                </span>
+                <ChevronDown className="size-4 text-cc-subtle transition-transform group-open:rotate-180" />
+            </summary>
+            <p className="cc-caption">
+                {previousNumber !== null
+                    ? t(
+                          'Facts of version :version that no longer hold once this version is approved. They are kept as history.',
+                          { version: previousNumber },
+                      )
+                    : t(
+                          'Facts of the previous version that no longer hold once this version is approved. They are kept as history.',
+                      )}
+            </p>
+            <div className="mt-2 flex flex-col gap-3">
+                {groups.map((group, index) => (
+                    <div key={index} className="flex flex-col gap-1.5">
+                        <span className="flex flex-wrap items-center gap-2">
+                            {group.sectionId !== null &&
+                            previousVersionId !== null ? (
+                                <Link
+                                    href={documentRoutes.show(documentId, {
+                                        query: {
+                                            version: previousVersionId,
+                                            section: group.sectionId,
+                                        },
+                                    })}
+                                    className="cc-caption font-semibold text-cc-muted hover:text-cc-ink hover:underline"
+                                >
+                                    {group.heading || t('(introduction)')}
+                                </Link>
+                            ) : (
+                                <span className="cc-caption font-semibold">
+                                    {group.heading || t('(introduction)')}
+                                </span>
+                            )}
+                            <span
+                                className={cn(
+                                    'rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
+                                    group.removed
+                                        ? 'bg-cc-action-bg text-cc-action-fg'
+                                        : 'bg-cc-pending-bg text-cc-pending-fg',
+                                )}
+                            >
+                                {group.removed
+                                    ? t('Section removed')
+                                    : t('Section changed')}
+                            </span>
+                        </span>
+                        <ul className="flex flex-col gap-1.5">
+                            {group.facts.map((fact) => (
+                                <li
+                                    key={fact.id}
+                                    className="flex flex-col gap-1 rounded-lg bg-cc-bg px-3 py-2"
+                                >
+                                    <span className="text-[14px] leading-[1.5] text-cc-muted line-through decoration-cc-faint">
+                                        {fact.statement}
+                                    </span>
+                                    {fact.replacedBy && (
+                                        <span className="text-[13px] leading-[1.5]">
+                                            <span className="text-cc-subtle">
+                                                {t('Replaced by')}:
+                                            </span>{' '}
+                                            {fact.replacedBy}
+                                        </span>
+                                    )}
                                 </li>
                             ))}
                         </ul>

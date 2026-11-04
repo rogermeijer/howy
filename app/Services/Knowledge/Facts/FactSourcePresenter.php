@@ -21,18 +21,26 @@ class FactSourcePresenter
     {
         return array_values($fact->sources
             ->sortBy(fn (KnowledgeFactSource $source): array => [$this->isPrimary($fact, $source) ? 0 : 1, $source->id])
-            ->map(fn (KnowledgeFactSource $source): array => [
-                'kind' => $source->kind->value,
-                'title' => $source->title,
-                'documentId' => $source->document_id,
-                'versionNumber' => $source->version?->version_number,
-                'sectionId' => $source->section_id,
-                'headingPath' => $source->section?->heading_path,
-                'pageFrom' => $source->page_from,
-                'emailId' => $source->email_id,
-                'removed' => ! $source->isLive(),
-            ])
+            ->map($this->one(...))
             ->all());
+    }
+
+    /**
+     * @return array{kind: string, title: string, documentId: int|null, versionNumber: int|null, sectionId: int|null, headingPath: string|null, pageFrom: int|null, emailId: int|null, removed: bool}
+     */
+    public function one(KnowledgeFactSource $source): array
+    {
+        return [
+            'kind' => $source->kind->value,
+            'title' => $source->title,
+            'documentId' => $source->document_id,
+            'versionNumber' => $source->version?->version_number,
+            'sectionId' => $source->section_id,
+            'headingPath' => $source->section?->heading_path,
+            'pageFrom' => $source->page_from,
+            'emailId' => $source->email_id,
+            'removed' => ! $source->isLive(),
+        ];
     }
 
     private function isPrimary(KnowledgeFact $fact, KnowledgeFactSource $source): bool

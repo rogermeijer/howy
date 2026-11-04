@@ -8,6 +8,7 @@ use App\Models\DocumentSection;
 use App\Models\DocumentVersion;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeFact;
+use App\Models\KnowledgeFactSource;
 use App\Models\KnowledgeSummary;
 use App\Models\KnowledgeTopicLink;
 use App\Services\Knowledge\Ai\Agents\SectionEnricher;
@@ -89,13 +90,7 @@ class SectionEnrichment
         }
 
         return DB::transaction(function () use ($version, $previous): array {
-            $unchanged = [];
-
-            foreach ($this->unchangedSections($version) as $section) {
-                $unchanged[(int) $section->previous_section_id] = $section;
-            }
-
-            $handedOver = $this->sources->handOver($previous, $version, $unchanged);
+            $handedOver = $this->sources->handOver($previous, $version, $this->unchangedByPrevious($version));
 
             // Facts written while this version waited for review replace the
             // ones that only expired now.
@@ -111,6 +106,19 @@ class SectionEnrichment
 
             return $handedOver;
         });
+    }
+
+    /**
+     * What approving this version would do to the facts of the version it
+     * follows, shown before anyone decides. Null for a first version.
+     *
+     * @return array{previous: DocumentVersion, expire: list<KnowledgeFact>, keep: list<array{fact: KnowledgeFact, here: Collection<int, KnowledgeFactSource>, source: KnowledgeFactSource, elsewhere: bool}>}|null
+     */
+    public function handOverPlan(DocumentVersion $version): ?array
+    {
+        $previous = $version->previous();
+
+        return $previous === null ? null : ['previous' => $previous, ...$this->sources->handOverPlan($previous, $this->unchangedByPrevious($version))];
     }
 
     /**
@@ -222,6 +230,22 @@ class SectionEnrichment
     private function extractsFacts(DocumentVersion $version): bool
     {
         return $version->document->is_core || $version->isFromMail();
+    }
+
+    /**
+     * This version's unchanged sections, by the section they were before.
+     *
+     * @return array<int, DocumentSection>
+     */
+    private function unchangedByPrevious(DocumentVersion $version): array
+    {
+        $unchanged = [];
+
+        foreach ($this->unchangedSections($version) as $section) {
+            $unchanged[(int) $section->previous_section_id] = $section;
+        }
+
+        return $unchanged;
     }
 
     /**

@@ -97,13 +97,15 @@ class FactSources
      * A new version is published. What its unchanged sections state moves to
      * them; every other source in the previous version is gone. A fact with
      * no other place left no longer holds and expires, its sources kept as
-     * history; one stated elsewhere too stays, cited from there.
+     * history; one stated elsewhere too stays, cited from there. Exactly what
+     * handOverPlan() says beforehand.
      *
      * @param  array<int, DocumentSection>  $unchanged  previous section id => the same section in the new version
      * @return array{facts: int, expired: int}
      */
     public function handOver(DocumentVersion $previous, DocumentVersion $version, array $unchanged): array
     {
+        $plan = $this->handOverPlan($previous, $unchanged);
         $moved = 0;
 
         foreach ($unchanged as $previousSectionId => $section) {
@@ -122,24 +124,57 @@ class FactSources
                 ]);
         }
 
-        $expired = 0;
+        foreach ($plan['expire'] as $fact) {
+            $fact->update(['status' => FactStatus::Expired, 'valid_until' => now()->toDateString()]);
+        }
+
+        foreach ($plan['keep'] as ['fact' => $fact, 'here' => $here, 'source' => $source]) {
+            KnowledgeFactSource::query()->whereKey($here->modelKeys())->delete();
+
+            if ($fact->refresh()->document_version_id === $previous->id) {
+                $this->promote($fact, $source->refresh());
+            }
+        }
+
+        return ['facts' => $moved, 'expired' => count($plan['expire'])];
+    }
+
+    /**
+     * What publishing a new version would do to the facts of the previous
+     * one, without doing it. Facts stated in an unchanged section go along
+     * and are not listed. Of the rest, those stated nowhere else expire;
+     * those stated elsewhere too stay, cited from that other place
+     * (`elsewhere` true), or from an unchanged section of this document.
+     *
+     * @param  array<int, DocumentSection>  $unchanged  previous section id => the same section in the new version
+     * @return array{expire: list<KnowledgeFact>, keep: list<array{fact: KnowledgeFact, here: Collection<int, KnowledgeFactSource>, source: KnowledgeFactSource, elsewhere: bool}>}
+     */
+    public function handOverPlan(DocumentVersion $previous, array $unchanged): array
+    {
+        $expire = [];
+        $keep = [];
 
         foreach ($this->stillIn('document_version_id', $previous->id) as [$fact, $here, $elsewhere]) {
-            if ($elsewhere->isEmpty()) {
-                $fact->update(['status' => FactStatus::Expired, 'valid_until' => now()->toDateString()]);
-                $expired++;
+            [$moving, $staying] = $here->partition(fn (KnowledgeFactSource $source): bool => isset($unchanged[(int) $source->section_id]));
+
+            if ($moving->isNotEmpty()) {
+                if ($staying->isNotEmpty()) {
+                    $keep[] = ['fact' => $fact, 'here' => $staying->values(), 'source' => $moving->first(), 'elsewhere' => false];
+                }
 
                 continue;
             }
 
-            KnowledgeFactSource::query()->whereKey($here->modelKeys())->delete();
+            if ($elsewhere->isEmpty()) {
+                $expire[] = $fact;
 
-            if ($fact->document_version_id === $previous->id) {
-                $this->promote($fact, $elsewhere->first());
+                continue;
             }
+
+            $keep[] = ['fact' => $fact, 'here' => $here, 'source' => $elsewhere->first(), 'elsewhere' => true];
         }
 
-        return ['facts' => $moved, 'expired' => $expired];
+        return ['expire' => $expire, 'keep' => $keep];
     }
 
     /**

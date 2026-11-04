@@ -1258,5 +1258,14 @@
     ":count removed": ":count verwijderd",
     "Sections compared with version :version:": "Secties ten opzichte van versie :version:",
     "Sections compared with the previous version:": "Secties ten opzichte van de vorige versie:",
-    "none changed": "niets gewijzigd"
+    "none changed": "niets gewijzigd",
+    "Expire": "Vervalt",
+    "Expires on approval (:count)": "Vervalt bij goedkeuren (:count)",
+    "Facts of version :version that no longer hold once this version is approved. They are kept as history.": "Feiten uit versie :version die niet meer gelden zodra deze versie is goedgekeurd. Ze blijven bewaard als geschiedenis.",
+    "Facts of the previous version that no longer hold once this version is approved. They are kept as history.": "Feiten uit de vorige versie die niet meer gelden zodra deze versie is goedgekeurd. Ze blijven bewaard als geschiedenis.",
+    "Section removed": "Sectie verwijderd",
+    "Section changed": "Sectie gewijzigd",
+    "Replaced by": "Vervangen door",
+    "Stays, stated elsewhere too (:count)": "Blijft, staat ook elders (:count)",
+    "Not in this version any more, but another document or a mail states it too: the fact keeps counting, cited from there.": "Staat niet meer in deze versie, maar een ander document of een mail noemt het ook: het feit blijft gelden en verwijst voortaan daarheen."
 }
