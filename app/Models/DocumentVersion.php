@@ -32,6 +32,8 @@ use Illuminate\Support\Carbon;
  * @property string $disk
  * @property string $path
  * @property string $sha256
+ * @property string|null $text_sha256
+ * @property array{kind: string, document_id?: int|null, version_number?: int|null, score?: float|null, reason?: string|null}|null $placement
  * @property int|null $page_count
  * @property ProcessingStatus $status
  * @property string|null $error
@@ -55,7 +57,7 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable([
     'document_id', 'version_number', 'original_filename', 'mime_type', 'size_bytes',
-    'disk', 'path', 'sha256', 'page_count', 'status', 'error', 'extracted_path',
+    'disk', 'path', 'sha256', 'text_sha256', 'page_count', 'status', 'error', 'extracted_path', 'placement',
     'uploaded_by_user_id', 'processed_at', 'approved_at', 'approved_by_user_id',
 ])]
 class DocumentVersion extends Model
@@ -215,6 +217,7 @@ class DocumentVersion extends Model
             'status' => ProcessingStatus::class,
             'processed_at' => 'datetime',
             'approved_at' => 'datetime',
+            'placement' => 'array',
         ];
     }
 }

@@ -5,12 +5,14 @@ import type { ProcessingStepView } from '@/types';
 
 export const stepLabels: Record<string, string> = {
     extract: 'Read text',
+    place: 'Compared with what is known',
     structure: 'Sections and chunks',
     contextualize: 'Context lines',
     embed: 'Index (embeddings)',
     enrich: 'Summaries and facts',
     topics: 'Folders',
     embed_facts: 'Index facts',
+    reconcile: 'Facts checked against what is known',
 };
 
 const metaLabels: Record<string, string> = {
@@ -35,6 +37,14 @@ const metaLabels: Record<string, string> = {
     expired_facts: 'Facts expired',
     failed_requests: 'Failed requests',
     reason: 'Reason',
+    kind: 'Placed as',
+    image_kind: 'Kind of image',
+    worth_keeping: 'Worth keeping',
+    score: 'Match',
+    checked: 'Facts checked',
+    new: 'New',
+    duplicate: 'Already known',
+    conflict: 'Contradictions',
 };
 
 function duration(start: string | null, end: string | null): string | null {

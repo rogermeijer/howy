@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Knowledge;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Knowledge\ApproveDocumentVersionRequest;
 use App\Models\Document;
 use App\Models\DocumentVersion;
+use App\Models\KnowledgeFact;
 use App\Services\Knowledge\Review\DocumentReview;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use InvalidArgumentException;
 
@@ -19,9 +20,17 @@ use InvalidArgumentException;
  */
 class DocumentReviewController extends Controller
 {
-    public function approve(Request $request, Document $document, DocumentVersion $version, DocumentReview $review): RedirectResponse
+    public function approve(ApproveDocumentVersionRequest $request, Document $document, DocumentVersion $version, DocumentReview $review): RedirectResponse
     {
-        $this->decide(fn () => $review->approve($version, $request->user()));
+        /** @var list<int> $keep */
+        $keep = KnowledgeFact::query()
+            ->where('document_version_id', $version->id)
+            ->whereIn('id', array_map(intval(...), (array) $request->validated('keep_existing', [])))
+            ->pluck('id')
+            ->map(intval(...))
+            ->all();
+
+        $this->decide(fn () => $review->approve($version, $request->user(), $keep));
 
         Inertia::flash('toast', [
             'type' => 'success',

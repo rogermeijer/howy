@@ -12,6 +12,7 @@ use App\Models\Email;
 use App\Services\Gmail\GmailClient;
 use App\Services\Knowledge\DocumentIntake;
 use App\Services\Knowledge\IntakeSource;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 use Throwable;
@@ -130,6 +131,16 @@ class MailAttachments
      */
     public function apply(Email $email, PreparedAttachments $prepared, array $verdicts, ?string $summary, ?string $language): void
     {
+        // In one transaction, so the pipeline of what goes in starts only
+        // once the mail says what its attachments became.
+        DB::transaction(fn () => $this->decide($email, $prepared, $verdicts, $summary, $language));
+    }
+
+    /**
+     * @param  array<mixed>  $verdicts
+     */
+    private function decide(Email $email, PreparedAttachments $prepared, array $verdicts, ?string $summary, ?string $language): void
+    {
         $attachments = $email->attachments ?? [];
 
         foreach ($verdicts as $verdict) {
@@ -175,12 +186,13 @@ class MailAttachments
         $file = $this->download($email, $attachment);
 
         try {
-            $attachments[$index] = $this->takeIn($email, $attachment, $file, null, $email->interpretation?->language);
+            DB::transaction(function () use ($email, &$attachments, $index, $attachment, $file): void {
+                $attachments[$index] = $this->takeIn($email, $attachment, $file, null, $email->interpretation?->language);
+                $this->save($email, $attachments);
+            });
         } finally {
             @unlink($file);
         }
-
-        $this->save($email, $attachments);
 
         $id = $attachments[$index]['document_version_id'] ?? null;
 

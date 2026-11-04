@@ -1,8 +1,19 @@
 import { Form, Link } from '@inertiajs/react';
-import { Check, FolderOpen, Hourglass, Upload, X } from 'lucide-react';
+import {
+    AlertTriangle,
+    Check,
+    FolderOpen,
+    Hourglass,
+    Link2,
+    Upload,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 import DocumentReviewController from '@/actions/App/Http/Controllers/Knowledge/DocumentReviewController';
-import { EmailSourceChip } from '@/components/knowledge/source-chip';
+import {
+    EmailSourceChip,
+    SourceChip,
+} from '@/components/knowledge/source-chip';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -14,8 +25,10 @@ import {
 } from '@/components/ui/dialog';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
+import { cn } from '@/lib/utils';
+import documentRoutes from '@/routes/knowledge/documents';
 import topicRoutes from '@/routes/knowledge/topics';
-import type { VersionReview } from '@/types';
+import type { JudgedFact, VersionReview } from '@/types';
 
 type Props = {
     documentId: number;
@@ -40,7 +53,10 @@ export function VersionReviewPanel({
     const t = useTranslations();
     const formatDate = useFormatDate();
     const [rejecting, setRejecting] = useState(false);
+    // Conflicts settled in favour of what is known: those new facts go.
+    const [keep, setKeep] = useState<number[]>([]);
     const mailed = review.sources.filter((source) => source.kind === 'mail');
+    const placement = review.placement;
 
     // A first version has nothing to compare with: every section is new.
     const counts = (
@@ -109,19 +125,71 @@ export function VersionReviewPanel({
                             options={{ preserveScroll: true }}
                         >
                             {({ processing }) => (
-                                <Button
-                                    type="submit"
-                                    className="h-10"
-                                    disabled={processing}
-                                >
-                                    <Check strokeWidth={2.5} />
-                                    {t('Approve')}
-                                </Button>
+                                <>
+                                    {keep.map((id) => (
+                                        <input
+                                            key={id}
+                                            type="hidden"
+                                            name="keep_existing[]"
+                                            value={id}
+                                        />
+                                    ))}
+                                    <Button
+                                        type="submit"
+                                        className="h-10"
+                                        disabled={processing}
+                                    >
+                                        <Check strokeWidth={2.5} />
+                                        {t('Approve')}
+                                    </Button>
+                                </>
                             )}
                         </Form>
                     </div>
                 )}
             </div>
+
+            {placement && placement.kind !== 'new' && placement.title && (
+                <div className="flex items-start gap-2.5 rounded-lg bg-cc-bg px-3 py-2.5 text-[13px]">
+                    <Link2 className="mt-0.5 size-4 shrink-0 text-cc-subtle" />
+                    <span>
+                        {placement.kind === 'version'
+                            ? t('Recognised as the next version of')
+                            : placement.kind === 'same_content'
+                              ? t('The same text as')
+                              : t('This looks like a new version of')}{' '}
+                        {placement.document_id ? (
+                            <Link
+                                href={documentRoutes.show(
+                                    placement.document_id,
+                                )}
+                                className="font-semibold underline underline-offset-[3px]"
+                            >
+                                {placement.title}
+                            </Link>
+                        ) : (
+                            <span className="font-semibold">
+                                {placement.title}
+                            </span>
+                        )}
+                        {placement.reason && (
+                            <span className="text-cc-muted">
+                                {' '}
+                                · {placement.reason}
+                            </span>
+                        )}
+                        {placement.kind === 'similar' && (
+                            <span className="text-cc-muted">
+                                {' '}
+                                ·{' '}
+                                {t(
+                                    'To keep its history together, upload it there as a new version instead.',
+                                )}
+                            </span>
+                        )}
+                    </span>
+                </div>
+            )}
 
             {review.error && (
                 <p className="rounded-lg bg-cc-action-bg px-3 py-2 text-[13px] text-cc-action-fg">
@@ -141,13 +209,88 @@ export function VersionReviewPanel({
                         </dd>
                     </div>
                 ))}
-                <div className="flex flex-col gap-0.5 rounded-xl bg-cc-bg px-3 py-2.5">
-                    <dt className="cc-caption">{t('New facts')}</dt>
-                    <dd className="text-[18px] font-semibold">
-                        {review.facts}
-                    </dd>
-                </div>
             </dl>
+
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {(
+                    [
+                        ['new', t('New facts')],
+                        ['duplicate', t('Already known')],
+                        ['conflict', t('Contradict what is known')],
+                        ['unchecked', t('Not checked')],
+                    ] as const
+                )
+                    .filter(
+                        ([key]) =>
+                            key !== 'unchecked' || review.facts.unchecked > 0,
+                    )
+                    .map(([key, label]) => (
+                        <div
+                            key={key}
+                            className={cn(
+                                'flex flex-col gap-0.5 rounded-xl px-3 py-2.5',
+                                key === 'conflict' && review.facts.conflict > 0
+                                    ? 'bg-cc-action-bg text-cc-action-fg'
+                                    : 'bg-cc-bg',
+                            )}
+                        >
+                            <dt className="cc-caption">{label}</dt>
+                            <dd className="text-[18px] font-semibold">
+                                {review.facts[key]}
+                            </dd>
+                        </div>
+                    ))}
+            </dl>
+
+            {review.conflicts.length > 0 && (
+                <div className="flex flex-col gap-2">
+                    <span className="cc-label">
+                        {t('Contradicts what is known')}
+                    </span>
+                    <p className="cc-caption">
+                        {t(
+                            'Approving replaces the known fact with the new one, unless you keep the known one.',
+                        )}
+                    </p>
+                    <ul className="flex flex-col gap-2">
+                        {review.conflicts.map((fact) => (
+                            <JudgedFactItem
+                                key={fact.id}
+                                fact={fact}
+                                kept={keep.includes(fact.id)}
+                                onKeep={
+                                    canManage
+                                        ? (kept) =>
+                                              setKeep((current) =>
+                                                  kept
+                                                      ? [...current, fact.id]
+                                                      : current.filter(
+                                                            (id) =>
+                                                                id !== fact.id,
+                                                        ),
+                                              )
+                                        : undefined
+                                }
+                            />
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {review.duplicates.length > 0 && (
+                <details className="group flex flex-col gap-2">
+                    <summary className="cc-label cursor-pointer list-none">
+                        {t('Already known (:count)', {
+                            count: review.facts.duplicate,
+                        })}
+                    </summary>
+                    <ul className="mt-2 flex flex-col gap-2">
+                        {review.duplicates.map((fact) => (
+                            <JudgedFactItem key={fact.id} fact={fact} />
+                        ))}
+                    </ul>
+                </details>
+            )}
 
             {review.sources.length > 0 && (
                 <div className="flex flex-col gap-2">
@@ -274,5 +417,89 @@ export function VersionReviewPanel({
                 </DialogContent>
             </Dialog>
         </div>
+    );
+}
+
+function JudgedFactItem({
+    fact,
+    kept,
+    onKeep,
+}: {
+    fact: JudgedFact;
+    kept?: boolean;
+    onKeep?: (kept: boolean) => void;
+}) {
+    const t = useTranslations();
+    const existing = fact.existing;
+
+    return (
+        <li className="flex flex-col gap-2 rounded-lg bg-cc-bg px-3 py-2.5">
+            <div className="flex items-start gap-2">
+                {onKeep && (
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-cc-action-fg" />
+                )}
+                <span
+                    className={cn(
+                        'cc-body flex-1',
+                        kept && 'text-cc-muted line-through',
+                    )}
+                >
+                    {fact.statement}
+                </span>
+            </div>
+            {existing && (
+                <div className="flex flex-col gap-1.5 border-l-2 border-cc-border pl-3">
+                    <span
+                        className={cn(
+                            'text-[13px]',
+                            onKeep && !kept && 'text-cc-muted line-through',
+                        )}
+                    >
+                        {existing.statement}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {existing.source.type === 'email' ? (
+                            <EmailSourceChip
+                                subject={existing.source.title}
+                                emailId={existing.source.id}
+                            />
+                        ) : (
+                            existing.source.id !== null && (
+                                <SourceChip
+                                    documentId={existing.source.id}
+                                    title={existing.source.title}
+                                    versionNumber={
+                                        existing.source.versionNumber ??
+                                        undefined
+                                    }
+                                    headingPath={null}
+                                    pageFrom={null}
+                                    sectionId={null}
+                                />
+                            )
+                        )}
+                        {existing.status === 'proposed' && (
+                            <span className="cc-caption">
+                                {t('also waiting for approval')}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
+            {fact.explanation && (
+                <p className="cc-caption">{fact.explanation}</p>
+            )}
+            {onKeep && (
+                <label className="flex w-fit cursor-pointer items-center gap-2 text-[13px] font-medium">
+                    <input
+                        type="checkbox"
+                        checked={kept}
+                        onChange={(event) => onKeep(event.target.checked)}
+                        className="size-4 accent-cc-ink"
+                    />
+                    {t('Keep the known fact')}
+                </label>
+            )}
+        </li>
     );
 }

@@ -155,8 +155,42 @@ export type VersionReview = {
         added: number;
         removed: number;
     };
-    facts: number;
+    placement: {
+        kind: 'new' | 'version' | 'similar' | 'same_content';
+        document_id?: number | null;
+        version_number?: number | null;
+        score?: number | null;
+        reason?: string | null;
+        title?: string | null;
+    } | null;
+    facts: {
+        new: number;
+        duplicate: number;
+        conflict: number;
+        unchecked: number;
+    };
+    conflicts: JudgedFact[];
+    duplicates: JudgedFact[];
     folders: { id: number; name: string; isNew: boolean }[];
+};
+
+/** A new fact with the known one it duplicates or contradicts. */
+export type JudgedFact = {
+    id: number;
+    statement: string;
+    explanation: string | null;
+    existing: {
+        statement: string;
+        status: FactStatus;
+        source:
+            | { type: 'email'; id: number; title: string }
+            | {
+                  type: 'document';
+                  id: number | null;
+                  title: string;
+                  versionNumber: number | null;
+              };
+    } | null;
 };
 
 export type TopicFact = {

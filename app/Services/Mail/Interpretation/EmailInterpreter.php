@@ -14,9 +14,9 @@ use App\Models\Email;
 use App\Models\EmailInterpretation;
 use App\Models\KnowledgeFact;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
-use App\Services\Knowledge\Ai\Agents\FactConflictChecker;
 use App\Services\Knowledge\Ai\Agents\QuestionAnswerer;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\Review\FactReconciler;
 use App\Services\Knowledge\Search\FactHit;
 use App\Services\Knowledge\Search\KnowledgeSearch;
 use App\Services\Knowledge\Search\Passage;
@@ -71,6 +71,7 @@ class EmailInterpreter
         private readonly MailFingerprints $fingerprints,
         private readonly MailAttachments $attachments,
         private readonly MailReviewState $reviewState,
+        private readonly FactReconciler $reconciler,
     ) {}
 
     public function interpret(Email $email): EmailInterpretation
@@ -354,27 +355,14 @@ class EmailInterpreter
         }
 
         if ($open !== []) {
-            $response = $this->ai->structured(new FactConflictChecker, $this->conflictPrompt($open, $locale), 'mail_conflicts', $email);
+            $claims = array_map(fn (array $item): array => [
+                'statement' => $item['statement']['statement'],
+                'valid_from' => $item['statement']['valid_from'],
+                'candidates' => $item['candidates'],
+            ], $open);
 
-            /** @var list<array{id?: string, verdict?: string, existing_fact_id?: int|null, explanation?: string}> $verdicts */
-            $verdicts = is_array($response['verdicts'] ?? null) ? $response['verdicts'] : [];
-            $byId = [];
-
-            foreach ($verdicts as $verdict) {
-                $byId[(string) ($verdict['id'] ?? '')] = $verdict;
-            }
-
-            foreach ($open as $id => $item) {
-                $index = (int) substr($id, 1) - 1;
-                $verdict = $byId[$id] ?? [];
-                $existing = collect($item['candidates'])->firstWhere('id', (int) ($verdict['existing_fact_id'] ?? 0));
-
-                // A verdict that points at no fact we offered cannot be acted on.
-                $judged[$index] = match ($existing === null ? 'new' : ($verdict['verdict'] ?? 'new')) {
-                    'duplicate' => $this->judged($item['statement'], 'duplicate', null, $existing),
-                    'contradicts' => $this->judged($item['statement'], 'conflict', null, $existing, trim((string) ($verdict['explanation'] ?? ''))),
-                    default => $this->judged($item['statement'], 'new'),
-                };
+            foreach ($this->reconciler->check($claims, $locale, $email, 'mail_conflicts') as $id => $judgement) {
+                $judged[(int) substr($id, 1) - 1] = $this->judged($open[$id]['statement'], $judgement['verdict'], null, $judgement['existing'], $judgement['explanation']);
             }
         }
 
@@ -424,14 +412,21 @@ class EmailInterpreter
     }
 
     /**
-     * The facts most like a statement, as the conflict check's comparison set.
+     * The facts most like a statement, as the conflict check's comparison set:
+     * published, and pending in another mail or document, so the same claim
+     * is not proposed twice.
      *
      * @return list<KnowledgeFact>
      */
     private function candidates(string $statement, string $locale): array
     {
         $hits = array_slice(
-            $this->search->search(new SearchQuery($statement, maxTokens: 500, language: $this->searchLanguage($locale)))->facts,
+            $this->search->search(new SearchQuery(
+                $statement,
+                factStatuses: [FactStatus::Core, FactStatus::Supplementary, FactStatus::Proposed],
+                maxTokens: 500,
+                language: $this->searchLanguage($locale),
+            ))->facts,
             0,
             (int) config('knowledge.mail.conflict_candidates'),
         );
@@ -602,25 +597,6 @@ class EmailInterpreter
         }
 
         return 'Answer in: '.(Locale::tryFrom($locale)?->label() ?? $locale)."\n\n<question>\n{$question}\n</question>\n\n".implode("\n\n", $blocks);
-    }
-
-    /**
-     * @param  array<string, array{statement: array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}, hash: string, candidates: list<KnowledgeFact>}>  $open
-     */
-    private function conflictPrompt(array $open, string $locale): string
-    {
-        $blocks = [];
-
-        foreach ($open as $id => $item) {
-            $facts = array_map(
-                fn (KnowledgeFact $fact): string => "  <fact id=\"{$fact->id}\"".($fact->valid_from ? " valid_from=\"{$fact->valid_from->toDateString()}\"" : '').">{$fact->statement}</fact>",
-                $item['candidates'],
-            );
-
-            $blocks[] = "<statement id=\"{$id}\"".($item['statement']['valid_from'] ? " valid_from=\"{$item['statement']['valid_from']}\"" : '').">\n  {$item['statement']['statement']}\n".implode("\n", $facts)."\n</statement>";
-        }
-
-        return 'Explain in: '.(Locale::tryFrom($locale)?->label() ?? $locale)."\n\n".implode("\n\n", $blocks);
     }
 
     /**

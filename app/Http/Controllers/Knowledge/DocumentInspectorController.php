@@ -14,6 +14,7 @@ use App\Models\DocumentProcessingStep;
 use App\Models\DocumentSection;
 use App\Models\DocumentSource;
 use App\Models\DocumentVersion;
+use App\Models\Email;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeFact;
 use App\Models\KnowledgeTopic;
@@ -159,6 +160,12 @@ class DocumentInspectorController extends Controller
             ->get();
 
         $sources = DocumentSource::query()->with(['user', 'email'])->where('document_version_id', $version->id)->orderBy('id')->get();
+        $facts = KnowledgeFact::query()
+            ->with(['relatedFact.document', 'relatedFact.version'])
+            ->where('document_version_id', $version->id)
+            ->where('status', FactStatus::Proposed)
+            ->orderBy('id')
+            ->get();
 
         return [
             'replaces' => $previous === null || $previous->id !== $document->current_version_id ? null : $previous->version_number,
@@ -182,12 +189,66 @@ class DocumentInspectorController extends Controller
                 'added' => $sections->where('change_type', SectionChange::Added)->count(),
                 'removed' => $previous === null ? 0 : max(0, DocumentSection::query()->where('document_version_id', $previous->id)->count() - $matched),
             ],
-            'facts' => KnowledgeFact::query()->where('document_version_id', $version->id)->where('status', FactStatus::Proposed)->count(),
+            'placement' => $this->placement($version),
+            'facts' => [
+                'new' => $facts->where('review_verdict', 'new')->count(),
+                'duplicate' => $facts->where('review_verdict', 'duplicate')->count(),
+                'conflict' => $facts->where('review_verdict', 'conflict')->count(),
+                'unchecked' => $facts->whereNull('review_verdict')->count(),
+            ],
+            'conflicts' => $facts->where('review_verdict', 'conflict')->map($this->judgedFact(...))->values()->all(),
+            'duplicates' => $facts->where('review_verdict', 'duplicate')->take(20)->map($this->judgedFact(...))->values()->all(),
             'folders' => $topics->map(fn (KnowledgeTopic $topic): array => [
                 'id' => $topic->id,
                 'name' => $topic->name,
                 'isNew' => $topic->review_status === TopicReview::New,
             ])->values()->all(),
+        ];
+    }
+
+    /**
+     * Where the version was put and why, with the document it points at.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function placement(DocumentVersion $version): ?array
+    {
+        $placement = $version->placement;
+
+        if ($placement === null || $placement['kind'] === 'new') {
+            return $placement;
+        }
+
+        $documentId = $placement['document_id'] ?? null;
+
+        return [
+            ...$placement,
+            'title' => $documentId === null ? null : Document::query()->whereKey($documentId)->value('title'),
+        ];
+    }
+
+    /**
+     * A new fact with the known one it duplicates or contradicts, and where
+     * that one comes from.
+     *
+     * @return array<string, mixed>
+     */
+    private function judgedFact(KnowledgeFact $fact): array
+    {
+        $known = $fact->relatedFact;
+        $email = $known?->source_type === 'email' ? Email::query()->whereKey($known->source_id)->first(['id', 'subject']) : null;
+
+        return [
+            'id' => $fact->id,
+            'statement' => $fact->statement,
+            'explanation' => $fact->review_explanation,
+            'existing' => $known === null ? null : [
+                'statement' => $known->statement,
+                'status' => $known->status->value,
+                'source' => $email !== null
+                    ? ['type' => 'email', 'id' => $email->id, 'title' => (string) $email->subject]
+                    : ['type' => 'document', 'id' => $known->document_id, 'title' => (string) $known->document?->title, 'versionNumber' => $known->version?->version_number],
+            ],
         ];
     }
 

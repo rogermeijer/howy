@@ -25,24 +25,25 @@ class ProcessDocumentVersion extends KnowledgeJob
 
         $version->update(['status' => ProcessingStatus::Queued, 'error' => null]);
 
-        $steps = $this->steps();
+        // A version waiting for review is held against what is known first;
+        // placing it starts the rest.
+        $steps = $version->isApproved()
+            ? [new ExtractDocumentText($this->versionId), ...self::afterPlacement($this->versionId)]
+            : [new ExtractDocumentText($this->versionId), new PlaceDocumentVersion($this->versionId)];
 
-        if ($steps !== []) {
-            Bus::chain($steps)->onQueue((string) config('knowledge.queue'))->dispatch();
-        }
+        Bus::chain($steps)->onQueue((string) config('knowledge.queue'))->dispatch();
     }
 
     /**
      * @return list<KnowledgeJob>
      */
-    private function steps(): array
+    public static function afterPlacement(int $versionId): array
     {
         return [
-            new ExtractDocumentText($this->versionId),
-            new BuildDocumentStructure($this->versionId),
-            new ContextualizeChunks($this->versionId),
-            new EmbedChunks($this->versionId),
-            new EnrichDocumentVersion($this->versionId),
+            new BuildDocumentStructure($versionId),
+            new ContextualizeChunks($versionId),
+            new EmbedChunks($versionId),
+            new EnrichDocumentVersion($versionId),
         ];
     }
 }

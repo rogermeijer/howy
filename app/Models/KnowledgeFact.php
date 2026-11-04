@@ -31,6 +31,9 @@ use Illuminate\Support\Carbon;
  * @property string $statement
  * @property string|null $subject
  * @property FactStatus $status
+ * @property string|null $review_verdict
+ * @property int|null $related_fact_id
+ * @property string|null $review_explanation
  * @property Carbon|null $valid_from
  * @property Carbon|null $valid_until
  * @property int|null $superseded_by_id
@@ -51,11 +54,12 @@ use Illuminate\Support\Carbon;
  * @property-read DocumentSection|null $section
  * @property-read KnowledgeChunk|null $chunk
  * @property-read KnowledgeFact|null $supersededBy
+ * @property-read KnowledgeFact|null $relatedFact
  * @property-read Collection<int, KnowledgeTopicLink> $topicLinks
  */
 #[Fillable([
     'source_type', 'source_id', 'document_id', 'document_version_id', 'section_id', 'chunk_id',
-    'statement', 'subject', 'status', 'valid_from', 'valid_until', 'superseded_by_id',
+    'statement', 'subject', 'status', 'review_verdict', 'related_fact_id', 'review_explanation', 'valid_from', 'valid_until', 'superseded_by_id',
     'confidence', 'page_from', 'page_to', 'content_hash', 'embedding', 'embedding_model',
     'search_config',
 ])]
@@ -89,6 +93,17 @@ class KnowledgeFact extends Model
     public function version(): BelongsTo
     {
         return $this->belongsTo(DocumentVersion::class, 'document_version_id');
+    }
+
+    /**
+     * The known fact this one duplicates or contradicts, found while its
+     * document waited for review.
+     *
+     * @return BelongsTo<KnowledgeFact, $this>
+     */
+    public function relatedFact(): BelongsTo
+    {
+        return $this->belongsTo(KnowledgeFact::class, 'related_fact_id');
     }
 
     /**

@@ -81,6 +81,8 @@ return [
             'mail_classify' => env('KNOWLEDGE_MODEL_MAIL_CLASSIFY', 'gpt-6-luna'),
             'mail_answer' => env('KNOWLEDGE_MODEL_MAIL_ANSWER', 'gpt-6-luna'),
             'mail_conflicts' => env('KNOWLEDGE_MODEL_MAIL_CONFLICTS', 'gpt-6-luna'),
+            // A new document's facts held against the facts already known.
+            'fact_conflicts' => env('KNOWLEDGE_MODEL_FACT_CONFLICTS', 'gpt-6-luna'),
         ],
     ],
 
@@ -134,6 +136,21 @@ return [
         'max_kilobytes' => (int) env('KNOWLEDGE_MAIL_ATTACHMENT_MAX_KB', 25600),
         // Smaller images are logos, icons and signature banners.
         'min_image_bytes' => 15360,
+    ],
+
+    'placement' => [
+        // A file sharing this share of its sections with a live document is
+        // taken to be a new version of it.
+        'min_section_overlap' => 0.3,
+    ],
+
+    'review' => [
+        // New facts of a version held against what is known, and how many go
+        // to the conflict check per request.
+        'max_facts' => 200,
+        'conflict_group_size' => 20,
+        'conflict_candidates' => 5,
+        'min_similarity' => 0.5,
     ],
 
     'topics' => [

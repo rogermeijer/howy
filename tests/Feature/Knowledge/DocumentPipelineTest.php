@@ -68,14 +68,15 @@ class DocumentPipelineTest extends TestCase
             // Without an AI provider the AI steps are skipped, not failed.
             $steps = DocumentProcessingStep::query()->orderBy('id')->get();
             $this->assertSame(
-                [ProcessingStep::Extract, ProcessingStep::Structure, ProcessingStep::Contextualize, ProcessingStep::Embed, ProcessingStep::Enrich],
+                [ProcessingStep::Extract, ProcessingStep::Place, ProcessingStep::Structure, ProcessingStep::Contextualize, ProcessingStep::Embed, ProcessingStep::Enrich],
                 $steps->pluck('step')->all(),
             );
             $this->assertSame(
-                [StepStatus::Succeeded, StepStatus::Succeeded, StepStatus::Skipped, StepStatus::Skipped, StepStatus::Skipped],
+                [StepStatus::Succeeded, StepStatus::Succeeded, StepStatus::Succeeded, StepStatus::Skipped, StepStatus::Skipped, StepStatus::Skipped],
                 $steps->pluck('status')->all(),
             );
-            $this->assertSame(10, $steps[1]->meta['chunks'] ?? null);
+            $this->assertSame('new', $steps[1]->meta['kind'] ?? null);
+            $this->assertSame(10, $steps[2]->meta['chunks'] ?? null);
         });
     }
 

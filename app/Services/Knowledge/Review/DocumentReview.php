@@ -40,13 +40,17 @@ class DocumentReview
         private readonly MailReviewState $mail,
     ) {}
 
-    public function approve(DocumentVersion $version, User $reviewer): void
+    /**
+     * @param  list<int>  $keepExisting  new facts that contradict a known fact the
+     *                                   reviewer keeps instead: these new ones go
+     */
+    public function approve(DocumentVersion $version, User $reviewer, array $keepExisting = []): void
     {
         if ($version->status !== ProcessingStatus::Review || $version->isApproved()) {
             throw new InvalidArgumentException('This version is not waiting for approval.');
         }
 
-        DB::transaction(function () use ($version, $reviewer): void {
+        DB::transaction(function () use ($version, $reviewer, $keepExisting): void {
             $document = $version->document;
 
             $version->update(['approved_at' => now(), 'approved_by_user_id' => $reviewer->id, 'status' => ProcessingStatus::Ready]);
@@ -54,6 +58,7 @@ class DocumentReview
             $document->update(['current_version_id' => $version->id]);
 
             $this->enrichment->handOver($version);
+            $this->settleConflicts($version, $keepExisting);
 
             KnowledgeFact::query()
                 ->where('document_version_id', $version->id)
@@ -127,6 +132,35 @@ class DocumentReview
         DB::afterCommit(fn () => Storage::disk($disk)->delete($files));
 
         $this->dropEmptyAiFolders($topicIds);
+    }
+
+    /**
+     * A new fact that contradicts a known one replaces it, as an approved
+     * mail statement does, unless the reviewer keeps the known one: then the
+     * new fact goes.
+     *
+     * @param  list<int>  $keepExisting
+     */
+    private function settleConflicts(DocumentVersion $version, array $keepExisting): void
+    {
+        $conflicts = KnowledgeFact::query()
+            ->where('document_version_id', $version->id)
+            ->where('review_verdict', 'conflict')
+            ->whereNotNull('related_fact_id')
+            ->get();
+
+        foreach ($conflicts as $fact) {
+            if (in_array($fact->id, $keepExisting, true)) {
+                $fact->delete();
+
+                continue;
+            }
+
+            KnowledgeFact::query()
+                ->whereKey($fact->related_fact_id)
+                ->where('status', '!=', FactStatus::Expired)
+                ->update(['status' => FactStatus::Expired, 'valid_until' => now()->toDateString(), 'superseded_by_id' => $fact->id]);
+        }
     }
 
     /**

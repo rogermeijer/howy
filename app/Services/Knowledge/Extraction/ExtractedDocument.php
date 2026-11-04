@@ -87,6 +87,17 @@ final readonly class ExtractedDocument
         return new self($blocks, $this->pageCount, array_values(array_diff($this->flaggedPages, array_keys($byPage))), $method, $this->worthKeeping);
     }
 
+    /**
+     * The text itself, whatever file it came in: the same document saved or
+     * exported again hashes the same.
+     */
+    public function textHash(): string
+    {
+        $text = implode(' ', array_map(fn (Block $block): string => $block->text, $this->blocks));
+
+        return hash('sha256', mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $text))));
+    }
+
     public function characterCount(): int
     {
         return array_sum(array_map(fn (Block $block): int => mb_strlen($block->text), $this->blocks));

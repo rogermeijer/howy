@@ -59,7 +59,7 @@ class ExtractDocumentText extends KnowledgeJob
         $path = preg_replace('/\.[a-z]+$/', '', $version->path).'.extracted.json';
         Storage::disk($version->disk)->put($path, $extracted->toJson());
 
-        $version->update(['extracted_path' => $path, 'page_count' => $extracted->pageCount]);
+        $version->update(['extracted_path' => $path, 'page_count' => $extracted->pageCount, 'text_sha256' => $extracted->textHash()]);
 
         return [
             'method' => $extracted->method,
