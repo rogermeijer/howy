@@ -42,9 +42,9 @@ use Illuminate\Support\Str;
  * against the facts already known: new ones are added as facts sourced from
  * the mail, known ones are skipped, and contradicting ones are held.
  *
- * Written to the mailbox, Howy answers the sender and explains a conflict.
- * Only copied, it never writes to the sender: it suggests an answer to the
- * people who were asked, when it is sure enough, and files what they answer.
+ * Written to the mailbox, Howy answers the sender when it is sure enough,
+ * and explains a conflict. Only copied, it writes to no one and answers
+ * nothing: it files what the people in the conversation say.
  * Every step is written to the interpretation, so the mail always shows how
  * it was read and what followed.
  *
@@ -184,7 +184,10 @@ class EmailInterpreter
         $locale = $this->composer->locale($language, Tenancy::account()->locale);
 
         match ($intent) {
-            EmailIntent::Question => $this->answer($interpretation, $email, $reading, $locale),
+            // Copied, a question is for the people it was put to, not for Howy.
+            EmailIntent::Question => $interpretation->mode === InterpretationMode::Copied
+                ? $interpretation->outcome = InterpretationOutcome::NoAction
+                : $this->answer($interpretation, $email, $reading, $locale),
             EmailIntent::Information => $this->file($interpretation, $email, $reading, $locale),
             EmailIntent::Other => $interpretation->outcome = InterpretationOutcome::NoAction,
         };
@@ -323,16 +326,11 @@ class EmailInterpreter
         );
 
         $answer = trim((string) ($response['answer'] ?? ''));
-        $copied = $interpretation->mode === InterpretationMode::Copied;
 
         if (($response['answered'] ?? false) !== true || $answer === '') {
             $interpretation->outcome = InterpretationOutcome::NotFound;
             $interpretation->save();
-
-            // Copied, Howy only speaks up when it has something to offer.
-            if (! $copied) {
-                $this->replier->reply($interpretation, $email, $this->composer->notFound($question, $locale));
-            }
+            $this->replier->reply($interpretation, $email, $this->composer->notFound($question, $locale));
 
             return;
         }
@@ -346,35 +344,20 @@ class EmailInterpreter
         $confidence = max(0, min(1, (float) ($response['confidence'] ?? 0)));
         $gaps = trim((string) ($response['missing'] ?? '')) ?: null;
 
+        // Only an answer Howy is sure enough of goes out; a less sure one is
+        // kept on the mail, for the people in the conversation to judge.
+        $sure = $confidence >= (float) config('knowledge.mail.answer_min_confidence');
+
         $interpretation->fill([
-            'outcome' => InterpretationOutcome::Answered,
+            'outcome' => $sure ? InterpretationOutcome::Answered : InterpretationOutcome::Unsure,
             'answer' => $answer,
             'answer_confidence' => $confidence,
             'answer_gaps' => $gaps,
             'citations' => $citations,
-        ]);
+        ])->save();
 
-        if (! $copied) {
-            $interpretation->save();
+        if ($sure) {
             $this->replier->reply($interpretation, $email, $this->composer->answer($question, $answer, $citations, $gaps, $locale));
-
-            return;
-        }
-
-        // A question to someone else: suggest the answer to them, and only
-        // when it is sure enough to be worth their attention.
-        $asked = $this->replier->askedOf($email);
-
-        $interpretation->outcome = match (true) {
-            $asked === [] => InterpretationOutcome::NoAction,
-            $confidence < (float) config('knowledge.mail.suggestion_min_confidence') => InterpretationOutcome::Unsure,
-            default => InterpretationOutcome::Suggested,
-        };
-        $interpretation->save();
-
-        if ($interpretation->outcome === InterpretationOutcome::Suggested) {
-            $asker = $email->from_name ?? $email->from_email ?? '';
-            $this->replier->suggest($interpretation, $email, $this->composer->suggestion($asker, $email->received_at, $question, $answer, $citations, $gaps, $confidence, $locale));
         }
     }
 
@@ -450,7 +433,7 @@ class EmailInterpreter
         };
         $interpretation->save();
 
-        // Copied, Howy never writes to the sender: the conflict is only flagged.
+        // Copied, Howy never writes: the conflict is only flagged.
         if ($interpretation->outcome === InterpretationOutcome::Conflict && $interpretation->mode === InterpretationMode::Addressed) {
             $this->replier->reply($interpretation, $email, $this->composer->conflict($judged, $this->conflictSources($judged), $locale));
         }
@@ -643,7 +626,7 @@ class EmailInterpreter
 
     /**
      * What the knowledge base was last found to be missing in this thread,
-     * for a reply to a message that is not stored (Howy's own suggestion).
+     * for a reply to a message that is not stored (Howy's own reply).
      */
     private function threadGaps(Email $email): ?string
     {

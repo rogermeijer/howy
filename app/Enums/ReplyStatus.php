@@ -12,7 +12,7 @@ enum ReplyStatus: string
 
     case Sent = 'sent';
 
-    /** The mailbox's send policy does not allow replying to the sender. */
+    /** The mailbox's rules do not allow replying to the sender, or replies are off. */
     case Blocked = 'blocked';
 
     case Failed = 'failed';
@@ -22,7 +22,7 @@ enum ReplyStatus: string
         return match ($this) {
             self::None => __('No reply'),
             self::Sent => __('Reply sent'),
-            self::Blocked => __('Reply blocked by reply settings'),
+            self::Blocked => __('Reply blocked by the mailbox rules'),
             self::Failed => __('Reply failed'),
         };
     }

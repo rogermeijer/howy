@@ -3,6 +3,7 @@
 namespace App\Services\Gmail;
 
 use App\Enums\EmailSource;
+use App\Enums\InterpretationStatus;
 use App\Jobs\Mail\InterpretEmail;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
@@ -77,6 +78,13 @@ class StoreGmailMessage
         if ($mode !== null) {
             EmailInterpretation::query()->firstOrCreate(['email_id' => $email->id], ['mode' => $mode]);
             InterpretEmail::dispatch($email->id);
+        } elseif ($email->wasRecentlyCreated && $this->eligibility->refused($email, $mailbox)) {
+            EmailInterpretation::query()->firstOrCreate(['email_id' => $email->id], [
+                'mode' => $this->eligibility->role($email, $mailbox),
+                'status' => InterpretationStatus::Skipped,
+                'error' => __('The sender is outside the rules of this mailbox.'),
+                'processed_at' => now(),
+            ]);
         }
 
         if ($email->received_at !== null

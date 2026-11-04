@@ -119,9 +119,9 @@ return [
         'answer_max_tokens' => 3000,
         // Existing facts a new statement is compared with.
         'conflict_candidates' => 5,
-        // When the mailbox is only copied, an answer is suggested to whoever
-        // was asked only when the answering model is at least this sure.
-        'suggestion_min_confidence' => (float) env('KNOWLEDGE_MAIL_SUGGESTION_MIN_CONFIDENCE', 0.75),
+        // A question written to the mailbox is answered only when the
+        // answering model is at least this sure; below it the answer is kept.
+        'answer_min_confidence' => (float) env('KNOWLEDGE_MAIL_ANSWER_MIN_CONFIDENCE', 0.75),
         // Characters of the message a reply answers, given as context.
         'context_max_chars' => 3000,
         // Read once: a paragraph needs this many letters and digits to be

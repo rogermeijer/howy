@@ -42,7 +42,9 @@ class AccountController extends Controller
                 'emailsCount' => $mailbox->emails_count,
                 'import' => $importer->progress($mailbox),
                 'domain' => $mailbox->domain(),
+                'publicDomain' => $mailbox->isOnPublicDomain(),
                 'sendPolicy' => $mailbox->send_policy->value,
+                'repliesEnabled' => $mailbox->replies_enabled,
                 'sendWhitelist' => $mailbox->send_whitelist ?? [],
                 'sendBlacklist' => $mailbox->send_blacklist ?? [],
             ]);

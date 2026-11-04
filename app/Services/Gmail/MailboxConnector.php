@@ -4,6 +4,7 @@ namespace App\Services\Gmail;
 
 use App\Enums\MailboxProvider;
 use App\Enums\MailboxStatus;
+use App\Enums\SendPolicy;
 use App\Jobs\StartGmailWatch;
 use App\Models\Mailbox;
 use App\Models\User;
@@ -37,6 +38,15 @@ class MailboxConnector
             'status' => MailboxStatus::Active,
             'last_error' => null,
         ]);
+
+        // On gmail.com "the same domain" is everyone: a new mailbox there
+        // reads only from a whitelist, starting with whoever connected it.
+        if (! $mailbox->exists && $mailbox->isOnPublicDomain()) {
+            $mailbox->fill([
+                'send_policy' => SendPolicy::Whitelist,
+                'send_whitelist' => [mb_strtolower($by->email)],
+            ]);
+        }
 
         $mailbox->save();
 

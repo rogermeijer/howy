@@ -3,9 +3,11 @@
 namespace App\Concerns;
 
 use App\Enums\SendPolicy;
+use App\Models\Mailbox;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Enum;
 
 trait MailboxValidationRules
 {
@@ -13,12 +15,14 @@ trait MailboxValidationRules
     private const string DOMAIN_PATTERN = '/^@?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/';
 
     /**
-     * Who Howy may reply to from a mailbox. List entries are a full address or
-     * a domain; normalise them with normalizeSendList() before validating.
+     * Who Howy reads mail from on a mailbox, and whether it replies. List
+     * entries are a full address or a domain; normalise them with
+     * normalizeSendList() before validating. On a public domain such as
+     * gmail.com "the same domain" would be everyone, so it is not offered.
      *
      * @return array<string, array<int, ValidationRule|array<mixed>|string|Closure>>
      */
-    protected function sendPolicyRules(): array
+    protected function sendPolicyRules(Mailbox $mailbox): array
     {
         $entry = function (string $attribute, mixed $value, Closure $fail): void {
             $value = is_string($value) ? $value : '';
@@ -29,7 +33,11 @@ trait MailboxValidationRules
         };
 
         return [
-            'send_policy' => ['required', Rule::enum(SendPolicy::class)],
+            'send_policy' => ['required', Rule::enum(SendPolicy::class)->when(
+                $mailbox->isOnPublicDomain(),
+                fn (Enum $rule): Enum => $rule->except(SendPolicy::Domain),
+            )],
+            'replies_enabled' => ['required', 'boolean'],
             'send_whitelist' => ['present', 'array', 'max:200'],
             'send_whitelist.*' => ['string', 'max:255', $entry],
             'send_blacklist' => ['present', 'array', 'max:200'],

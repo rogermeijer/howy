@@ -19,8 +19,8 @@ export function hasCcReply(interpretation: Interpretation | null): boolean {
         return false;
     }
 
-    // An answer found for someone else but not sure enough to suggest is
-    // still shown, so the people in the conversation can judge it.
+    // An answer not sure enough to send is still shown, so the people in the
+    // conversation can judge it.
     if (interpretation.outcome === 'unsure') {
         return interpretation.answer !== null;
     }
@@ -33,10 +33,8 @@ export function hasCcReply(interpretation: Interpretation | null): boolean {
 
 /**
  * The reply Howy wrote to a message, shown in the thread itself, above the
- * message it answers: an answer to the sender, or, when the mailbox was only
- * copied, a suggestion to the people who were asked. Gmail files a sent reply
- * under Sent, not the inbox, so it never arrives as a message of its own; this
- * is where it is seen.
+ * message it answers. Gmail files a sent reply under Sent, not the inbox, so
+ * it never arrives as a message of its own; this is where it is seen.
  */
 export function CcReply({
     messageId,
@@ -55,29 +53,19 @@ export function CcReply({
         interpretation.answer !== null;
     const recipients = interpretation.replyRecipients.join(', ');
 
-    const title =
-        outcome === 'suggested'
-            ? t('Suggestion from Howy')
-            : unsure
-              ? t('Answer Howy did not suggest')
-              : t('Reply from Howy');
-    const caption =
-        outcome === 'suggested'
-            ? t('Only to :recipients, not to the sender', { recipients })
-            : unsure
-              ? t('Not sure enough to suggest (:percent% sure)', {
-                    percent: Math.round(
-                        (interpretation.answerConfidence ?? 0) * 100,
-                    ),
-                })
-              : [
-                    answered
-                        ? t('Answer from the knowledge base')
-                        : interpretation.outcomeLabel,
-                    recipients ? t('to :recipients', { recipients }) : null,
-                ]
-                    .filter(Boolean)
-                    .join(' · ');
+    const title = unsure ? t('Answer Howy did not send') : t('Reply from Howy');
+    const caption = unsure
+        ? t('Not sure enough to answer (:percent% sure)', {
+              percent: Math.round((interpretation.answerConfidence ?? 0) * 100),
+          })
+        : [
+              answered
+                  ? t('Answer from the knowledge base')
+                  : interpretation.outcomeLabel,
+              recipients ? t('to :recipients', { recipients }) : null,
+          ]
+              .filter(Boolean)
+              .join(' · ');
 
     return (
         <li
@@ -120,7 +108,7 @@ export function CcReply({
                     {interpretation.replyStatus === 'blocked' && (
                         <p className="cc-caption">
                             {t(
-                                'Not sent: the reply settings of the mailbox do not allow replying to this sender.',
+                                'Not sent: the rules of the mailbox do not allow this reply.',
                             )}
                         </p>
                     )}

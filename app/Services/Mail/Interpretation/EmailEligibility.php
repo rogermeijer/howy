@@ -9,23 +9,28 @@ use App\Models\Mailbox;
 
 /**
  * Whether Howy should interpret a mail, and in which role: one that arrived
- * live, written by a person rather than a machine, and not by the mailbox (its
- * own replies must never loop). Written to the mailbox, Howy answers; only
- * copied on it, Howy listens.
+ * live, written by a person rather than a machine, not by the mailbox (its
+ * own replies must never loop), and by someone the mailbox's rules let in.
+ * Written to the mailbox, Howy answers; only copied on it, Howy listens.
  */
 class EmailEligibility
 {
     public function mode(Email $email, Mailbox $mailbox): ?InterpretationMode
     {
-        if ($email->source === EmailSource::Import || $this->automated($email)) {
-            return null;
-        }
-
-        if (strtolower((string) $email->from_email) === strtolower($mailbox->email_address)) {
+        if (! $this->considered($email, $mailbox) || ! $mailbox->accepts((string) $email->from_email)) {
             return null;
         }
 
         return $this->role($email, $mailbox);
+    }
+
+    /**
+     * Mail Howy would read, but from a sender the mailbox's rules keep out:
+     * stored, and marked as ignored so it is clear why nothing followed.
+     */
+    public function refused(Email $email, Mailbox $mailbox): bool
+    {
+        return $this->considered($email, $mailbox) && ! $mailbox->accepts((string) $email->from_email);
     }
 
     /**
@@ -42,6 +47,16 @@ class EmailEligibility
         $addressed = collect($email->to ?? [])->contains(fn (array $recipient): bool => strtolower($recipient['email']) === $address);
 
         return $addressed ? InterpretationMode::Addressed : InterpretationMode::Copied;
+    }
+
+    /**
+     * Live mail from a person other than the mailbox itself.
+     */
+    private function considered(Email $email, Mailbox $mailbox): bool
+    {
+        return $email->source !== EmailSource::Import
+            && ! $this->automated($email)
+            && strtolower((string) $email->from_email) !== strtolower($mailbox->email_address);
     }
 
     /**

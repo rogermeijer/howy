@@ -153,7 +153,7 @@ export function MailboxesSection({
                 <span>
                     <WithHowy
                         text={t(
-                            'Howy only replies as the reply settings of a mailbox allow, and never changes or deletes anything in the mailbox.',
+                            'Howy only reads mail from the senders a mailbox lets in, only replies to them, and never changes or deletes anything in the mailbox.',
                         )}
                     />
                 </span>
@@ -218,12 +218,13 @@ function MailboxRow({
                 })
               : t('no emails yet'),
         t(':count emails stored', { count: mailbox.emailsCount }),
-        t('replies: :policy', {
+        t('senders: :policy', {
             policy:
                 sendPolicies
                     .find((policy) => policy.value === mailbox.sendPolicy)
                     ?.label.toLowerCase() ?? mailbox.sendPolicy,
         }),
+        ...(mailbox.repliesEnabled ? [] : [t('no replies')]),
     ];
 
     return (
@@ -311,7 +312,7 @@ function MailboxRow({
                                 )}
                                 <DropdownMenuItem onSelect={onReplySettings}>
                                     <MessageSquareReply />
-                                    {t('Reply settings')}
+                                    {t('Mailbox rules')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                     <a href={reconnectUrl}>

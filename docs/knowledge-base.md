@@ -194,21 +194,24 @@ user names, ids or addresses. `OPENAI_STORE=false` is the default.
 | `KNOWLEDGE_PDFTOHTML`, `…_PDFINFO`, `…_QPDF`, `…_PANDOC` | the bare command name                              |
 | `KNOWLEDGE_MAIL_ATTACHMENTS`                             | `true` (read attachments of mail to a mailbox)     |
 | `KNOWLEDGE_MAIL_ATTACHMENT_MAX_KB`                       | `25600` (Gmail's own limit)                        |
+| `KNOWLEDGE_MAIL_ANSWER_MIN_CONFIDENCE`                   | `0.75` (answer a question only this sure)          |
 
 ## Mail to a mailbox
 
-Every new mail to a connected mailbox is read and acted on, in one of two roles. `StoreGmailMessage` decides with
-`EmailEligibility`: push or poll only (never an import), not from the mailbox itself, and not automated
-(`Auto-Submitted`, `Precedence: bulk|list|junk|auto_reply`, `List-Id`). The role follows where the mailbox is:
+Every mail to a connected mailbox is stored; a new one is read and acted on, in one of two roles.
+`StoreGmailMessage` decides with `EmailEligibility`: push or poll only (never an import), not from the mailbox
+itself, not automated (`Auto-Submitted`, `Precedence: bulk|list|junk|auto_reply`, `List-Id`), and only from a
+sender the mailbox's rules accept (`Mailbox::accepts()`, see the policy table below). Mail from anyone else gets
+a `skipped` row saying so, and nothing more. The role follows where the mailbox is:
 
-- **addressed** — the mailbox is in `To`: cc: is asked, and answers the sender, copying in everyone else the mail
-  was addressed or copied to (reply to all), so they see cc: has picked it up.
-- **copied** — the mailbox is only in `Cc`: cc: listens. It never writes to the sender. A question to someone
-  else gets a suggested answer, sent to the people in `To` only, when the answering model is at least
-  `knowledge.mail.suggestion_min_confidence` (0.75) sure; otherwise the answer is kept on the mail as
-  `unsure`. What people answer in the thread is filed as information, read with the message it replies to
-  (`In-Reply-To`, else the quoted text) so that "yes, up to three days" becomes a claim of its own. A
-  conflict is flagged, without a mail.
+- **addressed** — the mailbox is in `To` (with or without others): Howy is asked. It answers a question when the
+  answering model is at least `knowledge.mail.answer_min_confidence` (0.75) sure, to the sender, copying in
+  everyone else on the mail the rules accept (reply to all). A less sure answer is kept on the mail as `unsure`,
+  not sent. Information is filed; a conflict is explained to the sender.
+- **copied** — the mailbox is in `Cc` (or blind-copied, or reached through a group): Howy listens. It answers
+  nothing and writes to no one. What people say in the thread is filed as information, read with the message
+  it replies to (`In-Reply-To`, else the quoted text) so that "yes, up to three days" becomes a claim of its
+  own. A conflict is flagged, without a mail.
 
 It creates an `email_interpretations` row with the role (`mode`) and queues `InterpretEmail` (the email id,
 `knowledge` queue).
@@ -218,11 +221,11 @@ It creates an `email_interpretations` row with the role (`mode`) and queues `Int
 1. **Classifies** with `EmailClassifier` on the light model (step `mail_classify`): `question`,
    `information` or `other`, a one-line summary, the language, and the standalone question or the atomic
    statements. Only the subject and the mail's new text are sent, with addresses masked.
-2. **Question** → hybrid search; `QuestionAnswerer` (step `mail_answer`) answers only from the sources it
-   gets, citing them, with a confidence. A partial answer is given as far as the sources go, with what they
-   do not tell (`answer_gaps`) stated in the reply. A reply in the thread that fills that gap is read with it
-   as context, and filed. No sources or no answer → `not_found`; addressed, the sender is told
-   so. Copied: `suggested` (sent to the people asked) or `unsure` (kept, not sent).
+2. **Question** → copied: `no_action`, nothing is searched. Addressed: hybrid search; `QuestionAnswerer` (step
+   `mail_answer`) answers only from the sources it gets, citing them, with a confidence. A partial answer is
+   given as far as the sources go, with what they do not tell (`answer_gaps`) stated in the reply. A reply in
+   the thread that fills that gap is read with it as context, and filed. Sure enough → `answered`, sent; less
+   sure → `unsure`, kept. No sources or no answer → `not_found`, and the sender is told so.
 3. **Information** → per statement: an identical fact (same `content_hash`) is a duplicate; otherwise the most
    similar facts go to `FactConflictChecker` (step `mail_conflicts`) in one call. New statements become
    `proposed` facts with `source_type = email`: embedded, but not searched until reviewed. The classifier
@@ -255,7 +258,8 @@ waits. Approving a new statement makes its fact `supplementary`; approving a con
 fact it contradicts (`superseded_by_id`); rejecting removes the proposed fact.
 
 The row records `status` (`queued → processing → done | skipped | failed`), `intent`, `outcome`
-(`answered`, `not_found`, `suggested`, `unsure`, `added`, `duplicate`, `conflict`, `no_action`), the question and answer with
+(`answered`, `not_found`, `unsure`, `added`, `duplicate`, `conflict`, `no_action`; `suggested` only on mail read
+before copied mail stopped answering), the question and answer with
 citations, every statement with its verdict, and the reply. The inbox shows the outcome per thread; the thread
 page shows the whole interpretation.
 
@@ -263,15 +267,19 @@ page shows the whole interpretation.
 plain text, which is also what the thread page shows. The Howy wordmark is embedded as an inline image
 (`resources/images/mail/howy-logo@3x.png`, Plus Jakarta Sans 800 rendered at 3×, shown at 83×27), since mail clients load no web
 fonts; re-render it (ImageMagick with Plus Jakarta Sans 800 and the lime dot) if the wordmark changes. They go out in the Gmail thread (`GmailClient::sendMessage`, `In-Reply-To`/`References`,
-`Auto-Submitted: auto-replied`) from the mailbox, in the mail's language when we ship it. Each mailbox has a
-send policy, set under _Settings → Mailboxes → Reply settings_:
+`Auto-Submitted: auto-replied`) from the mailbox, in the mail's language when we ship it. Each mailbox has
+rules, set under _Settings → Mailboxes → Mailbox rules_: a `send_policy` that says whose mail Howy reads (and
+so who can get a reply), and `replies_enabled`, whether it replies at all.
 
-| Policy      | Replies to                                    |
-| ----------- | --------------------------------------------- |
-| `off`       | nobody                                        |
-| `domain`    | the mailbox's own domain, minus the blacklist |
-| `whitelist` | only addresses and domains on the whitelist   |
-| `always`    | everyone, minus the blacklist (default)       |
+| Policy      | Reads mail from (and replies to)                        |
+| ----------- | ------------------------------------------------------- |
+| `domain`    | the mailbox's own domain, minus the blacklist (default) |
+| `whitelist` | only addresses and domains on the whitelist             |
+| `always`    | everyone, minus the blacklist                           |
+
+On a public domain (`config/mailboxes.php`: gmail.com, outlook.com, …) the same domain would be everyone, so
+`domain` is refused there; a mailbox connected on one starts as `whitelist` with the address of whoever
+connected it.
 
 A blocked or failed reply is kept with its text (`reply_status` `blocked` / `failed`). A reply that went out
 is never sent again, also not when the mail is interpreted again.

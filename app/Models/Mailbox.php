@@ -41,6 +41,7 @@ use Illuminate\Support\Carbon;
  * @property SendPolicy $send_policy
  * @property list<string>|null $send_whitelist
  * @property list<string>|null $send_blacklist
+ * @property bool $replies_enabled
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Account $account
@@ -53,6 +54,7 @@ use Illuminate\Support\Carbon;
     'access_token', 'refresh_token', 'token_expires_at', 'status', 'history_id',
     'watch_expires_at', 'last_synced_at', 'last_message_at', 'last_error',
     'import_batch_id', 'send_policy', 'send_whitelist', 'send_blacklist',
+    'replies_enabled',
 ])]
 #[Hidden(['access_token', 'refresh_token'])]
 class Mailbox extends Model
@@ -63,13 +65,14 @@ class Mailbox extends Model
     use HasFactory;
 
     /**
-     * Mirrors the column default, so a new mailbox knows its policy before it
+     * Mirrors the column defaults, so a new mailbox knows its policy before it
      * is read back.
      *
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'send_policy' => 'always',
+        'send_policy' => 'domain',
+        'replies_enabled' => true,
     ];
 
     /**
@@ -102,9 +105,27 @@ class Mailbox extends Model
     }
 
     /**
-     * Whether the send policy lets Howy reply to this address from here.
+     * Whether anyone can have an address on the mailbox's domain (gmail.com…):
+     * then "the same domain" means everyone, and its senders are a whitelist.
      */
-    public function maySendTo(string $address): bool
+    public function isOnPublicDomain(): bool
+    {
+        return self::isPublicDomain($this->domain());
+    }
+
+    public static function isPublicDomain(string $domain): bool
+    {
+        /** @var list<string> $public */
+        $public = config('mailboxes.public_domains', []);
+
+        return in_array(strtolower($domain), $public, true);
+    }
+
+    /**
+     * Whether the policy lets this address in: Howy reads mail only from
+     * someone it accepts, and only ever writes to them.
+     */
+    public function accepts(string $address): bool
     {
         $address = strtolower(trim($address));
 
@@ -113,12 +134,19 @@ class Mailbox extends Model
         }
 
         return match ($this->send_policy) {
-            SendPolicy::Off => false,
             SendPolicy::Whitelist => $this->listMatches($this->send_whitelist ?? [], $address),
             SendPolicy::Domain => self::domainOf($address) === $this->domain()
                 && ! $this->listMatches($this->send_blacklist ?? [], $address),
             SendPolicy::Always => ! $this->listMatches($this->send_blacklist ?? [], $address),
         };
+    }
+
+    /**
+     * Whether Howy may reply to this address from here.
+     */
+    public function maySendTo(string $address): bool
+    {
+        return $this->replies_enabled && $this->accepts($address);
     }
 
     /**
@@ -157,6 +185,7 @@ class Mailbox extends Model
             'send_policy' => SendPolicy::class,
             'send_whitelist' => 'array',
             'send_blacklist' => 'array',
+            'replies_enabled' => 'boolean',
             'access_token' => 'encrypted',
             'refresh_token' => 'encrypted',
             'token_expires_at' => 'datetime',

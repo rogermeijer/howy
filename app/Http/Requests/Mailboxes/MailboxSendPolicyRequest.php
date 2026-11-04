@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Mailboxes;
 
 use App\Concerns\MailboxValidationRules;
+use App\Models\Mailbox;
 use Illuminate\Foundation\Http\FormRequest;
 
 class MailboxSendPolicyRequest extends FormRequest
@@ -14,7 +15,10 @@ class MailboxSendPolicyRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->sendPolicyRules();
+        /** @var Mailbox $mailbox */
+        $mailbox = $this->route('mailbox');
+
+        return $this->sendPolicyRules($mailbox);
     }
 
     protected function prepareForValidation(): void
@@ -22,6 +26,7 @@ class MailboxSendPolicyRequest extends FormRequest
         $this->merge([
             'send_whitelist' => $this->normalizeSendList($this->input('send_whitelist')),
             'send_blacklist' => $this->normalizeSendList($this->input('send_blacklist')),
+            'replies_enabled' => $this->boolean('replies_enabled'),
         ]);
     }
 }

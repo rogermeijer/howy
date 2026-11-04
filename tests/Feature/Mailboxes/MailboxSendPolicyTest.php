@@ -46,6 +46,40 @@ class MailboxSendPolicyTest extends TestCase
         $this->assertSame(SendPolicy::Domain, $this->mailbox->send_policy);
         $this->assertSame([], $this->mailbox->send_whitelist);
         $this->assertSame(['jan@noordkade.nl', '@directie.noordkade.nl'], $this->mailbox->send_blacklist);
+        // An unticked checkbox is not sent at all: replies off.
+        $this->assertFalse($this->mailbox->replies_enabled);
+
+        $this->actingAs($this->admin)
+            ->patch(route('mailboxes.send-policy.update', $this->mailbox), [
+                'send_policy' => 'domain',
+                'send_whitelist' => '',
+                'send_blacklist' => '',
+                'replies_enabled' => '1',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertTrue($this->mailbox->refresh()->replies_enabled);
+    }
+
+    public function test_a_new_mailbox_reads_from_its_own_domain_and_replies(): void
+    {
+        $mailbox = new Mailbox;
+
+        $this->assertSame(SendPolicy::Domain, $mailbox->send_policy);
+        $this->assertTrue($mailbox->replies_enabled);
+    }
+
+    public function test_a_mailbox_on_a_public_domain_has_no_same_domain(): void
+    {
+        $gmail = Tenancy::for($this->account, fn () => Mailbox::factory()->sendPolicy(SendPolicy::Whitelist, ['roger@gmail.com'])->create(['email_address' => 'howy@gmail.com']));
+
+        $this->actingAs($this->admin)
+            ->patch(route('mailboxes.send-policy.update', $gmail), ['send_policy' => 'domain', 'send_whitelist' => '', 'send_blacklist' => ''])
+            ->assertSessionHasErrors('send_policy');
+
+        $this->assertSame(SendPolicy::Whitelist, $gmail->refresh()->send_policy);
+        $this->assertTrue($gmail->isOnPublicDomain());
+        $this->assertFalse($this->mailbox->isOnPublicDomain());
     }
 
     public function test_entries_must_be_addresses_or_domains(): void
@@ -68,7 +102,7 @@ class MailboxSendPolicyTest extends TestCase
     public function test_only_an_admin_of_the_account_may_change_it(): void
     {
         $member = User::factory()->withAccount($this->account, isAdmin: false)->create();
-        $payload = ['send_policy' => 'off', 'send_whitelist' => '', 'send_blacklist' => ''];
+        $payload = ['send_policy' => 'domain', 'send_whitelist' => '', 'send_blacklist' => ''];
 
         $this->actingAs($member)->patch(route('mailboxes.send-policy.update', $this->mailbox), $payload)->assertForbidden();
 
@@ -88,15 +122,16 @@ class MailboxSendPolicyTest extends TestCase
                 ->where('mailboxes.0.sendPolicy', 'always')
                 ->where('mailboxes.0.sendBlacklist', ['haarlem.nl'])
                 ->where('mailboxes.0.domain', 'noordkade.nl')
-                ->has('sendPolicies', 4));
+                ->where('mailboxes.0.publicDomain', false)
+                ->where('mailboxes.0.repliesEnabled', true)
+                ->has('sendPolicies', 3));
     }
 
-    public function test_may_send_to_follows_the_policy(): void
+    public function test_the_policy_decides_who_is_accepted_and_may_get_a_reply(): void
     {
         $mailbox = new Mailbox(['email_address' => 'Kennis@Noordkade.nl']);
 
         $cases = [
-            [SendPolicy::Off, [], [], 'jan@noordkade.nl', false],
             [SendPolicy::Always, [], [], 'iemand@gmail.com', true],
             [SendPolicy::Always, [], ['gmail.com'], 'iemand@gmail.com', false],
             [SendPolicy::Always, [], ['@gmail.com'], 'Iemand@Gmail.com', false],
@@ -114,7 +149,14 @@ class MailboxSendPolicyTest extends TestCase
         foreach ($cases as $index => [$policy, $whitelist, $blacklist, $address, $expected]) {
             $mailbox->fill(['send_policy' => $policy, 'send_whitelist' => $whitelist, 'send_blacklist' => $blacklist]);
 
+            $this->assertSame($expected, $mailbox->accepts($address), "Case {$index}: {$policy->value} → {$address}");
             $this->assertSame($expected, $mailbox->maySendTo($address), "Case {$index}: {$policy->value} → {$address}");
         }
+
+        // Replies off: still accepted, never answered.
+        $mailbox->fill(['send_policy' => SendPolicy::Domain, 'replies_enabled' => false]);
+
+        $this->assertTrue($mailbox->accepts('jan@noordkade.nl'));
+        $this->assertFalse($mailbox->maySendTo('jan@noordkade.nl'));
     }
 }

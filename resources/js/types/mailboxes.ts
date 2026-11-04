@@ -1,6 +1,6 @@
 export type MailboxStatus = 'active' | 'needs_reauth' | 'disconnected';
 
-export type SendPolicy = 'off' | 'domain' | 'whitelist' | 'always';
+export type SendPolicy = 'domain' | 'whitelist' | 'always';
 
 export type Mailbox = {
     id: number;
@@ -11,7 +11,10 @@ export type Mailbox = {
     emailsCount: number;
     import: { processed: number; total: number } | null;
     domain: string;
+    /** Anyone can have an address there (gmail.com…), so no "same domain". */
+    publicDomain: boolean;
     sendPolicy: SendPolicy;
+    repliesEnabled: boolean;
     sendWhitelist: string[];
     sendBlacklist: string[];
 };

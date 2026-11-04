@@ -75,7 +75,8 @@ class ConnectGmailTest extends TestCase
 
         $this->assertSame('support@noordkade.nl', $mailbox->email_address);
         $this->assertSame(MailboxStatus::Active, $mailbox->status);
-        $this->assertSame(SendPolicy::Always, $mailbox->send_policy);
+        $this->assertSame(SendPolicy::Domain, $mailbox->send_policy);
+        $this->assertTrue($mailbox->replies_enabled);
         $this->assertSame('access-token', $mailbox->access_token);
         $this->assertSame('refresh-token', $mailbox->refresh_token);
         $this->assertSame($this->admin->id, $mailbox->connected_by_user_id);
@@ -83,6 +84,21 @@ class ConnectGmailTest extends TestCase
         Queue::assertPushed(StartGmailWatch::class, fn (StartGmailWatch $job) => $job->mailboxId === $mailbox->id
             && $job->tenantAccountId === $this->account->id);
         Queue::assertNotPushed(ImportGmailQuery::class);
+    }
+
+    public function test_a_mailbox_on_a_public_domain_starts_with_a_whitelist_of_whoever_connected_it(): void
+    {
+        Queue::fake();
+        $this->fakeGoogleUser(email: 'Howy.Test@Gmail.com');
+
+        $this->actingAs($this->admin)
+            ->withSession(['mailbox_connect' => ['account_id' => $this->account->id, 'backfill' => false]])
+            ->get(route('mailboxes.gmail.callback', ['code' => 'abc']));
+
+        $mailbox = Tenancy::for($this->account, fn () => Mailbox::query()->sole());
+
+        $this->assertSame(SendPolicy::Whitelist, $mailbox->send_policy);
+        $this->assertSame([mb_strtolower($this->admin->email)], $mailbox->send_whitelist);
     }
 
     public function test_choosing_the_30_day_backfill_starts_an_import(): void
@@ -145,11 +161,11 @@ class ConnectGmailTest extends TestCase
     /**
      * @param  list<string>|null  $scopes
      */
-    private function fakeGoogleUser(?string $refreshToken = 'refresh-token', ?array $scopes = null): void
+    private function fakeGoogleUser(?string $refreshToken = 'refresh-token', ?array $scopes = null, string $email = 'Support@Noordkade.nl'): void
     {
         $user = (new GoogleUser)
             ->setRaw(['sub' => '123'])
-            ->map(['id' => '123', 'email' => 'Support@Noordkade.nl'])
+            ->map(['id' => '123', 'email' => $email])
             ->setToken('access-token')
             ->setRefreshToken($refreshToken)
             ->setExpiresIn(3599)

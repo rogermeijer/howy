@@ -114,6 +114,51 @@ class InterpretEmailTest extends TestCase
         Queue::assertNotPushed(InterpretEmail::class);
     }
 
+    public function test_mail_from_a_sender_outside_the_rules_is_stored_but_ignored(): void
+    {
+        Queue::fake();
+        $store = app(StoreGmailMessage::class);
+
+        [$outside, $blacklisted, $inside] = Tenancy::for($this->account, function () use ($store): array {
+            $support = Mailbox::factory()->sendPolicy(SendPolicy::Domain, blacklist: ['piet@noordkade.nl'])->create(['email_address' => 'support@noordkade.nl']);
+
+            return [
+                $store->store($support, GmailFixtures::message('outside'), EmailSource::Push),
+                $store->store($support, GmailFixtures::message('blacklisted', ['from' => 'Piet <piet@noordkade.nl>']), EmailSource::Push),
+                $store->store($support, GmailFixtures::message('inside', ['from' => 'Anna <anna@noordkade.nl>']), EmailSource::Push),
+            ];
+        });
+
+        Queue::assertPushed(InterpretEmail::class, 1);
+        Queue::assertPushed(InterpretEmail::class, fn (InterpretEmail $job) => $job->emailId === $inside->id);
+
+        foreach ([$outside, $blacklisted] as $email) {
+            $interpretation = Tenancy::for($this->account, fn () => $email->interpretation()->sole());
+
+            $this->assertSame(InterpretationStatus::Skipped, $interpretation->status);
+            $this->assertSame(__('The sender is outside the rules of this mailbox.'), $interpretation->error);
+        }
+    }
+
+    public function test_a_mailbox_on_a_public_domain_reads_only_its_whitelist(): void
+    {
+        Queue::fake();
+        $store = app(StoreGmailMessage::class);
+
+        [$stranger, $listed] = Tenancy::for($this->account, function () use ($store): array {
+            $mailbox = Mailbox::factory()->sendPolicy(SendPolicy::Whitelist, ['roger@gmail.com'])->create(['email_address' => 'howy@gmail.com']);
+
+            return [
+                $store->store($mailbox, GmailFixtures::message('stranger', ['from' => 'Tom <tom@gmail.com>']), EmailSource::Push),
+                $store->store($mailbox, GmailFixtures::message('listed', ['from' => 'Roger <roger@gmail.com>']), EmailSource::Push),
+            ];
+        });
+
+        Queue::assertPushed(InterpretEmail::class, 1);
+        Queue::assertPushed(InterpretEmail::class, fn (InterpretEmail $job) => $job->emailId === $listed->id);
+        $this->assertSame(InterpretationStatus::Skipped, Tenancy::for($this->account, fn () => $stranger->interpretation()->sole()->status));
+    }
+
     public function test_a_question_is_answered_from_the_knowledge_base_in_its_thread(): void
     {
         $this->fakeKnowledgeAi();
@@ -122,7 +167,7 @@ class InterpretEmailTest extends TestCase
             $this->assertStringContainsString(self::LEAVE, $prompt);
             $this->assertStringNotContainsString('tom@haarlem.nl', $prompt);
 
-            return ['answered' => true, 'answer' => 'Je hebt recht op 25 vakantiedagen per jaar.', 'sources' => ['F1']];
+            return ['answered' => true, 'answer' => 'Je hebt recht op 25 vakantiedagen per jaar.', 'sources' => ['F1'], 'confidence' => 0.9];
         });
 
         $email = $this->email(['content_text' => "Hoeveel vakantiedagen heb ik?\n\nTom (tom@haarlem.nl)"]);
@@ -223,6 +268,20 @@ class InterpretEmailTest extends TestCase
 
         $this->assertSame(ReplyStatus::Blocked, $blocked->reply_status);
         Http::assertSentCount(1);
+    }
+
+    public function test_an_answer_that_is_not_sure_enough_is_kept_but_not_sent(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fact(self::LEAVE);
+        $this->fakeMailAi(answer: fn (): array => ['answered' => true, 'answer' => 'Waarschijnlijk 25 dagen.', 'sources' => ['F1'], 'confidence' => 0.5]);
+
+        $interpretation = $this->interpret($this->email());
+
+        $this->assertSame(InterpretationOutcome::Unsure, $interpretation->outcome);
+        $this->assertSame('Waarschijnlijk 25 dagen.', $interpretation->answer);
+        $this->assertSame(ReplyStatus::None, $interpretation->reply_status);
+        Http::assertNothingSent();
     }
 
     public function test_a_question_without_an_answer_gets_a_not_found_reply(): void
@@ -354,13 +413,13 @@ class InterpretEmailTest extends TestCase
         $this->fakeMailAi();
 
         foreach ([
-            'off' => [SendPolicy::Off, [], []],
-            'blacklisted domain' => [SendPolicy::Always, [], ['haarlem.nl']],
-            'blacklisted address' => [SendPolicy::Always, [], ['TOM@haarlem.nl']],
-            'other domain' => [SendPolicy::Domain, [], []],
-            'not whitelisted' => [SendPolicy::Whitelist, ['jan@haarlem.nl'], []],
-        ] as $case => [$policy, $whitelist, $blacklist]) {
-            $this->mailbox->update(['send_policy' => $policy, 'send_whitelist' => $whitelist, 'send_blacklist' => $blacklist]);
+            'replies off' => [SendPolicy::Always, [], [], false],
+            'blacklisted domain' => [SendPolicy::Always, [], ['haarlem.nl'], true],
+            'blacklisted address' => [SendPolicy::Always, [], ['TOM@haarlem.nl'], true],
+            'other domain' => [SendPolicy::Domain, [], [], true],
+            'not whitelisted' => [SendPolicy::Whitelist, ['jan@haarlem.nl'], [], true],
+        ] as $case => [$policy, $whitelist, $blacklist, $replies]) {
+            $this->mailbox->update(['send_policy' => $policy, 'send_whitelist' => $whitelist, 'send_blacklist' => $blacklist, 'replies_enabled' => $replies]);
 
             $interpretation = $this->interpret($this->email());
 

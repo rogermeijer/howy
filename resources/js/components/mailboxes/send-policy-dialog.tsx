@@ -4,6 +4,7 @@ import MailboxController from '@/actions/App/Http/Controllers/Mailboxes/MailboxC
 import { WithHowy } from '@/components/brand/howy-name';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogClose,
@@ -33,31 +34,37 @@ type Props = {
 const fieldClass = 'border-[1.5px] border-cc-border-strong bg-cc-panel';
 
 /**
- * Who Howy may reply to from one mailbox. The list shown follows the policy:
- * the whitelist for "Whitelist", the blacklist for "Same domain" and "Always".
- * The list that is not shown still travels along, so switching policies never
- * throws a list away.
+ * The rules of one mailbox: whose mail Howy reads, and whether it replies to
+ * them. The list shown follows the policy: the whitelist for "Whitelist", the
+ * blacklist for "Same domain" and "Everyone". The list that is not shown
+ * still travels along, so switching policies never throws a list away. On a
+ * public domain such as gmail.com "Same domain" would mean everyone, so it is
+ * not offered.
  */
 export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
     const t = useTranslations();
-    const [policy, setPolicy] = useState<SendPolicy>('always');
+    const [policy, setPolicy] = useState<SendPolicy>('domain');
     const [whitelist, setWhitelist] = useState('');
     const [blacklist, setBlacklist] = useState('');
+    const [repliesEnabled, setRepliesEnabled] = useState(true);
 
     useEffect(() => {
         if (mailbox) {
             setPolicy(mailbox.sendPolicy);
             setWhitelist(mailbox.sendWhitelist.join('\n'));
             setBlacklist(mailbox.sendBlacklist.join('\n'));
+            setRepliesEnabled(mailbox.repliesEnabled);
         }
     }, [mailbox]);
 
     const domain = mailbox?.domain ?? '';
+    const options = policies.filter(
+        (option) => !(mailbox?.publicDomain && option.value === 'domain'),
+    );
     const help: Record<SendPolicy, string> = {
-        off: t('Howy never replies from this mailbox.'),
-        domain: t('Only addresses at @:domain get a reply.', { domain }),
-        whitelist: t('Only the addresses and domains below get a reply.'),
-        always: t('Everyone who writes to this mailbox gets a reply.'),
+        domain: t('Only mail from addresses at @:domain is read.', { domain }),
+        whitelist: t('Only mail from the addresses and domains below is read.'),
+        always: t('Mail from everyone is read, except from the blacklist.'),
     };
 
     const showsWhitelist = policy === 'whitelist';
@@ -72,13 +79,15 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
         <Dialog open={mailbox !== null} onOpenChange={onOpenChange}>
             <DialogContent className="rounded-2xl bg-cc-panel p-7 sm:max-w-[520px]">
                 <DialogTitle className="cc-subtitle">
-                    {t('Reply settings')}
+                    {t('Mailbox rules')}
                 </DialogTitle>
                 <DialogDescription className="cc-caption">
-                    {t(
-                        'Who gets an answer from :address when they ask a question or send information that conflicts with the knowledge base.',
-                        { address: mailbox?.emailAddress ?? '' },
-                    )}
+                    <WithHowy
+                        text={t(
+                            'Whose mail to :address Howy reads, and whether it replies. Mail from anyone else is stored, but ignored.',
+                            { address: mailbox?.emailAddress ?? '' },
+                        )}
+                    />
                 </DialogDescription>
 
                 {mailbox && (
@@ -92,7 +101,7 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
                             <>
                                 <div className="grid gap-2">
                                     <Label htmlFor="send_policy">
-                                        {t('Reply to')}
+                                        {t('Read mail from')}
                                     </Label>
                                     <Select
                                         name="send_policy"
@@ -108,7 +117,7 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {policies.map((option) => (
+                                            {options.map((option) => (
                                                 <SelectItem
                                                     key={option.value}
                                                     value={option.value}
@@ -121,6 +130,14 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
                                     <p className="cc-caption">
                                         <WithHowy text={help[policy]} />
                                     </p>
+                                    {mailbox.publicDomain && (
+                                        <p className="cc-caption">
+                                            {t(
+                                                'Anyone can have an address at @:domain, so this mailbox has no "same domain".',
+                                                { domain },
+                                            )}
+                                        </p>
+                                    )}
                                     <InputError message={errors.send_policy} />
                                 </div>
 
@@ -177,7 +194,7 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
                                         />
                                         <p className="cc-caption">
                                             {t(
-                                                'These addresses and domains never get a reply.',
+                                                'Mail from these addresses and domains is ignored.',
                                             )}
                                         </p>
                                         <InputError
@@ -194,6 +211,37 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
                                         value={blacklist}
                                     />
                                 )}
+
+                                <div className="grid gap-2">
+                                    <label className="flex items-center gap-2.5 text-[15px] font-medium">
+                                        <Checkbox
+                                            name="replies_enabled"
+                                            value="1"
+                                            checked={repliesEnabled}
+                                            onCheckedChange={(checked) =>
+                                                setRepliesEnabled(
+                                                    checked === true,
+                                                )
+                                            }
+                                            className="size-5 border-[1.5px] border-cc-border-strong bg-cc-panel"
+                                        />
+                                        <span>
+                                            <WithHowy
+                                                text={t('Howy replies')}
+                                            />
+                                        </span>
+                                    </label>
+                                    <p className="cc-caption">
+                                        <WithHowy
+                                            text={t(
+                                                'When the mailbox is in To, Howy answers a question it is sure enough of, and says when information contradicts the knowledge base. Only to people these rules let in, and never when the mailbox is in CC.',
+                                            )}
+                                        />
+                                    </p>
+                                    <InputError
+                                        message={errors.replies_enabled}
+                                    />
+                                </div>
 
                                 <DialogFooter className="gap-2">
                                     <DialogClose asChild>

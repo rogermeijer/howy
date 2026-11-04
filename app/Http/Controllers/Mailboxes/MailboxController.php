@@ -25,13 +25,13 @@ class MailboxController extends Controller
     }
 
     /**
-     * Who Howy may reply to from this mailbox.
+     * Whose mail Howy reads on this mailbox, and whether it replies.
      */
     public function updateSendPolicy(MailboxSendPolicyRequest $request, Mailbox $mailbox): RedirectResponse
     {
         $mailbox->fill($request->validated())->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Reply settings saved.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Mailbox rules saved.')]);
 
         return back();
     }
