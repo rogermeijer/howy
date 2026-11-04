@@ -8,23 +8,24 @@ use App\Exceptions\DocumentExtractionException;
 use App\Models\DocumentVersion;
 use App\Services\Knowledge\Extraction\DocumentExtractor;
 use App\Services\Knowledge\Extraction\ExtractedDocument;
+use App\Services\Knowledge\Extraction\ImageReader;
 use App\Services\Knowledge\Extraction\ScannedPageReader;
 use App\Services\Knowledge\StepRecorder;
 use Illuminate\Support\Facades\Storage;
 
 /**
  * Step 1: read the file into blocks and store them as JSON next to it. Pages
- * without a text layer go to the LLM fallback.
+ * without a text layer go to the LLM fallback, and so does an image.
  */
 class ExtractDocumentText extends KnowledgeJob
 {
-    public function handle(DocumentExtractor $extractor, ScannedPageReader $scans, StepRecorder $steps): void
+    public function handle(DocumentExtractor $extractor, ScannedPageReader $scans, ImageReader $images, StepRecorder $steps): void
     {
         $version = DocumentVersion::query()->findOrFail($this->versionId);
         $version->update(['status' => ProcessingStatus::Extracting]);
 
         try {
-            $steps->run($version, ProcessingStep::Extract, fn (): array => $this->extract($version, $extractor, $scans));
+            $steps->run($version, ProcessingStep::Extract, fn (): array => $this->extract($version, $extractor, $scans, $images));
         } catch (DocumentExtractionException $e) {
             // Retrying will not make a protected, oversized or empty file readable.
             $this->fail($e);
@@ -34,13 +35,18 @@ class ExtractDocumentText extends KnowledgeJob
     /**
      * @return array<string, mixed>
      */
-    private function extract(DocumentVersion $version, DocumentExtractor $extractor, ScannedPageReader $scans): array
+    private function extract(DocumentVersion $version, DocumentExtractor $extractor, ScannedPageReader $scans, ImageReader $images): array
     {
         $extracted = $extractor->extract($version);
 
         $read = [];
+        $kind = null;
 
-        if ($extracted->flaggedPages !== []) {
+        if ($version->format()->isImage()) {
+            $content = $images->read($version) ?? throw DocumentExtractionException::unreadableImage();
+            $kind = $content->kind;
+            $extracted = new ExtractedDocument($content->blocks(), 1, [], 'image+llm', $content->worthKeeping);
+        } elseif ($extracted->flaggedPages !== []) {
             $byPage = $scans->read($version, $extracted->flaggedPages);
             $read = array_keys($byPage);
             $extracted = $extracted->withPages($byPage, $extracted->method.'+llm');
@@ -61,6 +67,8 @@ class ExtractDocumentText extends KnowledgeJob
             'pages' => $extracted->pageCount,
             'scanned_pages' => $read,
             'unread_pages' => $extracted->flaggedPages,
+            'image_kind' => $kind,
+            'worth_keeping' => $extracted->worthKeeping,
         ];
     }
 

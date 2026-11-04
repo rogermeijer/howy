@@ -1177,5 +1177,9 @@
     "Replaced by version :version before it was approved.": "Vervangen door versie :version voordat deze werd goedgekeurd.",
     "This mail was already read through :mailbox.": "Deze mail is al gelezen via :mailbox.",
     "Nothing new: this mail only repeats what is already known.": "Niets nieuws: deze mail herhaalt alleen wat al bekend is.",
-    "Read before in": "Eerder gelezen in"
+    "Read before in": "Eerder gelezen in",
+    "Drop a file here, or click to browse": "Sleep een bestand hierheen, of klik om te bladeren",
+    "PDF, Word, PowerPoint, Excel, OpenDocument, text or an image, up to :size MB": "PDF, Word, PowerPoint, Excel, OpenDocument, tekst of een afbeelding, tot :size MB",
+    "Upload a staff handbook, manual, presentation, spreadsheet or image. Once you approve it, it becomes searchable and its rules are checked against incoming emails.": "Upload een personeelshandboek, handleiding, presentatie, spreadsheet of afbeelding. Zodra je het goedkeurt, is het doorzoekbaar en worden de regels erin vergeleken met binnenkomende e-mails.",
+    "This image could not be read. Images are read by the AI provider, so one has to be configured.": "Deze afbeelding kon niet worden gelezen. Afbeeldingen worden gelezen door de AI-provider, dus die moet zijn ingesteld."
 }

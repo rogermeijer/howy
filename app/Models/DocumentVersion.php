@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToAccount;
+use App\Enums\DocumentFormat;
 use App\Enums\ProcessingStatus;
 use Database\Factories\DocumentVersionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -61,10 +62,6 @@ class DocumentVersion extends Model
 
     /** @use HasFactory<DocumentVersionFactory> */
     use HasFactory;
-
-    public const string PDF = 'application/pdf';
-
-    public const string DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
     /**
      * @return BelongsTo<Document, $this>
@@ -130,9 +127,17 @@ class DocumentVersion extends Model
         return $this->morphOne(KnowledgeSummary::class, 'summarizable');
     }
 
+    /**
+     * What kind of file it is, from the mime type it was stored with.
+     */
+    public function format(): DocumentFormat
+    {
+        return DocumentFormat::detect($this->original_filename, $this->mime_type) ?? DocumentFormat::Pdf;
+    }
+
     public function isPdf(): bool
     {
-        return $this->mime_type === self::PDF;
+        return $this->format() === DocumentFormat::Pdf;
     }
 
     /**

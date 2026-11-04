@@ -59,6 +59,7 @@ class DocumentInspectorController extends Controller
                 'isCurrent' => $item->id === $document->current_version_id,
                 'createdAt' => $item->created_at?->toIso8601String(),
                 'isPdf' => $item->isPdf(),
+                'isImage' => $item->format()->isImage(),
             ]),
             'version' => $version?->only(['id', 'version_number']),
             'sections' => $sections->map(fn (DocumentSection $section): array => [

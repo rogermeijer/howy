@@ -21,10 +21,7 @@ return [
     'upload' => [
         'max_kilobytes' => (int) env('KNOWLEDGE_MAX_UPLOAD_KB', 51200),
         'max_pages' => (int) env('KNOWLEDGE_MAX_PAGES', 500),
-        'mime_types' => [
-            'application/pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ],
+        // The formats accepted are those of App\Enums\DocumentFormat.
     ],
 
     /*
@@ -73,6 +70,8 @@ return [
         'provider' => env('KNOWLEDGE_LLM_PROVIDER', 'openai'),
         'models' => [
             'extraction_fallback' => env('KNOWLEDGE_MODEL_EXTRACTION', 'gpt-6-luna'),
+            // Images shared as documents: what they show and the text on them.
+            'image_read' => env('KNOWLEDGE_MODEL_IMAGE_READ', 'gpt-6-luna'),
             'context' => env('KNOWLEDGE_MODEL_CONTEXT', 'gpt-6-luna'),
             'summary' => env('KNOWLEDGE_MODEL_SUMMARY', 'gpt-6-luna'),
             'facts' => env('KNOWLEDGE_MODEL_FACTS', 'gpt-6-luna'),

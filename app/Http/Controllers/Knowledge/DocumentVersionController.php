@@ -31,7 +31,8 @@ class DocumentVersionController extends Controller
     }
 
     /**
-     * The original file, shown inline so a PDF opens at #page=n in the browser.
+     * The original file, shown inline so a PDF opens at #page=n in the browser
+     * and an image shows as itself; the rest downloads.
      */
     public function file(Document $document, DocumentVersion $version): StreamedResponse
     {
@@ -42,7 +43,7 @@ class DocumentVersionController extends Controller
             $version->path,
             $version->original_filename,
             ['Content-Type' => $version->mime_type, 'X-Content-Type-Options' => 'nosniff'],
-            $version->isPdf() ? 'inline' : 'attachment',
+            $version->format()->opensInline() ? 'inline' : 'attachment',
         );
     }
 }

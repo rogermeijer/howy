@@ -13,12 +13,14 @@ final readonly class ExtractedDocument
     /**
      * @param  list<Block>  $blocks
      * @param  list<int>  $flaggedPages  pages with too little text: probably scanned
+     * @param  bool  $worthKeeping  false for an image that is only decoration
      */
     public function __construct(
         public array $blocks,
         public ?int $pageCount = null,
         public array $flaggedPages = [],
         public string $method = 'cli',
+        public bool $worthKeeping = true,
     ) {}
 
     /**
@@ -30,6 +32,7 @@ final readonly class ExtractedDocument
             'method' => $this->method,
             'page_count' => $this->pageCount,
             'flagged_pages' => $this->flaggedPages,
+            'worth_keeping' => $this->worthKeeping,
             'blocks' => array_map(fn (Block $block): array => $block->toArray(), $this->blocks),
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
@@ -39,7 +42,7 @@ final readonly class ExtractedDocument
      */
     public static function fromJson(string $json): self
     {
-        /** @var array{method: string, page_count: int|null, flagged_pages: list<int>, blocks: list<array{type: string, text: string, page?: int|null, level?: int, rows?: list<list<string>>}>} $data */
+        /** @var array{method: string, page_count: int|null, flagged_pages: list<int>, worth_keeping?: bool, blocks: list<array{type: string, text: string, page?: int|null, level?: int, rows?: list<list<string>>}>} $data */
         $data = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
 
         return new self(
@@ -47,6 +50,7 @@ final readonly class ExtractedDocument
             $data['page_count'],
             $data['flagged_pages'],
             $data['method'],
+            $data['worth_keeping'] ?? true,
         );
     }
 
@@ -80,7 +84,7 @@ final readonly class ExtractedDocument
             }
         }
 
-        return new self($blocks, $this->pageCount, array_values(array_diff($this->flaggedPages, array_keys($byPage))), $method);
+        return new self($blocks, $this->pageCount, array_values(array_diff($this->flaggedPages, array_keys($byPage))), $method, $this->worthKeeping);
     }
 
     public function characterCount(): int

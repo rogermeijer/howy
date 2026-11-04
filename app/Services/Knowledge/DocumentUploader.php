@@ -2,6 +2,7 @@
 
 namespace App\Services\Knowledge;
 
+use App\Enums\DocumentFormat;
 use App\Enums\DocumentType;
 use App\Enums\Locale;
 use App\Enums\ProcessingStatus;
@@ -85,12 +86,12 @@ class DocumentUploader
     {
         $disk = (string) config('knowledge.disk');
         $number = (int) DocumentVersion::query()->where('document_id', $document->id)->max('version_number') + 1;
-        $extension = $this->extension($file);
+        $format = $this->format($file);
 
         $path = Storage::disk($disk)->putFileAs(
             $this->directory($document)."/v{$number}",
             $file,
-            "{$sha256}.{$extension}",
+            "{$sha256}.{$format->extension()}",
         ) ?: throw new \RuntimeException('The upload could not be stored.');
 
         $this->written[] = $path;
@@ -99,7 +100,7 @@ class DocumentUploader
             'document_id' => $document->id,
             'version_number' => $number,
             'original_filename' => $file->getClientOriginalName(),
-            'mime_type' => $extension === 'pdf' ? DocumentVersion::PDF : DocumentVersion::DOCX,
+            'mime_type' => $format->mimeType(),
             'size_bytes' => $file->getSize() ?: 0,
             'disk' => $disk,
             'path' => $path,
@@ -185,9 +186,9 @@ class DocumentUploader
         return "accounts/{$document->account_id}/documents/{$document->id}";
     }
 
-    private function extension(UploadedFile $file): string
+    private function format(UploadedFile $file): DocumentFormat
     {
-        return Str::lower($file->getClientOriginalExtension()) === 'docx' ? 'docx' : 'pdf';
+        return DocumentFormat::detect($file->getClientOriginalName(), $file->getMimeType()) ?? DocumentFormat::Pdf;
     }
 
     /**

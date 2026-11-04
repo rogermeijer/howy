@@ -8,17 +8,22 @@ type Props = {
     file: File | null;
     onChange: (file: File | null) => void;
     maxMegabytes: number;
+    /** The file types the knowledge base reads, as an accept attribute. */
+    accept: string;
     invalid?: boolean;
 };
 
-const accept =
-    '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-
 /**
  * A clearly bounded drop target that is also a button: click to browse, or drop
- * a PDF or Word file on it.
+ * a document, spreadsheet, presentation or image on it.
  */
-export function FileDropzone({ file, onChange, maxMegabytes, invalid }: Props) {
+export function FileDropzone({
+    file,
+    onChange,
+    maxMegabytes,
+    accept,
+    invalid,
+}: Props) {
     const t = useTranslations();
     const input = useRef<HTMLInputElement>(null);
     const [dragging, setDragging] = useState(false);
@@ -61,12 +66,13 @@ export function FileDropzone({ file, onChange, maxMegabytes, invalid }: Props) {
             ) : (
                 <>
                     <span className="text-[15px] font-semibold">
-                        {t('Drop a PDF or Word file here, or click to browse')}
+                        {t('Drop a file here, or click to browse')}
                     </span>
                     <span className="cc-caption">
-                        {t('.pdf or .docx, up to :size MB', {
-                            size: maxMegabytes,
-                        })}
+                        {t(
+                            'PDF, Word, PowerPoint, Excel, OpenDocument, text or an image, up to :size MB',
+                            { size: maxMegabytes },
+                        )}
                     </span>
                 </>
             )}

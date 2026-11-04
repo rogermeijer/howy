@@ -13,7 +13,10 @@ use App\Models\User;
 use App\Services\Knowledge\Ai\AiGateway;
 use App\Services\Knowledge\Ai\Batch\BatchRunner;
 use App\Services\Knowledge\Ai\Batch\OpenAiBatchRunner;
+use App\Services\Knowledge\Extraction\ImageReader;
+use App\Services\Knowledge\Extraction\LlmImageReader;
 use App\Services\Knowledge\Extraction\LlmScannedPageReader;
+use App\Services\Knowledge\Extraction\NullImageReader;
 use App\Services\Knowledge\Extraction\NullScannedPageReader;
 use App\Services\Knowledge\Extraction\ScannedPageReader;
 use App\Services\Knowledge\Search\HybridKnowledgeSearch;
@@ -46,6 +49,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ScannedPageReader::class, fn ($app) => $app->make(AiGateway::class)->enabled()
             ? $app->make(LlmScannedPageReader::class)
             : new NullScannedPageReader);
+
+        // So do images: without a provider they cannot be read at all.
+        $this->app->bind(ImageReader::class, fn ($app) => $app->make(AiGateway::class)->enabled()
+            ? $app->make(LlmImageReader::class)
+            : new NullImageReader);
     }
 
     /**

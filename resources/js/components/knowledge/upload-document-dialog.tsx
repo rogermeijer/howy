@@ -30,6 +30,7 @@ type Props = {
     types: Option[];
     defaultLanguage: string;
     maxUploadMegabytes: number;
+    accept: string;
 };
 
 type UploadForm = {
@@ -47,6 +48,7 @@ export function UploadDocumentDialog({
     types,
     defaultLanguage,
     maxUploadMegabytes,
+    accept,
 }: Props) {
     const t = useTranslations();
     const form = useForm<UploadForm>({
@@ -94,6 +96,7 @@ export function UploadDocumentDialog({
                             file={form.data.file}
                             onChange={(file) => form.setData('file', file)}
                             maxMegabytes={maxUploadMegabytes}
+                            accept={accept}
                             invalid={Boolean(form.errors.file)}
                         />
                         <InputError message={form.errors.file} />

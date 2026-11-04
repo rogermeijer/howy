@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\DocumentFormat;
 use App\Enums\ProcessingStatus;
 use App\Models\Document;
 use App\Models\DocumentVersion;
@@ -25,7 +26,7 @@ class DocumentVersionFactory extends Factory
             'document_id' => Document::factory(),
             'version_number' => 1,
             'original_filename' => 'handboek.pdf',
-            'mime_type' => DocumentVersion::PDF,
+            'mime_type' => DocumentFormat::Pdf->mimeType(),
             'size_bytes' => 120_000,
             'disk' => 'knowledge',
             'path' => "test/{$hash}.pdf",

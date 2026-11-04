@@ -1,0 +1,33 @@
+{
+    "pandoc-api-version": [1, 23, 1, 2],
+    "meta": {},
+    "blocks": [
+        {
+            "t": "Header",
+            "c": [
+                2,
+                ["slide-1", [], []],
+                [{ "t": "Str", "c": "Verlofregeling 2027" }]
+            ]
+        },
+        {
+            "t": "Header",
+            "c": [
+                2,
+                ["slide-2", [], []],
+                [{ "t": "Str", "c": "Vakantiedagen" }]
+            ]
+        },
+        {
+            "t": "Para",
+            "c": [{ "t": "Str", "c": "Medewerkers krijgen 26 vakantiedagen." }]
+        },
+        { "t": "Para", "c": [{ "t": "Str", "c": "Parttimers naar rato" }] },
+        { "t": "Para", "c": [{ "t": "Str", "c": "Meenemen tot 1 juli" }] },
+        {
+            "t": "Header",
+            "c": [2, ["slide-3", [], []], [{ "t": "Str", "c": "Ziekmelding" }]]
+        },
+        { "t": "Para", "c": [{ "t": "Str", "c": "Bel voor 09:00 uur." }] }
+    ]
+}

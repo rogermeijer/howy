@@ -36,6 +36,7 @@ type Props = {
     filter: 'review' | null;
     defaultLanguage: string;
     maxUploadMegabytes: number;
+    uploadAccept: string;
     canManage: boolean;
 };
 
@@ -48,6 +49,7 @@ export default function Documents({
     filter: initialFilter,
     defaultLanguage,
     maxUploadMegabytes,
+    uploadAccept,
     canManage,
 }: Props) {
     const t = useTranslations();
@@ -162,7 +164,7 @@ export default function Documents({
                         </p>
                         <p className="cc-caption max-w-[420px]">
                             {t(
-                                'Upload a staff handbook or manual as PDF or Word. It becomes searchable, and its rules can later be checked against incoming emails.',
+                                'Upload a staff handbook, manual, presentation, spreadsheet or image. Once you approve it, it becomes searchable and its rules are checked against incoming emails.',
                             )}
                         </p>
                         {canManage ? (
@@ -340,11 +342,13 @@ export default function Documents({
                         types={types}
                         defaultLanguage={defaultLanguage}
                         maxUploadMegabytes={maxUploadMegabytes}
+                        accept={uploadAccept}
                     />
                     <NewVersionDialog
                         document={versioning}
                         onOpenChange={(open) => !open && setVersioning(null)}
                         maxUploadMegabytes={maxUploadMegabytes}
+                        accept={uploadAccept}
                     />
                     <DeleteDocumentDialog
                         document={deleting}

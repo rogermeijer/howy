@@ -5,9 +5,12 @@ namespace App\Services\Knowledge\Extraction;
 use JsonException;
 
 /**
- * Turns pandoc's JSON AST of a .docx into structural blocks. Word keeps real
- * headings, lists and tables, so nothing has to be guessed here; Word has no
- * fixed pages, so blocks carry no page number and the section is the locator.
+ * Turns pandoc's JSON AST into structural blocks: Word, OpenDocument, RTF,
+ * slides (one heading per slide), spreadsheets (one heading and table per
+ * sheet), CSV, HTML and markdown all come out the same way. They keep real
+ * headings, lists and tables, so nothing has to be guessed here; none of them
+ * has fixed pages, so blocks carry no page number and the section is the
+ * locator.
  */
 class PandocJsonParser
 {

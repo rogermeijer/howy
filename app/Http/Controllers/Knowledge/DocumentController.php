@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Knowledge;
 
+use App\Enums\DocumentFormat;
 use App\Enums\DocumentType;
 use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
@@ -39,6 +40,10 @@ class DocumentController extends Controller
             'defaultLanguage' => Tenancy::account()->locale->value,
             'filter' => $request->query('filter') === 'review' ? 'review' : null,
             'maxUploadMegabytes' => (int) round((int) config('knowledge.upload.max_kilobytes') / 1024),
+            'uploadAccept' => implode(',', [
+                ...array_map(fn (string $extension): string => ".{$extension}", DocumentFormat::allExtensions()),
+                ...DocumentFormat::allMimeTypes(),
+            ]),
             'canManage' => $request->user()->isAdminOf(Tenancy::account()),
         ]);
     }
