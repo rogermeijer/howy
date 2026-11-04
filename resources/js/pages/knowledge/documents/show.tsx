@@ -19,12 +19,17 @@ import {
 } from '@/components/ui/select';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { FactSources } from '@/components/knowledge/fact-sources';
+import {
+    EmailSourceChip,
+    SourceChip,
+} from '@/components/knowledge/source-chip';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { knowledge } from '@/routes';
 import documentRoutes from '@/routes/knowledge/documents';
 import topicRoutes from '@/routes/knowledge/topics';
 import type {
+    FactView,
     KnowledgeDocument,
     ProcessingStepView,
     SectionDetail,
@@ -58,6 +63,21 @@ const factStatusLabels = {
     supplementary: 'Supplementary',
     expired: 'Expired',
     proposed: 'Proposed',
+} as const;
+
+// A fact waiting for approval is told by how it compares with what is known.
+const verdictStyles = {
+    new: 'bg-cc-knowledge-bg text-cc-knowledge-fg',
+    duplicate: 'bg-cc-raised text-cc-muted',
+    conflict: 'bg-cc-action-bg text-cc-action-fg',
+    unchecked: 'bg-cc-pending-bg text-cc-pending-fg',
+} as const;
+
+const verdictLabels = {
+    new: 'New fact',
+    duplicate: 'Already known',
+    conflict: 'Conflict',
+    unchecked: 'Not checked',
 } as const;
 
 export default function DocumentInspector({
@@ -376,6 +396,15 @@ export default function DocumentInspector({
                                             <span className="cc-label">
                                                 {t('Facts')}
                                             </span>
+                                            {section.facts.some(
+                                                (fact) => fact.verdict,
+                                            ) && (
+                                                <p className="cc-caption">
+                                                    {t(
+                                                        'Waiting for approval. On approval a new fact is added, and an already known one becomes one more source of the known fact.',
+                                                    )}
+                                                </p>
+                                            )}
                                             <ul className="flex flex-col gap-2">
                                                 {section.facts.map((fact) => (
                                                     <li
@@ -385,15 +414,27 @@ export default function DocumentInspector({
                                                         <span
                                                             className={cn(
                                                                 'mt-0.5 shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
-                                                                factStatusStyles[
-                                                                    fact.status
-                                                                ],
+                                                                fact.verdict
+                                                                    ? verdictStyles[
+                                                                          fact
+                                                                              .verdict
+                                                                      ]
+                                                                    : factStatusStyles[
+                                                                          fact
+                                                                              .status
+                                                                      ],
                                                             )}
                                                         >
                                                             {t(
-                                                                factStatusLabels[
-                                                                    fact.status
-                                                                ],
+                                                                fact.verdict
+                                                                    ? verdictLabels[
+                                                                          fact
+                                                                              .verdict
+                                                                      ]
+                                                                    : factStatusLabels[
+                                                                          fact
+                                                                              .status
+                                                                      ],
                                                             )}
                                                         </span>
                                                         <span className="cc-body flex-1">
@@ -410,6 +451,20 @@ export default function DocumentInspector({
                                                                     },
                                                                 )}
                                                             </span>
+                                                        )}
+                                                        {fact.known && (
+                                                            <KnownFact
+                                                                known={
+                                                                    fact.known
+                                                                }
+                                                                conflict={
+                                                                    fact.verdict ===
+                                                                    'conflict'
+                                                                }
+                                                                explanation={
+                                                                    fact.explanation
+                                                                }
+                                                            />
                                                         )}
                                                         <span className="basis-full">
                                                             <FactSources
@@ -452,5 +507,56 @@ export default function DocumentInspector({
                 )}
             </div>
         </>
+    );
+}
+
+/**
+ * The fact the knowledge base already holds: where a repeated fact is known
+ * from, or what a contradicted one says.
+ */
+function KnownFact({
+    known,
+    conflict,
+    explanation,
+}: {
+    known: NonNullable<FactView['known']>;
+    conflict: boolean;
+    explanation: string | null;
+}) {
+    const t = useTranslations();
+    const source =
+        known.source.type === 'email' ? (
+            <EmailSourceChip
+                subject={known.source.title || t('(no subject)')}
+                emailId={known.source.id}
+            />
+        ) : (
+            <SourceChip
+                documentId={known.source.id}
+                title={known.source.title}
+                versionNumber={known.source.versionNumber ?? undefined}
+            />
+        );
+
+    if (!conflict) {
+        return (
+            <span className="flex basis-full flex-wrap items-center gap-1.5">
+                <span className="cc-caption">{t('Known from')}</span>
+                {source}
+            </span>
+        );
+    }
+
+    return (
+        <span className="flex basis-full flex-col gap-1.5 border-l-2 border-cc-accent pl-3">
+            <span className="cc-caption">{t('The knowledge base says')}</span>
+            <span className="text-[13px] leading-[1.5] text-cc-muted">
+                {known.statement}
+            </span>
+            {explanation && (
+                <span className="text-[13px] leading-[1.5]">{explanation}</span>
+            )}
+            <span className="self-start">{source}</span>
+        </span>
     );
 }

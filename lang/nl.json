@@ -1253,5 +1253,8 @@
     "Build the knowledge base in :language?": "Kennisbank voortaan opbouwen in :language?",
     "Howy translates what it already wrote (facts, summaries and folder names) into :language, in the background. This uses your AI provider. The text of documents stays as it is.": "Howy vertaalt wat het al schreef (feiten, samenvattingen en mapnamen) naar :language, op de achtergrond. Dit gebruikt je AI-provider. De tekst van documenten blijft zoals hij is.",
     "Change and translate": "Wijzigen en vertalen",
-    "The knowledge base is now built in :language. Howy is translating what it already holds.": "De kennisbank wordt nu opgebouwd in :language. Howy vertaalt wat er al in staat."
+    "The knowledge base is now built in :language. Howy is translating what it already holds.": "De kennisbank wordt nu opgebouwd in :language. Howy vertaalt wat er al in staat.",
+    "New fact": "Nieuw feit",
+    "Known from": "Bekend uit",
+    "Waiting for approval. On approval a new fact is added, and an already known one becomes one more source of the known fact.": "Wacht op goedkeuring. Bij goedkeuren wordt een nieuw feit toegevoegd, en wordt een al bekend feit een extra bron van het bekende feit."
 }

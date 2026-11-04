@@ -100,7 +100,7 @@ class DocumentInspectorController extends Controller
 
         // What it states, also where the fact is cited from somewhere else.
         $facts = KnowledgeFact::query()
-            ->with(['sources.version', 'sources.section'])
+            ->with(['sources.version', 'sources.section', 'relatedFact.document', 'relatedFact.version'])
             ->whereHas('sources', fn ($query) => $query->where('section_id', $section->id))
             ->orderBy('id')
             ->get();
@@ -134,6 +134,10 @@ class DocumentInspectorController extends Controller
                 'id' => $fact->id,
                 'statement' => $fact->statement,
                 'status' => $fact->status->value,
+                // Waiting for approval, what counts is how it compares with what is known.
+                'verdict' => $fact->status === FactStatus::Proposed ? ($fact->review_verdict ?? 'unchecked') : null,
+                'known' => $fact->status === FactStatus::Proposed ? $this->judgedFact($fact)['existing'] : null,
+                'explanation' => $fact->status === FactStatus::Proposed ? $fact->review_explanation : null,
                 'validFrom' => $fact->valid_from?->toDateString(),
                 'validUntil' => $fact->valid_until?->toDateString(),
                 'pageFrom' => $fact->page_from,

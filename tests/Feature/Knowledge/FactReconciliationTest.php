@@ -100,6 +100,16 @@ class FactReconciliationTest extends TestCase
                 ->where('review.conflicts.0.statement', self::SICK_NEW)
                 ->where('review.conflicts.0.existing.statement', self::SICK_OLD)
                 ->where('review.conflicts.0.existing.source.type', 'document'));
+
+        // Per section too, each waiting fact says how it compares.
+        $section = Tenancy::for($this->account, fn () => KnowledgeFact::query()->where('statement', self::SICK_NEW)->value('section_id'));
+        $this->actingAs($this->admin)
+            ->get(route('knowledge.documents.show', ['document' => $document, 'section' => $section]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('section.facts.0.verdict', 'conflict')
+                ->where('section.facts.0.known.statement', self::SICK_OLD)
+                ->where('section.facts.0.known.source.title', 'Arbobeleid')
+                ->where('section.facts.0.explanation', 'Het tijdstip is vervroegd van 09:00 naar 08:00.'));
     }
 
     public function test_approving_replaces_the_contradicted_fact(): void

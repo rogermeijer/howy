@@ -114,6 +114,12 @@ export type FactView = {
     pageFrom: number | null;
     /** Every place it is stated, the cited one first. */
     sources: FactSourceView[];
+    /** Waiting for approval: how it compares with what is known. */
+    verdict: 'new' | 'duplicate' | 'conflict' | 'unchecked' | null;
+    /** The known fact it repeats or contradicts. */
+    known: NonNullable<JudgedFact['existing']> | null;
+    /** Why it contradicts the known fact. */
+    explanation: string | null;
 };
 
 export type SectionDetail = {
