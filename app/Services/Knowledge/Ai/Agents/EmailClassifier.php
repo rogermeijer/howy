@@ -32,6 +32,13 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
         <earlier> may end with <missing>: what the knowledge base was found not to know about
         the question. A reply that supplies it is information; state it fully.
 
+        The mail may also carry <history> or <forwarded>: earlier messages of the thread that the
+        knowledge base has not read yet (a forwarded mail, or a thread the mailbox was added to
+        later). Unlike <earlier>, these are a source: take statements from them as well when they
+        are still current (not replaced by a later message), and set from_history to true for
+        those. For a forward, judge the intent from the forwarded content, not from a short note
+        like "FYI". <history filed="document"> means the history is filed elsewhere; leave it out.
+
         Decide what the sender wants:
         - "question": they ask something the company's knowledge (policies, procedures,
           agreements, facts about the organisation) could answer.
@@ -86,6 +93,7 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
                     'subject' => $schema->string()->required(),
                     'valid_from' => $schema->string()->nullable()->required(),
                     'flag' => $schema->string()->required(),
+                    'from_history' => $schema->boolean()->required(),
                 ])->withoutAdditionalProperties()
             )->required(),
             'attachments' => $schema->array()->items(

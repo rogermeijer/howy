@@ -50,6 +50,8 @@ export type InterpretedStatement = {
     explanation: string | null;
     /** Why someone should look before it goes in, or null. */
     flag: string | null;
+    /** Taken from earlier messages of the thread that had not been read. */
+    fromHistory: boolean;
     review: 'pending' | 'approved' | 'rejected' | null;
     reviewedBy: string | null;
     reviewedAt: string | null;

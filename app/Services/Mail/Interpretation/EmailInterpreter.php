@@ -10,6 +10,7 @@ use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
 use App\Enums\Locale;
 use App\Facades\Tenancy;
+use App\Models\DocumentVersion;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
 use App\Models\KnowledgeFact;
@@ -26,6 +27,7 @@ use App\Services\Mail\MailFingerprints;
 use App\Services\Mail\MailNovelty;
 use App\Services\Mail\MailReading;
 use App\Services\Mail\PreparedAttachments;
+use App\Services\Mail\ThreadDocumentWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
@@ -54,6 +56,7 @@ use Illuminate\Support\Str;
  *
  * @phpstan-import-type Citation from EmailInterpretation
  * @phpstan-import-type Statement from EmailInterpretation
+ * @phpstan-import-type Quote from Email
  */
 class EmailInterpreter
 {
@@ -72,6 +75,7 @@ class EmailInterpreter
         private readonly MailAttachments $attachments,
         private readonly MailReviewState $reviewState,
         private readonly FactReconciler $reconciler,
+        private readonly ThreadDocumentWriter $threads,
     ) {}
 
     public function interpret(Email $email): EmailInterpretation
@@ -158,7 +162,11 @@ class EmailInterpreter
             'error' => null,
         ]);
 
-        $reading = $this->ai->structured(new EmailClassifier, $this->mailPrompt($email, $novelty, $prepared, $this->earlier($email)), 'mail_classify', $email);
+        // History Howy has not read is a source: short, it is read with the
+        // mail; long, it is filed as a document of its own.
+        [$inline, $filed] = $this->history($email, $novelty);
+
+        $reading = $this->ai->structured(new EmailClassifier, $this->mailPrompt($email, $novelty, $prepared, $this->historyPrompt($email, $inline, $filed), $this->earlier($email, $novelty)), 'mail_classify', $email);
 
         $intent = EmailIntent::tryFrom((string) ($reading['intent'] ?? '')) ?? EmailIntent::Other;
         $language = Str::limit(strtolower(trim((string) ($reading['language'] ?? ''))), 10, '');
@@ -186,7 +194,54 @@ class EmailInterpreter
         // Read: from now on this text is recognised wherever it turns up.
         $this->fingerprints->record($email, (string) ($email->content_text ?? $email->body_text ?? ''), FingerprintUse::Read);
 
+        foreach ($filed !== null ? $novelty->unseen : $inline as $quote) {
+            $this->fingerprints->record($email, $quote['text'], $filed !== null ? FingerprintUse::Document : FingerprintUse::Statements, $filed?->id);
+        }
+
         return $interpretation;
+    }
+
+    /**
+     * What to do with history Howy has not read: read it with the mail when
+     * it is short, file it as a document when it (or the mail itself) is too
+     * long to read as a mail.
+     *
+     * @return array{0: list<Quote>, 1: DocumentVersion|null}
+     */
+    private function history(Email $email, MailReading $novelty): array
+    {
+        $length = array_sum(array_map(fn (array $quote): int => mb_strlen($quote['text']), $novelty->unseen));
+        $longBody = mb_strlen((string) ($email->content_text ?? $email->body_text ?? '')) > (int) config('knowledge.mail.document_min_chars');
+
+        if ($length > (int) config('knowledge.mail.history_inline_chars') || $longBody) {
+            return [[], $this->threads->write($email, $novelty->unseen, $longBody, null)];
+        }
+
+        return [$novelty->unseen, null];
+    }
+
+    /**
+     * @param  list<Quote>  $inline
+     */
+    private function historyPrompt(Email $email, array $inline, ?DocumentVersion $filed): ?string
+    {
+        if ($filed !== null) {
+            return "<history filed=\"document\">\nThe earlier messages of this thread that you have not read are filed as a separate document.\n</history>";
+        }
+
+        if ($inline === []) {
+            return null;
+        }
+
+        $forward = preg_match('/^\s*(?:fwd?|fw|doorst|wg|tr|rv)\s*:/iu', (string) $email->subject) === 1
+            || collect($inline)->contains(fn (array $quote): bool => $quote['forwarded'] ?? false);
+        $tag = $forward ? 'forwarded' : 'history';
+
+        // Oldest first, with the sender's name and the date only.
+        $messages = array_map(fn (array $quote): string => '<message from="'.e($quote['name'] ?? '').'"'.($quote['date'] !== null ? ' date="'.substr($quote['date'], 0, 10).'"' : '').">\n"
+            .$this->mask(trim($quote['text']))."\n</message>", array_reverse($inline));
+
+        return "<{$tag}>\n".implode("\n", $messages)."\n</{$tag}>";
     }
 
     /**
@@ -322,7 +377,7 @@ class EmailInterpreter
             return;
         }
 
-        /** @var array<string, array{statement: array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}, hash: string, candidates: list<KnowledgeFact>}> $open */
+        /** @var array<string, array{statement: array{statement: string, subject: string|null, valid_from: string|null, flag: string|null, from_history: bool}, hash: string, candidates: list<KnowledgeFact>}> $open */
         $open = [];
         /** @var list<Statement> $judged */
         $judged = [];
@@ -441,7 +496,7 @@ class EmailInterpreter
     }
 
     /**
-     * @param  array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}  $statement
+     * @param  array{statement: string, subject: string|null, valid_from: string|null, flag: string|null, from_history?: bool}  $statement
      * @param  'new'|'duplicate'|'conflict'  $verdict
      * @return Statement
      */
@@ -457,6 +512,7 @@ class EmailInterpreter
             'existing_statement' => $existing?->statement,
             'explanation' => filled($explanation) ? $explanation : null,
             'flag' => $statement['flag'],
+            'from_history' => $statement['from_history'] ?? false,
             // What would change the knowledge base waits for a person.
             'review' => in_array($verdict, ['new', 'conflict'], true) ? 'pending' : null,
             'reviewed_by' => null,
@@ -490,7 +546,7 @@ class EmailInterpreter
 
     /**
      * @param  array<string, mixed>  $reading
-     * @return list<array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}>
+     * @return list<array{statement: string, subject: string|null, valid_from: string|null, flag: string|null, from_history: bool}>
      */
     private function statements(array $reading): array
     {
@@ -515,6 +571,7 @@ class EmailInterpreter
                 'statement' => $text,
                 'subject' => $subject !== '' ? $subject : null,
                 'flag' => $flag !== '' ? $flag : null,
+                'from_history' => (bool) ($statement['from_history'] ?? false),
                 'valid_from' => is_string($validFrom) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $validFrom) === 1 && strtotime($validFrom) !== false ? $validFrom : null,
             ];
         }
@@ -528,7 +585,7 @@ class EmailInterpreter
      * the knowledge base does not know, that comes along: a reply that fills
      * the gap is exactly what should be learned.
      */
-    private function earlier(Email $email): ?string
+    private function earlier(Email $email, MailReading $novelty): ?string
     {
         $previous = $email->in_reply_to === null ? null : Email::query()
             ->with('interpretation')
@@ -536,9 +593,10 @@ class EmailInterpreter
             ->where('message_id_header', $email->in_reply_to)
             ->first();
 
+        // A quote not read before is history, given as a source instead.
         $text = trim((string) ($previous !== null
             ? ($previous->content_text ?? $previous->body_text)
-            : ($email->quotes[0]['text'] ?? null)));
+            : ($novelty->known[0]['text'] ?? null)));
 
         $gaps = $previous->interpretation->answer_gaps ?? $this->threadGaps($email);
         $context = trim(($text !== '' ? Str::limit($text, (int) config('knowledge.mail.context_max_chars')) : '')
@@ -568,7 +626,7 @@ class EmailInterpreter
      * replies to. No envelope, and addresses in the text are masked, as
      * AiGateway promises.
      */
-    private function mailPrompt(Email $email, MailReading $novelty, PreparedAttachments $prepared, ?string $earlier = null): string
+    private function mailPrompt(Email $email, MailReading $novelty, PreparedAttachments $prepared, ?string $history, ?string $earlier = null): string
     {
         // What it says that was read before is left out, marked […].
         $text = $novelty->remaining > 0 ? $novelty->text : ($email->content_text ?? $email->body_text ?? $email->snippet ?? '');
@@ -576,6 +634,7 @@ class EmailInterpreter
 
         $attachments = $this->attachments->prompt($email, $prepared);
         $prompt .= $attachments === null ? '' : "\n\n{$attachments}";
+        $prompt .= $history === null ? '' : "\n\n{$history}";
 
         return $earlier === null ? $prompt : $prompt."\n\n<earlier>\n".$this->mask($earlier)."\n</earlier>";
     }

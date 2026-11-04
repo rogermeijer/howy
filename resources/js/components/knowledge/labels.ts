@@ -8,6 +8,7 @@ export const documentTypeLabels: Record<DocumentType, string> = {
     policy: 'Policy',
     manual: 'Manual',
     documentation: 'Documentation',
+    correspondence: 'Correspondence',
     other: 'Other',
 };
 

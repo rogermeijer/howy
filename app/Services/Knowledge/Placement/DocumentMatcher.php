@@ -2,6 +2,7 @@
 
 namespace App\Services\Knowledge\Placement;
 
+use App\Enums\DocumentType;
 use App\Models\Document;
 use App\Models\DocumentSection;
 use App\Models\DocumentVersion;
@@ -21,13 +22,22 @@ class DocumentMatcher
 
     public function match(DocumentVersion $version, ExtractedDocument $extracted): ?DocumentMatch
     {
+        // A thread's history holds only what was not read before: as a
+        // version of another it would take away what that one says.
+        if ($version->document->type === DocumentType::Correspondence) {
+            return null;
+        }
+
         $hashes = collect($this->structure->build($extracted))
             ->pluck('contentHash')
             ->reject(fn (string $hash): bool => $hash === SectionMatcher::EMPTY_HASH)
             ->unique()
             ->values();
 
-        $live = Document::query()->whereNotNull('current_version_id')->whereKeyNot($version->document_id);
+        $live = Document::query()
+            ->whereNotNull('current_version_id')
+            ->whereKeyNot($version->document_id)
+            ->where('type', '!=', DocumentType::Correspondence);
 
         /** @var array<int, int> $shared document id => sections shared */
         $shared = $hashes->isEmpty() ? [] : DocumentSection::query()

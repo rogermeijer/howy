@@ -127,6 +127,11 @@ return [
         // quoted message counts as read when this share of it was.
         'min_paragraph_chars' => 40,
         'quote_known_ratio' => 0.8,
+        // History not read before is read with the mail up to this many
+        // characters; longer, or a mail longer than document_min_chars, is
+        // filed as a correspondence document of its own.
+        'history_inline_chars' => 8000,
+        'document_min_chars' => 12000,
     ],
 
     'attachments' => [

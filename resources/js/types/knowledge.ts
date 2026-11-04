@@ -16,6 +16,7 @@ export type DocumentType =
     | 'policy'
     | 'manual'
     | 'documentation'
+    | 'correspondence'
     | 'other';
 
 export type DocumentVersionSummary = {

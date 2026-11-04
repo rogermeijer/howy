@@ -23,7 +23,7 @@ use Illuminate\Support\Carbon;
  * (needs_review) before it reaches the knowledge base.
  *
  * @phpstan-type Citation array{type: 'document'|'email', id: int, title: string, section_id: int|null, heading_path: string|null, page: int|null}
- * @phpstan-type Statement array{statement: string, subject: string|null, valid_from: string|null, verdict: 'new'|'duplicate'|'conflict', fact_id: int|null, existing_fact_id: int|null, existing_statement: string|null, explanation: string|null, flag: string|null, review: 'pending'|'approved'|'rejected'|null, reviewed_by: int|null, reviewed_at: string|null}
+ * @phpstan-type Statement array{statement: string, subject: string|null, valid_from: string|null, verdict: 'new'|'duplicate'|'conflict', fact_id: int|null, existing_fact_id: int|null, existing_statement: string|null, explanation: string|null, flag: string|null, from_history?: bool, review: 'pending'|'approved'|'rejected'|null, reviewed_by: int|null, reviewed_at: string|null}
  *
  * @property int $id
  * @property int $account_id

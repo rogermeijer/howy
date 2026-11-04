@@ -405,6 +405,16 @@ function Statement({
                     {statement.explanation}
                 </p>
             )}
+            {statement.fromHistory && (
+                <p
+                    className={cn(
+                        'text-[12px]',
+                        prominent ? 'text-cc-muted' : 'text-cc-faint',
+                    )}
+                >
+                    {t('From earlier in the thread')}
+                </p>
+            )}
             {statement.flag && (
                 <p className="flex gap-2 rounded-[8px] bg-cc-pending-bg px-3 py-2 text-[13px] leading-[1.5] text-cc-pending-fg">
                     <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />

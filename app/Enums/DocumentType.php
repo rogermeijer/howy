@@ -12,6 +12,10 @@ enum DocumentType: string
     case Policy = 'policy';
     case Manual = 'manual';
     case Documentation = 'documentation';
+
+    /** The history of a mail thread, filed because it was too long to read as a mail. */
+    case Correspondence = 'correspondence';
+
     case Other = 'other';
 
     /**
@@ -24,6 +28,7 @@ enum DocumentType: string
             self::Policy => 'Policy',
             self::Manual => 'Manual',
             self::Documentation => 'Documentation',
+            self::Correspondence => 'Correspondence',
             self::Other => 'Other',
         };
     }

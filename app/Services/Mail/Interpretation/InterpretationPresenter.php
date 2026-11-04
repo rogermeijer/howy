@@ -61,6 +61,7 @@ class InterpretationPresenter
                 'existingSource' => $statement['existing_fact_id'] !== null ? ($existing[$statement['existing_fact_id']] ?? null) : null,
                 'explanation' => $statement['explanation'],
                 'flag' => $statement['flag'] ?? null,
+                'fromHistory' => $statement['from_history'] ?? false,
                 'review' => $statement['review'] ?? null,
                 'reviewedBy' => isset($statement['reviewed_by']) ? ($reviewers[$statement['reviewed_by']] ?? null) : null,
                 'reviewedAt' => $statement['reviewed_at'] ?? null,
