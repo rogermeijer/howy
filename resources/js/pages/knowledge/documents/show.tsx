@@ -316,7 +316,9 @@ export default function DocumentInspector({
                             </button>
                         ))}
                     </div>
-                    {current && (
+                    {/* Only while it says something the page does not: how far
+                        processing is, or that it failed. */}
+                    {current && (processing || current.status === 'failed') && (
                         <StatusPipeline
                             status={current.status}
                             error={
@@ -324,7 +326,7 @@ export default function DocumentInspector({
                                     ? document.version.error
                                     : null
                             }
-                            className="w-[220px]"
+                            className="mb-2 w-[220px]"
                         />
                     )}
                 </div>
