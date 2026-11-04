@@ -74,3 +74,19 @@ export type Interpretation = InterpretationBrief & {
     error: string | null;
     processedAt: string | null;
 };
+
+/** An attachment of a mail and what became of it. */
+export type MailAttachment = {
+    index: number;
+    filename: string;
+    size: number;
+    decision: string | null;
+    reason: string | null;
+    canAdd: boolean;
+    document: {
+        id: number;
+        title: string;
+        versionNumber: number;
+        status: string;
+    } | null;
+};

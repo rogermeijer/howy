@@ -132,9 +132,21 @@ export type VersionOption = {
 };
 
 /** What approving a version would change, for the administrator who decides. */
+export type DocumentSourceView = {
+    kind: 'upload' | 'mail';
+    filename: string;
+    user: string | null;
+    emailId: number | null;
+    subject: string | null;
+    from: string | null;
+    context: string | null;
+    createdAt: string | null;
+};
+
 export type VersionReview = {
     replaces: number | null;
     uploadedBy: string | null;
+    sources: DocumentSourceView[];
     summary: string | null;
     error: string | null;
     sections: {

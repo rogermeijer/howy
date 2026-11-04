@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\BelongsToAccount;
 use App\Enums\DocumentFormat;
 use App\Enums\ProcessingStatus;
+use App\Enums\SourceKind;
 use Database\Factories\DocumentVersionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -49,6 +50,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, KnowledgeChunk> $chunks
  * @property-read Collection<int, KnowledgeFact> $facts
  * @property-read Collection<int, DocumentProcessingStep> $steps
+ * @property-read Collection<int, DocumentSource> $sources
  * @property-read KnowledgeSummary|null $summary
  */
 #[Fillable([
@@ -117,6 +119,27 @@ class DocumentVersion extends Model
     public function steps(): HasMany
     {
         return $this->hasMany(DocumentProcessingStep::class)->orderBy('id');
+    }
+
+    /**
+     * Every upload and every mail that brought this file.
+     *
+     * @return HasMany<DocumentSource, $this>
+     */
+    public function sources(): HasMany
+    {
+        return $this->hasMany(DocumentSource::class)->orderBy('id');
+    }
+
+    /**
+     * Shared by mail rather than uploaded on purpose: its facts are proposed
+     * like those of a mail, and count as supplementary.
+     */
+    public function isFromMail(): bool
+    {
+        $sources = $this->relationLoaded('sources') ? $this->sources : $this->sources()->get();
+
+        return $sources->contains(fn (DocumentSource $source): bool => $source->kind === SourceKind::Mail);
     }
 
     /**

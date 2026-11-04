@@ -14,7 +14,8 @@ use Laravel\Ai\Promptable;
  * Sorts a mail sent or copied to the knowledge mailbox: a question to answer,
  * new information to file, or neither. A reply is read with the message it
  * answers as context, so "yes, up to three days" becomes a claim of its own. Runs on the light model; it also pulls out
- * the question or the statements, so what follows needs no second read.
+ * the question or the statements, so what follows needs no second read, and
+ * decides which of its attachments belong in the knowledge base.
  */
 #[Strict]
 class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
@@ -59,6 +60,15 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
           geregeld hebben."), an opinion or a guess, or it does not answer what the earlier
           message asked.
           Otherwise an empty list.
+        - attachments: when the mail lists <attachments>, decide for each one listed as new
+          whether it belongs in the knowledge base. "knowledge" for documents, presentations,
+          spreadsheets and images that hold how the organisation works or what it knows or
+          decided: a policy, a handbook, a procedure, a price list, a planning, a floor plan,
+          a photo of a whiteboard. "ignore" for what is only about this one exchange or person:
+          an invoice, a quote, a CV, a ticket, a signature logo, a calendar invite. Judge from
+          the mail's text, the file name and the type. reason: one short sentence, in the mail's
+          language. Attachments marked known are already in the knowledge base; leave them out.
+          An empty list when there are no new attachments.
         TEXT;
     }
 
@@ -76,6 +86,13 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
                     'subject' => $schema->string()->required(),
                     'valid_from' => $schema->string()->nullable()->required(),
                     'flag' => $schema->string()->required(),
+                ])->withoutAdditionalProperties()
+            )->required(),
+            'attachments' => $schema->array()->items(
+                $schema->object([
+                    'id' => $schema->string()->required(),
+                    'use' => $schema->string()->enum(['knowledge', 'ignore'])->required(),
+                    'reason' => $schema->string()->required(),
                 ])->withoutAdditionalProperties()
             )->required(),
         ];

@@ -145,7 +145,7 @@ class SectionEnrichment
             "Document: {$document->title}",
             'Section: '.($section->heading_path ?: '(introduction)'),
             $section->page_from ? "Pages: {$section->page_from}–{$section->page_to}" : null,
-            $document->is_core
+            $this->extractsFacts($version)
                 ? 'Extract the facts of this section.'
                 : 'This is not a core document: do not extract facts, return an empty list.',
             '',
@@ -169,7 +169,7 @@ class SectionEnrichment
             );
         }
 
-        if (! $version->document->is_core) {
+        if (! $this->extractsFacts($version)) {
             return 0;
         }
 
@@ -201,7 +201,11 @@ class SectionEnrichment
                 'chunk_id' => $this->bestChunk($section->chunks, $statement)?->id,
                 'statement' => $statement,
                 'subject' => $subject === null ? null : mb_substr($subject, 0, 120),
-                'status' => $version->isApproved() ? FactStatus::Core : FactStatus::Proposed,
+                'status' => match (true) {
+                    ! $version->isApproved() => FactStatus::Proposed,
+                    $version->document->is_core => FactStatus::Core,
+                    default => FactStatus::Supplementary,
+                },
                 'valid_from' => $this->date($fact['valid_from'] ?? null) ?? $version->document->effective_date?->toDateString(),
                 'confidence' => isset($fact['confidence']) ? max(0, min(1, (float) $fact['confidence'])) : null,
                 'page_from' => $section->page_from,
@@ -215,6 +219,15 @@ class SectionEnrichment
         }
 
         return $created;
+    }
+
+    /**
+     * Facts are taken from core documents, and from what was shared by mail:
+     * like a mail's statements, those are proposed and then supplementary.
+     */
+    private function extractsFacts(DocumentVersion $version): bool
+    {
+        return $version->document->is_core || $version->isFromMail();
     }
 
     /**

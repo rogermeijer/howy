@@ -12,6 +12,7 @@ use App\Http\Resources\Knowledge\DocumentResource;
 use App\Models\Document;
 use App\Models\DocumentProcessingStep;
 use App\Models\DocumentSection;
+use App\Models\DocumentSource;
 use App\Models\DocumentVersion;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeFact;
@@ -157,9 +158,22 @@ class DocumentInspectorController extends Controller
             ->orderBy('name')
             ->get();
 
+        $sources = DocumentSource::query()->with(['user', 'email'])->where('document_version_id', $version->id)->orderBy('id')->get();
+
         return [
             'replaces' => $previous === null || $previous->id !== $document->current_version_id ? null : $previous->version_number,
             'uploadedBy' => $version->uploadedBy?->name,
+            // Every upload and every mail thread that brought this file.
+            'sources' => $sources->map(fn (DocumentSource $source): array => [
+                'kind' => $source->kind->value,
+                'filename' => $source->filename,
+                'user' => $source->user?->name,
+                'emailId' => $source->email_id,
+                'subject' => $source->email?->subject,
+                'from' => $source->email === null ? null : ($source->email->from_name ?? $source->email->from_email),
+                'context' => $source->context,
+                'createdAt' => $source->created_at?->toIso8601String(),
+            ])->values()->all(),
             'summary' => $version->summary?->text,
             'error' => $version->error,
             'sections' => [

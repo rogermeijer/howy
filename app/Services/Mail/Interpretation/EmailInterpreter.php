@@ -21,9 +21,11 @@ use App\Services\Knowledge\Search\FactHit;
 use App\Services\Knowledge\Search\KnowledgeSearch;
 use App\Services\Knowledge\Search\Passage;
 use App\Services\Knowledge\Search\SearchQuery;
+use App\Services\Mail\MailAttachments;
 use App\Services\Mail\MailFingerprints;
 use App\Services\Mail\MailNovelty;
 use App\Services\Mail\MailReading;
+use App\Services\Mail\PreparedAttachments;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
@@ -46,6 +48,10 @@ use Illuminate\Support\Str;
  * source; what it has read is context. A mail with nothing new is not sent
  * to a model at all.
  *
+ * Attachments are documents like uploads. One the knowledge base already
+ * holds gets this mail as one more source; a new one the classifier judges
+ * to be knowledge goes in and waits for approval.
+ *
  * @phpstan-import-type Citation from EmailInterpretation
  * @phpstan-import-type Statement from EmailInterpretation
  */
@@ -63,6 +69,8 @@ class EmailInterpreter
         private readonly MailFactWriter $facts,
         private readonly MailNovelty $novelty,
         private readonly MailFingerprints $fingerprints,
+        private readonly MailAttachments $attachments,
+        private readonly MailReviewState $reviewState,
     ) {}
 
     public function interpret(Email $email): EmailInterpretation
@@ -84,9 +92,21 @@ class EmailInterpreter
             return $interpretation;
         }
 
+        $prepared = $this->attachments->prepare($email);
+
+        try {
+            return $this->read($email, $interpretation, $prepared);
+        } finally {
+            $prepared->cleanup();
+            $this->reviewState->refresh($email);
+        }
+    }
+
+    private function read(Email $email, EmailInterpretation $interpretation, PreparedAttachments $prepared): EmailInterpretation
+    {
         $novelty = $this->novelty->read($email);
 
-        if ($novelty->nothingNew() && ! $this->isDirect($email, $interpretation)) {
+        if ($novelty->nothingNew() && ! $prepared->hasNew() && ! $this->isDirect($email, $interpretation)) {
             $interpretation->update([
                 'status' => InterpretationStatus::Done,
                 'intent' => null,
@@ -137,7 +157,7 @@ class EmailInterpreter
             'error' => null,
         ]);
 
-        $reading = $this->ai->structured(new EmailClassifier, $this->mailPrompt($email, $novelty, $this->earlier($email)), 'mail_classify', $email);
+        $reading = $this->ai->structured(new EmailClassifier, $this->mailPrompt($email, $novelty, $prepared, $this->earlier($email)), 'mail_classify', $email);
 
         $intent = EmailIntent::tryFrom((string) ($reading['intent'] ?? '')) ?? EmailIntent::Other;
         $language = Str::limit(strtolower(trim((string) ($reading['language'] ?? ''))), 10, '');
@@ -156,6 +176,9 @@ class EmailInterpreter
             EmailIntent::Information => $this->file($interpretation, $email, $reading, $locale),
             EmailIntent::Other => $interpretation->outcome = InterpretationOutcome::NoAction,
         };
+
+        // Whatever the mail is about, its attachments can be knowledge.
+        $this->attachments->apply($email, $prepared, (array) ($reading['attachments'] ?? []), $interpretation->summary, $interpretation->language);
 
         $interpretation->fill(['status' => InterpretationStatus::Done, 'processed_at' => now()])->save();
 
@@ -550,11 +573,14 @@ class EmailInterpreter
      * replies to. No envelope, and addresses in the text are masked, as
      * AiGateway promises.
      */
-    private function mailPrompt(Email $email, MailReading $novelty, ?string $earlier = null): string
+    private function mailPrompt(Email $email, MailReading $novelty, PreparedAttachments $prepared, ?string $earlier = null): string
     {
         // What it says that was read before is left out, marked […].
         $text = $novelty->remaining > 0 ? $novelty->text : ($email->content_text ?? $email->body_text ?? $email->snippet ?? '');
         $prompt = "<subject>\n".trim((string) $email->subject)."\n</subject>\n\n<mail>\n".Str::limit(trim($this->mask($text)), self::MAX_PROMPT_CHARS)."\n</mail>";
+
+        $attachments = $this->attachments->prompt($email, $prepared);
+        $prompt .= $attachments === null ? '' : "\n\n{$attachments}";
 
         return $earlier === null ? $prompt : $prompt."\n\n<earlier>\n".$this->mask($earlier)."\n</earlier>";
     }

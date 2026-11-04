@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Facades\Tenancy;
+use App\Models\DocumentVersion;
 use App\Models\Email;
 use App\Services\Mail\Interpretation\InterpretationPresenter;
 use App\Services\Mail\MailNovelty;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -29,6 +31,13 @@ class EmailController extends Controller
             ->get();
 
         $oldest = $thread->last();
+
+        // The documents the thread's attachments are, to show where each went.
+        $versions = DocumentVersion::query()
+            ->with('document')
+            ->whereKey($thread->flatMap(fn (Email $item): array => array_column($item->attachments ?? [], 'document_version_id'))->filter()->unique())
+            ->get()
+            ->keyBy('id');
         $participants = $thread->reverse()
             ->map(fn (Email $item): ?string => $item->from_name ?? $item->from_email)
             ->filter()
@@ -54,10 +63,7 @@ class EmailController extends Controller
                 'contentText' => $item->content_text ?? $item->body_text,
                 'interpretation' => $item->interpretation !== null ? $presenter->full($item->interpretation) : null,
                 'excerpt' => Str::limit(Str::squish($item->content_text ?? $item->snippet ?? ''), 160),
-                'attachments' => array_map(
-                    fn (array $a): array => ['filename' => $a['filename'], 'size' => $a['size']],
-                    $item->attachments ?? [],
-                ),
+                'attachments' => $this->attachments($item, $versions),
                 'quotes' => array_map(
                     fn (array $quote): array => [
                         'name' => $quote['name'] ?? $quote['email'],
@@ -70,5 +76,34 @@ class EmailController extends Controller
                 ),
             ])->values(),
         ]);
+    }
+
+    /**
+     * Each attachment with what became of it: the document it is, or why it
+     * was left out.
+     *
+     * @param  Collection<int, DocumentVersion>  $versions
+     * @return list<array<string, mixed>>
+     */
+    private function attachments(Email $email, Collection $versions): array
+    {
+        return array_map(function (array $attachment, int $index) use ($versions): array {
+            $version = $versions->get((int) ($attachment['document_version_id'] ?? 0));
+
+            return [
+                'index' => $index,
+                'filename' => $attachment['filename'],
+                'size' => $attachment['size'],
+                'decision' => $attachment['decision'] ?? null,
+                'reason' => $attachment['reason'] ?? null,
+                'canAdd' => ($attachment['decision'] ?? null) === null || in_array($attachment['decision'], ['ignored', 'decorative', 'failed'], true),
+                'document' => $version === null ? null : [
+                    'id' => $version->document_id,
+                    'title' => $version->document->title,
+                    'versionNumber' => $version->version_number,
+                    'status' => $version->status->value,
+                ],
+            ];
+        }, $email->attachments ?? [], array_keys($email->attachments ?? []));
     }
 }

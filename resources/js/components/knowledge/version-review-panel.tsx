@@ -1,7 +1,8 @@
 import { Form, Link } from '@inertiajs/react';
-import { Check, FolderOpen, Hourglass, X } from 'lucide-react';
+import { Check, FolderOpen, Hourglass, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 import DocumentReviewController from '@/actions/App/Http/Controllers/Knowledge/DocumentReviewController';
+import { EmailSourceChip } from '@/components/knowledge/source-chip';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -11,6 +12,7 @@ import {
     DialogFooter,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
 import topicRoutes from '@/routes/knowledge/topics';
 import type { VersionReview } from '@/types';
@@ -36,7 +38,9 @@ export function VersionReviewPanel({
     canManage,
 }: Props) {
     const t = useTranslations();
+    const formatDate = useFormatDate();
     const [rejecting, setRejecting] = useState(false);
+    const mailed = review.sources.filter((source) => source.kind === 'mail');
 
     // A first version has nothing to compare with: every section is new.
     const counts = (
@@ -77,9 +81,13 @@ export function VersionReviewPanel({
                                   'Uploaded by :name. Nothing of it is searched until it is approved.',
                                   { name: review.uploadedBy },
                               )
-                            : t(
-                                  'Nothing of it is searched until it is approved.',
-                              )}
+                            : mailed.length > 0
+                              ? t(
+                                    'Shared by mail. Nothing of it is searched until it is approved.',
+                                )
+                              : t(
+                                    'Nothing of it is searched until it is approved.',
+                                )}
                     </p>
                 </div>
 
@@ -140,6 +148,63 @@ export function VersionReviewPanel({
                     </dd>
                 </div>
             </dl>
+
+            {review.sources.length > 0 && (
+                <div className="flex flex-col gap-2">
+                    <span className="cc-label">
+                        {mailed.length > 1
+                            ? t('Shared in :count threads', {
+                                  count: mailed.length,
+                              })
+                            : t('Where it came from')}
+                    </span>
+                    <ul className="flex flex-col gap-2">
+                        {review.sources.map((source, index) => (
+                            <li
+                                key={index}
+                                className="flex flex-col gap-1 rounded-lg bg-cc-bg px-3 py-2.5"
+                            >
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {source.kind === 'mail' ? (
+                                        <EmailSourceChip
+                                            subject={
+                                                source.subject ||
+                                                t('(no subject)')
+                                            }
+                                            emailId={source.emailId}
+                                        />
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1.5 text-[13px] font-medium">
+                                            <Upload className="size-3.5 text-cc-subtle" />
+                                            {source.user
+                                                ? t('Uploaded by :name', {
+                                                      name: source.user,
+                                                  })
+                                                : t('Uploaded')}
+                                        </span>
+                                    )}
+                                    <span className="cc-caption">
+                                        {[
+                                            source.from,
+                                            source.filename,
+                                            source.createdAt
+                                                ? formatDate(source.createdAt)
+                                                : null,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </span>
+                                </div>
+                                {source.context && (
+                                    <p className="cc-caption">
+                                        {source.context}
+                                    </p>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             {review.summary && (
                 <div className="flex flex-col gap-1.5">

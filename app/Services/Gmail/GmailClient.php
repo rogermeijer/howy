@@ -108,6 +108,17 @@ class GmailClient
     }
 
     /**
+     * The bytes of one attachment of a message. Gmail hands them out
+     * separately from the message, base64url encoded.
+     */
+    public function attachment(string $messageId, string $attachmentId): string
+    {
+        $data = (string) $this->get('/messages/'.rawurlencode($messageId).'/attachments/'.rawurlencode($attachmentId))->json('data');
+
+        return (string) base64_decode(strtr($data, '-_', '+/'), true);
+    }
+
+    /**
      * Headers and snippet for several messages at once, for the import list.
      *
      * @param  list<string>  $ids

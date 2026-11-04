@@ -127,6 +127,15 @@ return [
         'quote_known_ratio' => 0.8,
     ],
 
+    'attachments' => [
+        // Attachments of mail to a mailbox are read like uploads.
+        'enabled' => (bool) env('KNOWLEDGE_MAIL_ATTACHMENTS', true),
+        // Gmail's own limit is 25 MB.
+        'max_kilobytes' => (int) env('KNOWLEDGE_MAIL_ATTACHMENT_MAX_KB', 25600),
+        // Smaller images are logos, icons and signature banners.
+        'min_image_bytes' => 15360,
+    ],
+
     'topics' => [
         'max_depth' => 3,
         'max_per_section' => 3,

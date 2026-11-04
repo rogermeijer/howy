@@ -21,6 +21,7 @@ use App\Services\Mail\MailFingerprints;
  *
  * @phpstan-import-type Forwarded from GmailMessageParser
  * @phpstan-import-type Quote from Email
+ * @phpstan-import-type Attachment from Email
  */
 class StoreGmailMessage
 {
@@ -44,7 +45,9 @@ class StoreGmailMessage
             'provider_message_id' => $attributes['provider_message_id'],
         ]);
 
+        $decided = $email->attachments ?? [];
         $email->fill($attributes);
+        $email->attachments = $this->keepDecisions($attributes['attachments'], $decided);
 
         $content = $this->extractor->extract($attributes['body_html'], $attributes['body_text']);
         $email->fill([
@@ -82,6 +85,30 @@ class StoreGmailMessage
         }
 
         return $email;
+    }
+
+    /**
+     * A message stored again keeps what was decided about its attachments.
+     *
+     * @param  list<Attachment>  $attachments
+     * @param  list<Attachment>  $decided
+     * @return list<Attachment>
+     */
+    private function keepDecisions(array $attachments, array $decided): array
+    {
+        return array_map(function (array $attachment) use ($decided): array {
+            foreach ($decided as $earlier) {
+                $same = ($attachment['part_id'] ?? null) !== null
+                    ? ($earlier['part_id'] ?? null) === $attachment['part_id']
+                    : $earlier['filename'] === $attachment['filename'] && $earlier['size'] === $attachment['size'];
+
+                if ($same) {
+                    return [...$attachment, ...array_intersect_key($earlier, array_flip(['sha256', 'decision', 'reason', 'document_version_id']))];
+                }
+            }
+
+            return $attachment;
+        }, $attachments);
     }
 
     /**

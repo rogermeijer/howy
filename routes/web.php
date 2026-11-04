@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\RegistrationCodeController;
 use App\Http\Controllers\BetaAccessRequestController;
 use App\Http\Controllers\CurrentAccountController;
+use App\Http\Controllers\EmailAttachmentController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\EmailStatementController;
 use App\Http\Controllers\InboxController;
@@ -64,6 +65,9 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
         Route::post('emails/{email}/statements/{statement}/reject', [EmailStatementController::class, 'reject'])
             ->whereNumber('statement')
             ->name('emails.statements.reject');
+        Route::post('emails/{email}/attachments/{attachment}', [EmailAttachmentController::class, 'store'])
+            ->whereNumber('attachment')
+            ->name('emails.attachments.store');
     });
 
     Route::get('knowledge', [KnowledgeController::class, 'index'])->name('knowledge');

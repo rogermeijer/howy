@@ -13,6 +13,7 @@ use App\Services\Knowledge\Ai\AiGateway;
 use App\Services\Knowledge\Enrichment\TopicOrganizer;
 use App\Services\Knowledge\StepRecorder;
 use App\Services\Knowledge\TokenEstimator;
+use App\Services\Mail\Interpretation\MailReviewState;
 
 /**
  * Step 6: the document summary (from the section summaries), filing the
@@ -22,7 +23,7 @@ use App\Services\Knowledge\TokenEstimator;
  */
 class FinishEnrichment extends KnowledgeJob
 {
-    public function handle(AiGateway $ai, TopicOrganizer $topics, StepRecorder $steps, TokenEstimator $tokens): void
+    public function handle(AiGateway $ai, TopicOrganizer $topics, StepRecorder $steps, TokenEstimator $tokens, MailReviewState $mail): void
     {
         $version = DocumentVersion::query()->with('document')->findOrFail($this->versionId);
 
@@ -49,6 +50,9 @@ class FinishEnrichment extends KnowledgeJob
         if (! $version->isApproved()) {
             $version->update(['status' => ProcessingStatus::Review, 'error' => null]);
             $version->document->touch();
+
+            // The mails that brought it now wait for review too.
+            $mail->refreshFor($version);
 
             return;
         }

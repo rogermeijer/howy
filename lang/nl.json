@@ -1181,5 +1181,20 @@
     "Drop a file here, or click to browse": "Sleep een bestand hierheen, of klik om te bladeren",
     "PDF, Word, PowerPoint, Excel, OpenDocument, text or an image, up to :size MB": "PDF, Word, PowerPoint, Excel, OpenDocument, tekst of een afbeelding, tot :size MB",
     "Upload a staff handbook, manual, presentation, spreadsheet or image. Once you approve it, it becomes searchable and its rules are checked against incoming emails.": "Upload een personeelshandboek, handleiding, presentatie, spreadsheet of afbeelding. Zodra je het goedkeurt, is het doorzoekbaar en worden de regels erin vergeleken met binnenkomende e-mails.",
-    "This image could not be read. Images are read by the AI provider, so one has to be configured.": "Deze afbeelding kon niet worden gelezen. Afbeeldingen worden gelezen door de AI-provider, dus die moet zijn ingesteld."
+    "This image could not be read. Images are read by the AI provider, so one has to be configured.": "Deze afbeelding kon niet worden gelezen. Afbeeldingen worden gelezen door de AI-provider, dus die moet zijn ingesteld.",
+    "In the knowledge base": "In de kennisbank",
+    "Being processed": "Wordt verwerkt",
+    "Add :name to the knowledge base": ":name toevoegen aan de kennisbank",
+    "Shared by mail. Nothing of it is searched until it is approved.": "Gedeeld per mail. Er wordt niets in gezocht tot het is goedgekeurd.",
+    "Shared in :count threads": "Gedeeld in :count threads",
+    "Where it came from": "Waar het vandaan komt",
+    "Uploaded": "Geüpload",
+    ":name is being added to the knowledge base.": ":name wordt toegevoegd aan de kennisbank.",
+    "Already in the knowledge base": "Staat al in de kennisbank",
+    "Not added": "Niet toegevoegd",
+    "Cannot be read": "Kan niet worden gelezen",
+    "Too large": "Te groot",
+    "Image too small to read": "Afbeelding te klein om te lezen",
+    "Read as forwarded mail": "Gelezen als doorgestuurde mail",
+    "Could not be fetched": "Kon niet worden opgehaald"
 }

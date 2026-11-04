@@ -2,6 +2,7 @@
 
 namespace App\Services\Gmail;
 
+use App\Models\Email;
 use Illuminate\Support\Carbon;
 use Throwable;
 
@@ -16,6 +17,8 @@ use Throwable;
  * Message-ID it carries, so it is recognised when Howy read it before.
  *
  * @phpstan-type Forwarded array{message_id: string|null, from_name: string|null, from_email: string|null, subject: string|null, date: string|null, body_text: string|null, body_html: string|null}
+ *
+ * @phpstan-import-type Attachment from Email
  */
 class GmailMessageParser
 {
@@ -38,7 +41,7 @@ class GmailMessageParser
      *     body_text: string|null,
      *     body_html: string|null,
      *     label_ids: list<string>,
-     *     attachments: list<array{filename: string, mime_type: string, size: int, attachment_id: string|null}>,
+     *     attachments: list<Attachment>,
      *     has_attachments: bool,
      *     forwarded: list<Forwarded>,
      * }
@@ -178,7 +181,7 @@ class GmailMessageParser
 
     /**
      * @param  array<string, mixed>  $part
-     * @param  list<array{filename: string, mime_type: string, size: int, attachment_id: string|null}>  $attachments
+     * @param  list<Attachment>  $attachments
      * @param  list<Forwarded>  $forwarded
      */
     private function walk(array $part, ?string &$text, ?string &$html, array &$attachments, array &$forwarded): void
@@ -188,12 +191,24 @@ class GmailMessageParser
         /** @var array{data?: string, size?: int, attachmentId?: string} $body */
         $body = is_array($part['body'] ?? null) ? $part['body'] : [];
 
+        $partHeaders = $this->headers($part);
+        $contentId = isset($partHeaders['content-id']) ? trim($partHeaders['content-id'], '<> ') : null;
+        $inline = str_starts_with(strtolower($partHeaders['content-disposition'] ?? ''), 'inline') || ($contentId !== null && $filename === '');
+
+        // An image in the body without a name of its own is an attachment too.
+        if ($filename === '' && str_starts_with($mime, 'image/') && isset($body['attachmentId'])) {
+            $filename = 'inline-'.($part['partId'] ?? count($attachments)).'.'.(explode('/', $mime)[1] ?? 'img');
+        }
+
         if ($filename !== '') {
             $attachments[] = [
                 'filename' => $filename,
                 'mime_type' => $mime,
                 'size' => (int) ($body['size'] ?? 0),
                 'attachment_id' => $body['attachmentId'] ?? null,
+                'part_id' => isset($part['partId']) ? (string) $part['partId'] : null,
+                'content_id' => $contentId,
+                'is_inline' => $inline,
             ];
         } elseif (isset($body['data']) && ($mime === 'text/plain' || $mime === 'text/html')) {
             $decoded = $this->decode($body['data'], $this->charset($part));
@@ -228,7 +243,7 @@ class GmailMessageParser
      *
      * @param  array<string, mixed>  $part
      * @param  list<array<string, mixed>>  $children
-     * @param  list<array{filename: string, mime_type: string, size: int, attachment_id: string|null}>  $attachments
+     * @param  list<Attachment>  $attachments
      * @param  list<Forwarded>  $forwarded
      * @return Forwarded
      */
