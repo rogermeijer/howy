@@ -28,8 +28,6 @@ export type InterpretationBrief = {
     intentLabel: string | null;
     outcome: InterpretationOutcome | null;
     outcomeLabel: string | null;
-    /** Something it would add to the knowledge base waits for review. */
-    needsReview: boolean;
 };
 
 export type InterpretationSource = {
@@ -42,6 +40,8 @@ export type InterpretationSource = {
 };
 
 export type InterpretedStatement = {
+    /** Its position in the mail's statements: what a decision refers to. */
+    index: number;
     statement: string;
     verdict: 'new' | 'duplicate' | 'conflict';
     factId: number | null;

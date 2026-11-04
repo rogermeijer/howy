@@ -5,9 +5,8 @@ namespace App\Http\Middleware;
 use App\Enums\Locale;
 use App\Facades\Tenancy;
 use App\Models\Account;
-use App\Models\EmailInterpretation;
 use App\Models\User;
-use App\Services\Knowledge\Review\DocumentReview;
+use App\Services\Knowledge\Review\ApprovalQueue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Lang;
 use Inertia\Middleware;
@@ -60,17 +59,11 @@ class HandleInertiaRequests extends Middleware
                     : null,
                 'accounts' => $this->accountsFor($request->user()),
             ],
-            // How many mails wait for someone to review what they would add:
-            // the inbox's count in the top bar, for those who can act on it.
-            'inbox' => fn (): array => [
-                'needsReview' => Tenancy::check() && $request->user()?->isAdminOf(Tenancy::account())
-                    ? EmailInterpretation::query()->where('needs_review', true)->count()
-                    : 0,
-            ],
-            // How many document versions are processed and wait for approval.
+            // How much waits for approval, documents and mail alike: the
+            // knowledge base's count in the top bar, for those who can act on it.
             'knowledge' => fn (): array => [
                 'awaitingApproval' => Tenancy::check() && $request->user()?->isAdminOf(Tenancy::account())
-                    ? DocumentReview::waiting()
+                    ? app(ApprovalQueue::class)->count()
                     : 0,
             ],
             'locale' => app()->getLocale(),

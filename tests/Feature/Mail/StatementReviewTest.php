@@ -13,13 +13,12 @@ use App\Models\KnowledgeFact;
 use App\Models\Mailbox;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\TestCase;
 
 /**
  * Nothing from mail reaches the knowledge base until an administrator of the
- * account approves it; until then the mail counts as needing action.
+ * account approves it, in the knowledge base's approvals (ApprovalsTest).
  */
 class StatementReviewTest extends TestCase
 {
@@ -115,51 +114,6 @@ class StatementReviewTest extends TestCase
             ->assertNotFound();
 
         $this->assertTrue($interpretation->refresh()->needs_review);
-    }
-
-    public function test_the_top_bar_counts_the_mails_waiting_for_review(): void
-    {
-        $this->waiting();
-        $this->waiting();
-        // Another account's mail never counts here.
-        Tenancy::for(Account::factory()->create(), fn () => EmailInterpretation::factory()->create(['needs_review' => true]));
-
-        $this->actingAs($this->admin)
-            ->get(route('inbox'))
-            ->assertInertia(fn (Assert $page) => $page->where('inbox.needsReview', 2));
-
-        // Those who cannot act on it see no count.
-        $member = User::factory()->withAccount($this->account, isAdmin: false)->create();
-        $this->actingAs($member)
-            ->get(route('inbox'))
-            ->assertInertia(fn (Assert $page) => $page->where('inbox.needsReview', 0));
-    }
-
-    public function test_the_inbox_opens_a_thread_at_the_mail_waiting_for_review(): void
-    {
-        [$email] = $this->waiting();
-
-        // A later message in the same thread, already dealt with.
-        Tenancy::for($this->account, function () use ($email): void {
-            $later = Email::factory()->create([
-                'mailbox_id' => $email->mailbox_id,
-                'provider_thread_id' => $email->provider_thread_id,
-                'received_at' => $email->received_at?->addHour(),
-            ]);
-            EmailInterpretation::factory()->create(['email_id' => $later->id, 'status' => InterpretationStatus::Done, 'outcome' => InterpretationOutcome::Answered]);
-        });
-
-        $this->actingAs($this->admin)
-            ->get(route('inbox'))
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('threads.data.0.id', $email->id)
-                ->where('threads.data.0.interpretation.needsReview', true));
-
-        $this->actingAs($this->admin)
-            ->get(route('emails.show', $email))
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('canReview', true)
-                ->where('messages.1.interpretation.statements.0.review', 'pending'));
     }
 
     /**

@@ -1,3 +1,5 @@
+import type { InterpretedStatement } from './interpretations';
+
 export type ProcessingStatus =
     | 'queued'
     | 'extracting'
@@ -173,6 +175,38 @@ export type VersionReview = {
     conflicts: JudgedFact[];
     duplicates: JudgedFact[];
     folders: { id: number; name: string; isNew: boolean }[];
+};
+
+/** A processed document version in the approvals list. */
+export type ApprovalDocument = {
+    documentId: number;
+    versionId: number;
+    title: string;
+    filename: string;
+    versionNumber: number;
+    /** The live version it would replace, or null for a new document. */
+    replaces: number | null;
+    /** An upload that looks like a document already there. */
+    hint: {
+        kind: 'similar' | 'same_content';
+        title: string | null;
+    } | null;
+    sources: Pick<
+        DocumentSourceView,
+        'kind' | 'user' | 'emailId' | 'subject' | 'from'
+    >[];
+    error: string | null;
+    processedAt: string | null;
+};
+
+/** A mail with the statements it would add or change, in the approvals list. */
+export type ApprovalMail = {
+    emailId: number;
+    subject: string | null;
+    from: string | null;
+    receivedAt: string | null;
+    summary: string | null;
+    statements: InterpretedStatement[];
 };
 
 /** A new fact with the known one it duplicates or contradicts. */

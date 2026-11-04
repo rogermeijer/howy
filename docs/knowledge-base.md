@@ -42,8 +42,14 @@ current and its facts stay `proposed`, so nothing of it is searched. `documents.
 **published** version; a new version of a live document leaves the old one answering until it is approved.
 The inspector shows a review panel (`DocumentInspectorController::review`): what it replaces, its sources,
 where it was placed, sections unchanged / changed / added / removed, its new facts as new, already known or
-contradicting (side by side, with the explanation), and the folders it would be filed in. The top bar and the
-knowledge page count what waits (`knowledge.awaitingApproval`, admins only).
+contradicting (side by side, with the explanation), and the folders it would be filed in.
+
+**One approval place.** Everything that waits — document versions, uploaded or mailed, and the statements mail
+would add or change — is listed on _Knowledge base → Ready for approval_ (`knowledge.approvals`,
+`ApprovalController`, `ApprovalQueue`). A document is judged on its own page; a mail's statements are approved
+or rejected right there. A mail itself never waits in the inbox: what it brought does, here. The top bar's
+knowledge base count and the banner on the knowledge page count what waits (`knowledge.awaitingApproval`:
+waiting versions plus mails with a pending statement, admins only).
 
 `DocumentReview::approve` publishes in one transaction: chunks swap (`DocumentVersion::makeCurrent`), the
 previous version hands over (`SectionEnrichment::handOver`: unchanged facts move, the rest expire and are
@@ -172,7 +178,9 @@ more source — the thread is linked to the existing document, nothing is proces
 listed in the prompt; the classifier decides per attachment (`knowledge` / `ignore`, with a reason), and
 knowledge goes through `DocumentIntake` and waits for approval like an upload, its facts proposed like a
 mail's. The decision is kept on the mail's attachment list; an admin can add a left-out attachment by hand
-(`emails.attachments.store`). The mail waits in the inbox until its document is approved (`MailReviewState`).
+(`emails.attachments.store`). The document waits in the approvals; the mail does not wait for it. The
+classifier never makes a statement that only announces or describes an attachment ("the new handbook is
+attached"): a mail whose point is to send a file has no statements, its attachments carry the content.
 
 **History.** Quoted or forwarded messages Howy has not read are a source: up to `mail.history_inline_chars`
 they are given with the mail (`<forwarded>` / `<history>`, sender name and date only) and statements from them
@@ -181,10 +189,10 @@ are marked `from_history`; longer — or a mail longer than `mail.document_min_c
 through the pipeline and review like any other.
 
 **Review.** Nothing from mail reaches the knowledge base by itself: every new or conflicting statement waits
-(`needs_review`) until an administrator of the account approves or rejects it on the thread page
-(`EmailStatementController`, `StatementReview`). Approving a new statement makes its fact `supplementary`;
-approving a conflict adds it and expires the fact it contradicts (`superseded_by_id`); rejecting removes the
-proposed fact. The top bar's inbox count is the number of mails waiting for review.
+(`needs_review` marks a mail with one) until an administrator of the account approves or rejects it in the
+knowledge base's approvals (`EmailStatementController`, `StatementReview`); the thread page only shows that it
+waits. Approving a new statement makes its fact `supplementary`; approving a conflict adds it and expires the
+fact it contradicts (`superseded_by_id`); rejecting removes the proposed fact.
 
 The row records `status` (`queued → processing → done | skipped | failed`), `intent`, `outcome`
 (`answered`, `not_found`, `suggested`, `unsure`, `added`, `duplicate`, `conflict`, `no_action`), the question and answer with

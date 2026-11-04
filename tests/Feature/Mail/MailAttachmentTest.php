@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Mail;
 
+use App\Enums\InterpretationOutcome;
 use App\Enums\ProcessingStatus;
 use App\Enums\SourceKind;
 use App\Facades\Tenancy;
@@ -22,6 +23,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\Fixtures\GmailFixtures;
@@ -87,22 +89,28 @@ class MailAttachmentTest extends TestCase
             $this->assertSame('new', $attachment['decision'] ?? null);
             $this->assertSame($version->id, $attachment['document_version_id'] ?? null);
 
-            // Its facts are proposed, like a mail's, and the mail waits for review.
+            // Its facts are proposed, like a mail's. The document waits in
+            // the knowledge base; the mail itself does not, and reads as
+            // having proposed something.
             $this->assertTrue($version->facts()->exists());
-            $this->assertTrue(EmailInterpretation::query()->where('email_id', $email->id)->value('needs_review'));
+            $interpretation = EmailInterpretation::query()->where('email_id', $email->id)->sole();
+            $this->assertFalse($interpretation->needs_review);
+            $this->assertSame(InterpretationOutcome::Added, $interpretation->outcome);
         });
     }
 
-    public function test_approving_the_document_clears_the_mail_from_review(): void
+    public function test_the_mailed_document_waits_in_the_approvals(): void
     {
         $this->classifierSays([['id' => 'A1', 'use' => 'knowledge', 'reason' => '']]);
         $email = $this->email('m1', [$this->pdf()]);
         $this->interpret($email);
 
-        $admin = User::factory()->withAccount($this->account)->create();
-        Tenancy::for($this->account, fn () => app(DocumentReview::class)->approve(DocumentVersion::query()->sole(), $admin));
-
-        $this->assertFalse(Tenancy::for($this->account, fn () => EmailInterpretation::query()->where('email_id', $email->id)->value('needs_review')));
+        $this->actingAs(User::factory()->withAccount($this->account)->create())
+            ->get(route('knowledge.approvals'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('documents.0.title', 'Verlofregeling 2027')
+                ->where('documents.0.sources.0.emailId', $email->id)
+                ->has('mails', 0));
     }
 
     public function test_an_attachment_judged_not_to_be_knowledge_stays_out(): void
@@ -117,6 +125,7 @@ class MailAttachmentTest extends TestCase
             $attachment = $email->fresh()?->attachments[0];
             $this->assertSame('ignored', $attachment['decision'] ?? null);
             $this->assertSame('Een factuur.', $attachment['reason'] ?? null);
+            $this->assertSame(InterpretationOutcome::NoAction, EmailInterpretation::query()->where('email_id', $email->id)->value('outcome'));
         });
     }
 
@@ -136,6 +145,7 @@ class MailAttachmentTest extends TestCase
             $this->assertSame(2, DocumentSource::query()->count());
             $this->assertTrue(DocumentSource::query()->where('email_id', $forward->id)->where('filename', 'verlof (1).pdf')->exists());
             $this->assertSame('known', $forward->fresh()?->attachments[0]['decision'] ?? null);
+            $this->assertSame(InterpretationOutcome::Duplicate, EmailInterpretation::query()->where('email_id', $forward->id)->value('outcome'));
         });
 
         // Read once: the pipeline ran for the first copy only.

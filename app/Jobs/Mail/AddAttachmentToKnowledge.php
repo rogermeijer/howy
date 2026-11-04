@@ -3,7 +3,6 @@
 namespace App\Jobs\Mail;
 
 use App\Models\Email;
-use App\Services\Mail\Interpretation\MailReviewState;
 use App\Services\Mail\MailAttachments;
 use App\Tenancy\Concerns\InteractsWithTenancy;
 use App\Tenancy\Contracts\TenantAware;
@@ -33,7 +32,7 @@ class AddAttachmentToKnowledge implements ShouldQueue, TenantAware
         $this->onQueue((string) config('knowledge.queue'));
     }
 
-    public function handle(MailAttachments $attachments, MailReviewState $state): void
+    public function handle(MailAttachments $attachments): void
     {
         $email = Email::query()->with(['mailbox', 'interpretation'])->find($this->emailId);
 
@@ -42,6 +41,5 @@ class AddAttachmentToKnowledge implements ShouldQueue, TenantAware
         }
 
         $attachments->addByHand($email, $this->index);
-        $state->refresh($email);
     }
 }

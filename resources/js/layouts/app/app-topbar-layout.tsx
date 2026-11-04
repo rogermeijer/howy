@@ -18,35 +18,29 @@ import type { Auth } from '@/types';
 
 function TopBar() {
     const t = useTranslations();
-    const {
-        auth,
-        inbox: inboxCounts,
-        knowledge: knowledgeCounts,
-    } = usePage<{
+    const { auth, knowledge: knowledgeCounts } = usePage<{
         auth: Auth;
-        inbox: { needsReview: number };
         knowledge: { awaitingApproval: number };
     }>().props;
-    const needsReview = inboxCounts?.needsReview ?? 0;
     const awaitingApproval = knowledgeCounts?.awaitingApproval ?? 0;
 
     // Titles are English source strings, translated where they are rendered.
-    // The inbox counts the mails waiting for review, the knowledge base the
-    // documents waiting for approval; none, no badge.
+    // The knowledge base counts what waits for approval, documents and mail
+    // alike; none, no badge.
     const navItems = [
-        {
-            title: 'Inbox',
-            href: inbox(),
-            badge: needsReview > 0 ? needsReview : null,
-            badgeLabel: t(':count emails to review', { count: needsReview }),
-        },
+        { title: 'Inbox', href: inbox(), badge: null },
         {
             title: 'Knowledge base',
             href: knowledge(),
-            badge: awaitingApproval > 0 ? awaitingApproval : null,
-            badgeLabel: t(':count documents ready for approval', {
-                count: awaitingApproval,
-            }),
+            badge:
+                awaitingApproval > 0
+                    ? {
+                          count: awaitingApproval,
+                          label: t(':count waiting for approval', {
+                              count: awaitingApproval,
+                          }),
+                      }
+                    : null,
         },
     ];
 
@@ -84,7 +78,7 @@ function TopBar() {
                             {t(item.title)}
                             {item.badge !== null && (
                                 <span
-                                    aria-label={item.badgeLabel ?? undefined}
+                                    aria-label={item.badge.label}
                                     className={cn(
                                         'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold',
                                         active
@@ -92,7 +86,7 @@ function TopBar() {
                                             : 'bg-cc-raised text-cc-ink',
                                     )}
                                 >
-                                    {item.badge}
+                                    {item.badge.count}
                                 </span>
                             )}
                         </Link>

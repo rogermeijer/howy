@@ -11,9 +11,7 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
-            /** Mails waiting for someone to review what they would add. */
-            inbox: { needsReview: number };
-            /** Document versions processed and waiting for approval. */
+            /** Documents and mail statements waiting for approval. */
             knowledge: { awaitingApproval: number };
             sidebarOpen: boolean;
             [key: string]: unknown;

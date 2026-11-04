@@ -2,6 +2,7 @@
 
 namespace App\Services\Mail\Interpretation;
 
+use App\Enums\AttachmentDecision;
 use App\Enums\EmailIntent;
 use App\Enums\FactStatus;
 use App\Enums\FingerprintUse;
@@ -73,7 +74,6 @@ class EmailInterpreter
         private readonly MailNovelty $novelty,
         private readonly MailFingerprints $fingerprints,
         private readonly MailAttachments $attachments,
-        private readonly MailReviewState $reviewState,
         private readonly FactReconciler $reconciler,
         private readonly ThreadDocumentWriter $threads,
     ) {}
@@ -103,7 +103,6 @@ class EmailInterpreter
             return $this->read($email, $interpretation, $prepared);
         } finally {
             $prepared->cleanup();
-            $this->reviewState->refresh($email);
         }
     }
 
@@ -189,6 +188,17 @@ class EmailInterpreter
 
         // Whatever the mail is about, its attachments can be knowledge.
         $this->attachments->apply($email, $prepared, (array) ($reading['attachments'] ?? []), $interpretation->summary, $interpretation->language);
+
+        // A mail that only sends a file still proposed something, or knew it.
+        if ($interpretation->outcome === InterpretationOutcome::NoAction) {
+            $decisions = array_column($email->attachments ?? [], 'decision');
+
+            $interpretation->outcome = match (true) {
+                in_array(AttachmentDecision::New->value, $decisions, true) => InterpretationOutcome::Added,
+                in_array(AttachmentDecision::Known->value, $decisions, true) => InterpretationOutcome::Duplicate,
+                default => InterpretationOutcome::NoAction,
+            };
+        }
 
         $interpretation->fill(['status' => InterpretationStatus::Done, 'processed_at' => now()])->save();
 

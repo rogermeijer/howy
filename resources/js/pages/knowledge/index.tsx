@@ -10,6 +10,7 @@ import { useFormatDate } from '@/hooks/use-format-date';
 import { sourcesLabel } from '@/components/knowledge/labels';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
+import knowledgeRoutes from '@/routes/knowledge';
 import documentRoutes from '@/routes/knowledge/documents';
 import topicRoutes from '@/routes/knowledge/topics';
 import type { KnowledgeDocument, TopicFolder } from '@/types';
@@ -76,7 +77,7 @@ export default function Knowledge({
                         <p className="text-[14px]">
                             <WithHowy
                                 text={t(
-                                    'Howy processed :count documents that wait for your approval. Nothing of them is searched until you approve.',
+                                    'Howy processed :count items from uploads and mail that wait for your approval. None of it is searched until you approve it.',
                                     { count: awaitingApproval },
                                 )}
                             />
@@ -86,12 +87,8 @@ export default function Knowledge({
                             className="h-9 bg-cc-panel"
                             asChild
                         >
-                            <Link
-                                href={documentRoutes.index({
-                                    query: { filter: 'review' },
-                                })}
-                            >
-                                {t('Review documents')}
+                            <Link href={knowledgeRoutes.approvals()}>
+                                {t('Review')}
                             </Link>
                         </Button>
                     </div>

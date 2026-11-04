@@ -19,7 +19,7 @@ class InterpretationPresenter
     /**
      * The short form for a list row.
      *
-     * @return array{status: string, statusLabel: string, intent: string|null, intentLabel: string|null, outcome: string|null, outcomeLabel: string|null, needsReview: bool}
+     * @return array{status: string, statusLabel: string, intent: string|null, intentLabel: string|null, outcome: string|null, outcomeLabel: string|null}
      */
     public function brief(EmailInterpretation $interpretation): array
     {
@@ -30,7 +30,6 @@ class InterpretationPresenter
             'intentLabel' => $interpretation->intent?->label(),
             'outcome' => $interpretation->outcome?->value,
             'outcomeLabel' => $interpretation->outcome?->label(),
-            'needsReview' => $interpretation->needs_review,
         ];
     }
 
@@ -39,10 +38,6 @@ class InterpretationPresenter
      */
     public function full(EmailInterpretation $interpretation): array
     {
-        $statements = $interpretation->statements ?? [];
-        $existing = $this->existingSources(array_values(array_filter(array_column($statements, 'existing_fact_id'))));
-        $reviewers = User::query()->whereKey(array_values(array_filter(array_column($statements, 'reviewed_by'))))->pluck('name', 'id');
-
         return [
             ...$this->brief($interpretation),
             'mode' => $interpretation->mode->value,
@@ -56,19 +51,7 @@ class InterpretationPresenter
             'question' => $interpretation->question,
             'answer' => $interpretation->answer,
             'citations' => array_map($this->citation(...), $interpretation->citations ?? []),
-            'statements' => array_map(fn (array $statement): array => [
-                'statement' => $statement['statement'],
-                'verdict' => $statement['verdict'],
-                'factId' => $statement['fact_id'],
-                'existingStatement' => $statement['existing_statement'],
-                'existingSource' => $statement['existing_fact_id'] !== null ? ($existing[$statement['existing_fact_id']] ?? null) : null,
-                'explanation' => $statement['explanation'],
-                'flag' => $statement['flag'] ?? null,
-                'fromHistory' => $statement['from_history'] ?? false,
-                'review' => $statement['review'] ?? null,
-                'reviewedBy' => isset($statement['reviewed_by']) ? ($reviewers[$statement['reviewed_by']] ?? null) : null,
-                'reviewedAt' => $statement['reviewed_at'] ?? null,
-            ], $statements),
+            'statements' => $this->statements($interpretation),
             'replyStatus' => $interpretation->reply_status->value,
             'replyStatusLabel' => $interpretation->reply_status->label(),
             'replyText' => $interpretation->reply_text,
@@ -77,6 +60,35 @@ class InterpretationPresenter
             'error' => $interpretation->error,
             'processedAt' => $interpretation->processed_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Every statement with its verdict, where the fact it was held against
+     * comes from, and who decided on it. The position in the list is what a
+     * decision on it refers to.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function statements(EmailInterpretation $interpretation): array
+    {
+        $statements = $interpretation->statements ?? [];
+        $existing = $this->existingSources(array_values(array_filter(array_column($statements, 'existing_fact_id'))));
+        $reviewers = User::query()->whereKey(array_values(array_filter(array_column($statements, 'reviewed_by'))))->pluck('name', 'id');
+
+        return array_map(fn (array $statement, int $index): array => [
+            'index' => $index,
+            'statement' => $statement['statement'],
+            'verdict' => $statement['verdict'],
+            'factId' => $statement['fact_id'],
+            'existingStatement' => $statement['existing_statement'],
+            'existingSource' => $statement['existing_fact_id'] !== null ? ($existing[$statement['existing_fact_id']] ?? null) : null,
+            'explanation' => $statement['explanation'],
+            'flag' => $statement['flag'] ?? null,
+            'fromHistory' => $statement['from_history'] ?? false,
+            'review' => $statement['review'] ?? null,
+            'reviewedBy' => isset($statement['reviewed_by']) ? ($reviewers[$statement['reviewed_by']] ?? null) : null,
+            'reviewedAt' => $statement['reviewed_at'] ?? null,
+        ], $statements, array_keys($statements));
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Http\Controllers\EmailAttachmentController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\EmailStatementController;
 use App\Http\Controllers\InboxController;
+use App\Http\Controllers\Knowledge\ApprovalController;
 use App\Http\Controllers\Knowledge\DocumentController;
 use App\Http\Controllers\Knowledge\DocumentInspectorController;
 use App\Http\Controllers\Knowledge\DocumentReviewController;
@@ -57,7 +58,8 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
 
     Route::get('emails/{email}', [EmailController::class, 'show'])->name('emails.show');
 
-    // What a mail would add to the knowledge base: its admins decide, as they curate it.
+    // What a mail would add to the knowledge base: its admins decide, as they
+    // curate it, from the knowledge base's approvals (knowledge.approvals).
     Route::middleware('account.admin')->group(function () {
         Route::post('emails/{email}/statements/{statement}/approve', [EmailStatementController::class, 'approve'])
             ->whereNumber('statement')
@@ -84,6 +86,9 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
 
         // Everyone in the account reads the knowledge base; its admins curate it.
         Route::middleware('account.admin')->group(function () {
+            // Everything that waits for approval, documents and mail alike.
+            Route::get('approvals', [ApprovalController::class, 'index'])->name('approvals');
+
             Route::post('documents', [DocumentController::class, 'store'])->name('documents.store');
             Route::patch('documents/{document}', [DocumentController::class, 'update'])->name('documents.update');
             Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');

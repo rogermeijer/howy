@@ -13,7 +13,6 @@ use App\Models\Email;
 use App\Services\Knowledge\DocumentIntake;
 use App\Services\Knowledge\Placement\DocumentMatcher;
 use App\Services\Knowledge\StepRecorder;
-use App\Services\Mail\Interpretation\MailReviewState;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -35,13 +34,13 @@ use Illuminate\Support\Facades\Storage;
  */
 class PlaceDocumentVersion extends KnowledgeJob
 {
-    public function handle(DocumentMatcher $matcher, StepRecorder $steps, DocumentIntake $intake, MailReviewState $mail): void
+    public function handle(DocumentMatcher $matcher, StepRecorder $steps, DocumentIntake $intake): void
     {
         $version = DocumentVersion::query()->with(['document', 'sources'])->findOrFail($this->versionId);
         $extracted = ExtractDocumentText::load($version);
         $continue = true;
 
-        $steps->run($version, ProcessingStep::Place, function () use ($version, $extracted, $matcher, $intake, $mail, &$continue): array {
+        $steps->run($version, ProcessingStep::Place, function () use ($version, $extracted, $matcher, $intake, &$continue): array {
             // Only mail that nobody uploaded on purpose is placed for them.
             $fromMail = $version->sources->isNotEmpty() && $version->sources->every(fn (DocumentSource $source): bool => $source->kind === SourceKind::Mail);
             $alone = $version->document->versions()->count() === 1;
@@ -54,14 +53,14 @@ class PlaceDocumentVersion extends KnowledgeJob
                 ->first();
 
             if ($same !== null && $fromMail) {
-                $this->mergeInto($version, $same, $intake, $mail);
+                $this->mergeInto($version, $same, $intake);
                 $continue = false;
 
                 return ['kind' => 'same_content', 'version_id' => $same->id];
             }
 
             if (! $extracted->worthKeeping && $fromMail) {
-                $this->turnDown($version, $mail);
+                $this->turnDown($version);
                 $continue = false;
 
                 return ['kind' => 'decoration'];
@@ -104,10 +103,8 @@ class PlaceDocumentVersion extends KnowledgeJob
      * The same text is known: every mail that brought this copy becomes a
      * source of the existing version instead, and the copy goes.
      */
-    private function mergeInto(DocumentVersion $version, DocumentVersion $existing, DocumentIntake $intake, MailReviewState $mail): void
+    private function mergeInto(DocumentVersion $version, DocumentVersion $existing, DocumentIntake $intake): void
     {
-        $emailIds = $version->sources->pluck('email_id')->filter()->all();
-
         DB::transaction(function () use ($version, $existing, $intake): void {
             foreach ($version->sources as $source) {
                 $duplicate = $source->email_id !== null && DocumentSource::query()->where('document_version_id', $existing->id)->where('email_id', $source->email_id)->exists();
@@ -120,17 +117,13 @@ class PlaceDocumentVersion extends KnowledgeJob
             $this->repoint($version, ['decision' => AttachmentDecision::Known->value, 'document_version_id' => $existing->id]);
             $this->remove($version, $intake);
         });
-
-        foreach (Email::query()->whereKey($emailIds)->get() as $email) {
-            $mail->refresh($email);
-        }
     }
 
     /**
      * Decoration: kept as a rejected version, so the same image sent again
      * is recognised and not read again; the mail says why it was left out.
      */
-    private function turnDown(DocumentVersion $version, MailReviewState $mail): void
+    private function turnDown(DocumentVersion $version): void
     {
         $reason = (string) __('Only decoration, such as a logo or a banner.');
 
@@ -138,10 +131,6 @@ class PlaceDocumentVersion extends KnowledgeJob
         $version->update(['status' => ProcessingStatus::Rejected, 'extracted_path' => null, 'error' => $reason]);
 
         $this->repoint($version, ['decision' => AttachmentDecision::Ignored->value, 'reason' => $reason, 'document_version_id' => null]);
-
-        foreach (Email::query()->whereKey($version->sources->pluck('email_id')->filter()->all())->get() as $email) {
-            $mail->refresh($email);
-        }
     }
 
     /**

@@ -14,7 +14,6 @@ use App\Services\Knowledge\Enrichment\TopicOrganizer;
 use App\Services\Knowledge\Review\FactReconciler;
 use App\Services\Knowledge\StepRecorder;
 use App\Services\Knowledge\TokenEstimator;
-use App\Services\Mail\Interpretation\MailReviewState;
 use Throwable;
 
 /**
@@ -26,7 +25,7 @@ use Throwable;
  */
 class FinishEnrichment extends KnowledgeJob
 {
-    public function handle(AiGateway $ai, TopicOrganizer $topics, StepRecorder $steps, TokenEstimator $tokens, MailReviewState $mail, FactReconciler $reconciler): void
+    public function handle(AiGateway $ai, TopicOrganizer $topics, StepRecorder $steps, TokenEstimator $tokens, FactReconciler $reconciler): void
     {
         $version = DocumentVersion::query()->with('document')->findOrFail($this->versionId);
 
@@ -65,9 +64,6 @@ class FinishEnrichment extends KnowledgeJob
 
             $version->update(['status' => ProcessingStatus::Review, 'error' => null]);
             $version->document->touch();
-
-            // The mails that brought it now wait for review too.
-            $mail->refreshFor($version);
 
             return;
         }

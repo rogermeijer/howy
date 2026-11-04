@@ -101,6 +101,7 @@ class LongThreadTest extends TestCase
             $this->assertStringContainsString('## Piet Jansen — ', $markdown);
 
             $this->assertTrue(EmailFingerprint::query()->where('handled_as', FingerprintUse::Document)->where('document_version_id', $document->latestVersion?->id)->exists());
+            // Its statement waits for approval, beside the document.
             $this->assertTrue(EmailInterpretation::query()->where('email_id', $email->id)->value('needs_review'));
         });
 

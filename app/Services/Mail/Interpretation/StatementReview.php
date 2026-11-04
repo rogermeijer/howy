@@ -19,10 +19,7 @@ use InvalidArgumentException;
  */
 class StatementReview
 {
-    public function __construct(
-        private readonly MailFactWriter $facts,
-        private readonly MailReviewState $state,
-    ) {}
+    public function __construct(private readonly MailFactWriter $facts) {}
 
     public function approve(EmailInterpretation $interpretation, int $index, User $reviewer): void
     {
@@ -82,10 +79,10 @@ class StatementReview
                 'reviewed_at' => now()->toIso8601String(),
             ];
 
-            $interpretation->update(['statements' => $statements]);
-
-            // A document the mail brought may still wait, too.
-            $this->state->refresh($interpretation->email);
+            $interpretation->update([
+                'statements' => $statements,
+                'needs_review' => in_array('pending', array_column($statements, 'review'), true),
+            ]);
         });
     }
 }

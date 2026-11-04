@@ -78,8 +78,8 @@ export default function EmailShow({
     );
     const [quotesOpen, setQuotesOpen] = useState<Set<number>>(new Set());
 
-    // The panel shows one message's interpretation: the opened one, else one
-    // waiting for review, else the newest. Each message can switch it.
+    // The panel shows one message's interpretation: the opened one, else the
+    // newest. Each message can switch it.
     const interpretedMessages = messages.filter(
         (message) => message.interpretation,
     );
@@ -88,11 +88,7 @@ export default function EmailShow({
             (
                 interpretedMessages.find(
                     (message) => message.id === currentId,
-                ) ??
-                interpretedMessages.find(
-                    (message) => message.interpretation?.needsReview,
-                ) ??
-                interpretedMessages[0]
+                ) ?? interpretedMessages[0]
             )?.id ?? null,
     );
     const interpreted = interpretedMessages.find(
@@ -219,7 +215,6 @@ export default function EmailShow({
 
                     <InterpretationPanel
                         interpretation={interpreted?.interpretation ?? null}
-                        emailId={interpreted?.id ?? null}
                         canReview={canReview}
                         about={
                             interpreted && messages.length > 1

@@ -19,7 +19,6 @@ use App\Models\KnowledgeTopicLink;
 use App\Models\User;
 use App\Services\Knowledge\Enrichment\SectionEnrichment;
 use App\Services\Knowledge\Enrichment\TopicOrganizer;
-use App\Services\Mail\Interpretation\MailReviewState;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -37,7 +36,6 @@ class DocumentReview
     public function __construct(
         private readonly SectionEnrichment $enrichment,
         private readonly TopicOrganizer $topics,
-        private readonly MailReviewState $mail,
     ) {}
 
     /**
@@ -82,7 +80,6 @@ class DocumentReview
             }
 
             $document->touch();
-            $this->mail->refreshFor($version);
         });
 
         RefreshTopicSummaries::dispatch()->afterCommit();
@@ -94,10 +91,7 @@ class DocumentReview
             throw new InvalidArgumentException('This version is not waiting for approval.');
         }
 
-        DB::transaction(function () use ($version): void {
-            $this->strip($version, null);
-            $this->mail->refreshFor($version);
-        });
+        DB::transaction(fn () => $this->strip($version, null));
     }
 
     /**
@@ -190,13 +184,5 @@ class DocumentReview
         foreach (KnowledgeTopic::query()->whereKey($topicIds)->get() as $topic) {
             $this->topics->markStale($topic);
         }
-    }
-
-    /**
-     * How many versions wait for a decision, for the badge in the top bar.
-     */
-    public static function waiting(): int
-    {
-        return DocumentVersion::query()->where('status', ProcessingStatus::Review)->whereNull('approved_at')->count();
     }
 }

@@ -66,6 +66,10 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
           rather than how the organisation does it ("Algemeen advies over TLS, niet hoe wij het
           geregeld hebben."), an opinion or a guess, or it does not answer what the earlier
           message asked.
+          The attachments carry their own content: never make a statement that only announces,
+          names or describes an attachment or a file ("Er is een nieuw personeelshandboek in het
+          Engels.", "Bijgevoegd is de verlofregeling."). A mail whose only point is to send a
+          file is information with no statements; the attachments decide what goes in.
           Otherwise an empty list.
         - attachments: when the mail lists <attachments>, decide for each one listed as new
           whether it belongs in the knowledge base. "knowledge" for documents, presentations,
