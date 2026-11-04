@@ -270,6 +270,36 @@ class InterpretEmailTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_a_request_to_the_mailbox_alone_is_answered_like_a_question(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fact(self::LEAVE);
+        $this->fakeMailAi(['question' => 'Schrijf een alinea over hoeveel vakantiedagen medewerkers per jaar hebben.'], answer: fn (): array => [
+            'answered' => true, 'answer' => 'Medewerkers hebben recht op 25 vakantiedagen per jaar.', 'sources' => ['F1'], 'confidence' => 0.9,
+        ]);
+
+        $interpretation = $this->interpret($this->email(['content_text' => 'Kan je een alinea schrijven over onze vakantiedagen?']));
+
+        // The classifier is told the mail was written to the mailbox alone.
+        EmailClassifier::assertPrompted(fn (AgentPrompt $prompt): bool => str_contains($prompt->prompt, 'Written to: the knowledge mailbox alone'));
+        $this->assertSame(InterpretationOutcome::Answered, $interpretation->outcome);
+        $this->assertSame(ReplyStatus::Sent, $interpretation->reply_status);
+    }
+
+    public function test_a_mail_to_the_mailbox_and_others_is_not_said_to_be_for_it_alone(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fakeMailAi(['intent' => 'other', 'question' => '']);
+
+        $this->interpret($this->email([
+            'to' => [['name' => null, 'email' => 'kennis@noordkade.nl'], ['name' => 'Anna', 'email' => 'anna@noordkade.nl']],
+            'content_text' => 'Kan je een alinea schrijven over onze verlofregeling?',
+        ]));
+
+        EmailClassifier::assertNotPrompted(fn (AgentPrompt $prompt): bool => str_contains($prompt->prompt, 'Written to:'));
+        Http::assertNothingSent();
+    }
+
     public function test_an_answer_that_is_not_sure_enough_is_kept_but_not_sent(): void
     {
         $this->fakeKnowledgeAi();

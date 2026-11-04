@@ -11,8 +11,9 @@ use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Promptable;
 
 /**
- * Sorts a mail sent or copied to the knowledge mailbox: a question to answer,
- * new information to file, or neither. A reply is read with the message it
+ * Sorts a mail sent or copied to the knowledge mailbox: a question to answer
+ * (or, written to the mailbox alone, a request to it), new information to
+ * file, or neither. A reply is read with the message it
  * answers as context, so "yes, up to three days" becomes a claim of its own. Runs on the light model; it also pulls out
  * the question or the statements, so what follows needs no second read, and
  * decides which of its attachments belong in the knowledge base.
@@ -47,12 +48,23 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
         - "other": anything else (thanks, small talk, an out-of-office, a newsletter, spam).
         When a mail does both, choose what it mainly does.
 
+        "Written to: the knowledge mailbox alone" at the top means the mail was written to the
+        mailbox and to no one else, so the sender expects it to act. Then a request to write
+        something from the company's knowledge is a "question" too: a paragraph, a summary, a
+        short text for a document ("Kun je een korte tekst maken over ons verlofbeleid?").
+        Without that line, a request to write something is "other": it is meant for the people
+        the mail was written to. A question put as a request ("Kun je uitleggen hoe het verlof
+        werkt?") is a "question" either way; thanks, small talk and out-of-office replies are
+        "other" either way.
+
         Return:
         - intent and confidence (0 to 1).
         - summary: one sentence that says how you read the mail, in the mail's language.
         - language: the ISO 639-1 code of the mail's language ("nl", "en").
         - question: for a question, the question rewritten so it stands on its own, in the
-          mail's language. Otherwise an empty string.
+          mail's language. For a request that counts as a question, the request itself, keeping
+          the form it asks for ("Schrijf een korte tekst over ons verlofbeleid."). Otherwise an
+          empty string.
         - statements: for information, the claims it makes, each as one atomic,
           self-contained statement that is understandable without the mail, written in the
           knowledge base language given at the top, whatever language the mail is in (translate

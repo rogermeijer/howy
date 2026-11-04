@@ -642,14 +642,16 @@ class EmailInterpreter
 
     /**
      * The mail as the model sees it: subject, new text and the message it
-     * replies to. No envelope, and addresses in the text are masked, as
-     * AiGateway promises.
+     * replies to. No envelope beyond whether it was written to the mailbox
+     * alone, and addresses in the text are masked, as AiGateway promises.
      */
     private function mailPrompt(Email $email, MailReading $novelty, PreparedAttachments $prepared, ?string $history, ?string $earlier = null): string
     {
         // What it says that was read before is left out, marked […].
         $text = $novelty->remaining > 0 ? $novelty->text : ($email->content_text ?? $email->body_text ?? $email->snippet ?? '');
-        $prompt = 'Knowledge base language: '.KnowledgeLanguage::locale()->label().' ('.KnowledgeLanguage::locale()->value.")\n\n<subject>\n".trim((string) $email->subject)."\n</subject>\n\n<mail>\n".Str::limit(trim($this->mask($text)), self::MAX_PROMPT_CHARS)."\n</mail>";
+        $prompt = 'Knowledge base language: '.KnowledgeLanguage::locale()->label().' ('.KnowledgeLanguage::locale()->value.")\n"
+            .($this->eligibility->writtenToAlone($email, $email->mailbox) ? "Written to: the knowledge mailbox alone\n" : '')
+            ."\n<subject>\n".trim((string) $email->subject)."\n</subject>\n\n<mail>\n".Str::limit(trim($this->mask($text)), self::MAX_PROMPT_CHARS)."\n</mail>";
 
         $attachments = $this->attachments->prompt($email, $prepared);
         $prompt .= $attachments === null ? '' : "\n\n{$attachments}";

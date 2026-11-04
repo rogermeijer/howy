@@ -50,6 +50,21 @@ class EmailEligibility
     }
 
     /**
+     * Written to the mailbox and to no one else: the sender expects Howy to act
+     * on it, so a request to it counts as a question.
+     */
+    public function writtenToAlone(Email $email, ?Mailbox $mailbox): bool
+    {
+        if ($mailbox === null) {
+            return false;
+        }
+
+        $to = collect($email->to ?? [])->map(fn (array $recipient): string => strtolower($recipient['email']))->unique()->values()->all();
+
+        return $to === [strtolower($mailbox->email_address)];
+    }
+
+    /**
      * Live mail from a person other than the mailbox itself.
      */
     private function considered(Email $email, Mailbox $mailbox): bool

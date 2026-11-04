@@ -207,7 +207,10 @@ a `skipped` row saying so, and nothing more. The role follows where the mailbox 
 - **addressed** — the mailbox is in `To` (with or without others): Howy is asked. It answers a question when the
   answering model is at least `knowledge.mail.answer_min_confidence` (0.75) sure, to the sender, copying in
   everyone else on the mail the rules accept (reply to all). A less sure answer is kept on the mail as `unsure`,
-  not sent. Information is filed; a conflict is explained to the sender.
+  not sent. Information is filed; a conflict is explained to the sender. When the mailbox is the only address in
+  `To`, the sender expects Howy to act, so the classifier is told so (the one piece of envelope it gets) and a
+  request ("write a paragraph about …", summarise, explain) counts as a question, answered in the form asked for.
+  Thanks and out-of-office mail stay `other`, unanswered.
 - **copied** — the mailbox is in `Cc` (or blind-copied, or reached through a group): Howy listens. It answers
   nothing and writes to no one. What people say in the thread is filed as information, read with the message
   it replies to (`In-Reply-To`, else the quoted text) so that "yes, up to three days" becomes a claim of its
