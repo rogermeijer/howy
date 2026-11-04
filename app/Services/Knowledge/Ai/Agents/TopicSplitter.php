@@ -20,8 +20,8 @@ class TopicSplitter implements Agent, HasStructuredOutput
     {
         return <<<'TEXT'
         A folder in a knowledge base holds too many sections to browse. Propose 2 to 6
-        subfolders that divide its content by subject, with short names in the language of the
-        documents and a one-sentence description each, and say for every section (by id) which
+        subfolders that divide its content by subject, with short names in the language the
+        request names and a one-sentence description each, and say for every section (by id) which
         subfolder it belongs in. A section that fits none stays in the folder itself: leave it out.
         TEXT;
     }

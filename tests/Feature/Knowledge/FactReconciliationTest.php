@@ -143,7 +143,7 @@ class FactReconciliationTest extends TestCase
         $pending = Tenancy::for($this->account, function () {
             $email = Email::factory()->create(['subject' => 'Verlof 2027']);
 
-            return app(MailFactWriter::class)->write($email, [['statement' => self::LEAVE, 'subject' => 'verlof', 'valid_from' => null, 'flag' => null]], FactStatus::Proposed, 'nl')[0];
+            return app(MailFactWriter::class)->write($email, [['statement' => self::LEAVE, 'subject' => 'verlof', 'valid_from' => null, 'flag' => null]], FactStatus::Proposed)[0];
         });
 
         $document = $this->upload();

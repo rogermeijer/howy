@@ -54,14 +54,16 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
         - question: for a question, the question rewritten so it stands on its own, in the
           mail's language. Otherwise an empty string.
         - statements: for information, the claims it makes, each as one atomic,
-          self-contained statement that is understandable without the mail ("Vanaf 1 januari
+          self-contained statement that is understandable without the mail, written in the
+          knowledge base language given at the top, whatever language the mail is in (translate
+          faithfully; keep names, amounts and terms as they are) ("Vanaf 1 januari
           2027 is de vergoeding voor thuiswerken 3 euro per dag."). One claim per statement.
           Only what the mail literally says; use the earlier message only to make a reply's
           claims self-contained ("Medewerkers mogen maximaal drie dagen per week thuiswerken."
           for "Ja, tot drie dagen." to "Hoeveel dagen mogen we thuiswerken?"). subject: a short lowercase topic label;
           valid_from: an ISO date (YYYY-MM-DD) if the mail says from when it applies, else null.
           flag: empty when the statement is a fact about how this organisation works, has decided
-          or has agreed. Otherwise one short sentence, in the mail's language, saying why someone
+          or has agreed. Otherwise one short sentence, in the knowledge base language, saying why someone
           should look before it goes into the knowledge base: general advice or best practice
           rather than how the organisation does it ("Algemeen advies over TLS, niet hoe wij het
           geregeld hebben."), an opinion or a guess, or it does not answer what the earlier

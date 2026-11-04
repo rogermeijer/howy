@@ -11,6 +11,7 @@ use App\Models\DocumentSource;
 use App\Models\DocumentVersion;
 use App\Models\Email;
 use App\Services\Knowledge\DocumentIntake;
+use App\Services\Knowledge\Extraction\TextLanguage;
 use App\Services\Knowledge\Placement\DocumentMatcher;
 use App\Services\Knowledge\StepRecorder;
 use Illuminate\Support\Facades\Bus;
@@ -66,6 +67,14 @@ class PlaceDocumentVersion extends KnowledgeJob
                 return ['kind' => 'decoration'];
             }
 
+            // Nobody said which language a mailed file is in, and the mail's is
+            // no guide: read it from the text, before it is chunked and searched.
+            $language = $fromMail && $alone ? TextLanguage::guess($extracted->text()) : null;
+
+            if ($language !== null && $language !== $version->document->language) {
+                $version->document->update(['language' => $language]);
+            }
+
             $placement = ['kind' => 'new'];
 
             if ($same !== null) {
@@ -91,7 +100,7 @@ class PlaceDocumentVersion extends KnowledgeJob
 
             $version->update(['placement' => $placement]);
 
-            return $placement;
+            return [...$placement, 'language' => $language?->value];
         });
 
         if ($continue) {

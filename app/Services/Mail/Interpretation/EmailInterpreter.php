@@ -18,6 +18,7 @@ use App\Models\KnowledgeFact;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
 use App\Services\Knowledge\Ai\Agents\QuestionAnswerer;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\KnowledgeLanguage;
 use App\Services\Knowledge\Review\FactReconciler;
 use App\Services\Knowledge\Search\FactHit;
 use App\Services\Knowledge\Search\KnowledgeSearch;
@@ -409,7 +410,7 @@ class EmailInterpreter
                 continue;
             }
 
-            $candidates = $this->candidates($statement['statement'], $locale);
+            $candidates = $this->candidates($statement['statement']);
 
             if ($candidates === []) {
                 $judged[$index] = $this->judged($statement, 'new');
@@ -434,7 +435,7 @@ class EmailInterpreter
 
         ksort($judged);
         $judged = array_values($judged);
-        $judged = $this->addNewFacts($judged, $email, $locale);
+        $judged = $this->addNewFacts($judged, $email);
 
         $verdicts = array_column($judged, 'verdict');
         $interpretation->statements = $judged;
@@ -459,10 +460,10 @@ class EmailInterpreter
      * @param  list<Statement>  $judged
      * @return list<Statement>
      */
-    private function addNewFacts(array $judged, Email $email, ?string $language): array
+    private function addNewFacts(array $judged, Email $email): array
     {
         $new = array_filter($judged, fn (array $statement): bool => $statement['verdict'] === 'new' && $statement['fact_id'] === null);
-        $facts = $this->facts->write($email, array_values($new), FactStatus::Proposed, $language);
+        $facts = $this->facts->write($email, array_values($new), FactStatus::Proposed);
 
         $ids = [];
 
@@ -484,14 +485,15 @@ class EmailInterpreter
      *
      * @return list<KnowledgeFact>
      */
-    private function candidates(string $statement, string $locale): array
+    private function candidates(string $statement): array
     {
         $hits = array_slice(
             $this->search->search(new SearchQuery(
                 $statement,
                 factStatuses: [FactStatus::Core, FactStatus::Supplementary, FactStatus::Proposed],
                 maxTokens: 500,
-                language: $this->searchLanguage($locale),
+                // Statements and facts are in the knowledge base's language.
+                language: KnowledgeLanguage::searchConfiguration(),
             ))->facts,
             0,
             (int) config('knowledge.mail.conflict_candidates'),
@@ -641,7 +643,7 @@ class EmailInterpreter
     {
         // What it says that was read before is left out, marked […].
         $text = $novelty->remaining > 0 ? $novelty->text : ($email->content_text ?? $email->body_text ?? $email->snippet ?? '');
-        $prompt = "<subject>\n".trim((string) $email->subject)."\n</subject>\n\n<mail>\n".Str::limit(trim($this->mask($text)), self::MAX_PROMPT_CHARS)."\n</mail>";
+        $prompt = 'Knowledge base language: '.KnowledgeLanguage::locale()->label().' ('.KnowledgeLanguage::locale()->value.")\n\n<subject>\n".trim((string) $email->subject)."\n</subject>\n\n<mail>\n".Str::limit(trim($this->mask($text)), self::MAX_PROMPT_CHARS)."\n</mail>";
 
         $attachments = $this->attachments->prompt($email, $prepared);
         $prompt .= $attachments === null ? '' : "\n\n{$attachments}";

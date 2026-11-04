@@ -4,11 +4,11 @@ namespace App\Services\Knowledge\Review;
 
 use App\Enums\FactStatus;
 use App\Enums\Locale;
-use App\Facades\Tenancy;
 use App\Models\DocumentVersion;
 use App\Models\KnowledgeFact;
 use App\Services\Knowledge\Ai\Agents\FactConflictChecker;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\KnowledgeLanguage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -112,7 +112,8 @@ class FactReconciler
             $open['N'.$fact->id] = ['statement' => $fact->statement, 'valid_from' => $fact->valid_from?->toDateString(), 'candidates' => $candidates];
         }
 
-        $locale = ($version->document->language ?? Tenancy::account()->locale)->value;
+        // Explained to the reviewer, in the language the knowledge base is in.
+        $locale = KnowledgeLanguage::locale()->value;
 
         foreach ($this->check($open, $locale, $version, 'fact_conflicts') as $id => $judgement) {
             KnowledgeFact::query()->whereKey((int) substr($id, 1))->update([

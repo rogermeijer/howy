@@ -12,6 +12,7 @@ use App\Models\KnowledgeSummary;
 use App\Models\KnowledgeTopicLink;
 use App\Services\Knowledge\Ai\Agents\SectionEnricher;
 use App\Services\Knowledge\Ai\Batch\BatchRequest;
+use App\Services\Knowledge\KnowledgeLanguage;
 use App\Services\Knowledge\TokenEstimator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -142,6 +143,7 @@ class SectionEnrichment
         $text = $section->chunks->pluck('content')->implode("\n\n");
 
         $prompt = implode("\n", array_filter([
+            KnowledgeLanguage::instruction(),
             "Document: {$document->title}",
             'Section: '.($section->heading_path ?: '(introduction)'),
             $section->page_from ? "Pages: {$section->page_from}–{$section->page_to}" : null,
@@ -211,7 +213,7 @@ class SectionEnrichment
                 'page_from' => $section->page_from,
                 'page_to' => $section->page_to,
                 'content_hash' => $hash,
-                'search_config' => $version->document->language->searchConfiguration(),
+                'search_config' => KnowledgeLanguage::searchConfiguration(),
             ]);
             $created++;
 

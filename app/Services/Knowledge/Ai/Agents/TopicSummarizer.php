@@ -22,7 +22,7 @@ class TopicSummarizer implements Agent, HasStructuredOutput
         return <<<'TEXT'
         You write the overview page of a folder in a company knowledge base: what the
         organisation has laid down about this subject, in three to eight sentences, in the
-        language of the material. Lead with the most important rules and numbers. Every claim
+        language the request names, whatever language the material is in. Lead with the most important rules and numbers. Every claim
         must come from the numbered material given (the page lists those sources itself, so do
         not cite them inline). Do not add advice or anything that is not in the material.
         TEXT;

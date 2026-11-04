@@ -10,6 +10,7 @@ use App\Models\KnowledgeTopic;
 use App\Models\KnowledgeTopicLink;
 use App\Services\Knowledge\Ai\Agents\TopicSummarizer;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\KnowledgeLanguage;
 
 /**
  * Rewrites the overviews of folders whose content changed, deepest first, so
@@ -36,7 +37,7 @@ class TopicSummaryWriter
             if ($material !== '') {
                 $summary = trim((string) ($this->ai->structured(
                     new TopicSummarizer,
-                    "Folder: {$topic->name}".($topic->description ? " — {$topic->description}" : '')."\n\n{$material}",
+                    KnowledgeLanguage::instruction()."\nFolder: {$topic->name}".($topic->description ? " — {$topic->description}" : '')."\n\n{$material}",
                     'topic_summary',
                     $topic,
                 )['summary'] ?? '')) ?: null;

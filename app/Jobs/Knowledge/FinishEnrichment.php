@@ -11,6 +11,7 @@ use App\Models\KnowledgeSummary;
 use App\Services\Knowledge\Ai\Agents\DocumentSummarizer;
 use App\Services\Knowledge\Ai\AiGateway;
 use App\Services\Knowledge\Enrichment\TopicOrganizer;
+use App\Services\Knowledge\KnowledgeLanguage;
 use App\Services\Knowledge\Review\FactReconciler;
 use App\Services\Knowledge\StepRecorder;
 use App\Services\Knowledge\TokenEstimator;
@@ -97,7 +98,7 @@ class FinishEnrichment extends KnowledgeJob
             return;
         }
 
-        $summary = trim((string) ($ai->structured(new DocumentSummarizer, "Document: {$version->document->title}\n\n{$outline}", 'summary', $version)['summary'] ?? ''));
+        $summary = trim((string) ($ai->structured(new DocumentSummarizer, KnowledgeLanguage::instruction()."\nDocument: {$version->document->title}\n\n{$outline}", 'summary', $version)['summary'] ?? ''));
 
         if ($summary !== '') {
             KnowledgeSummary::query()->updateOrCreate(

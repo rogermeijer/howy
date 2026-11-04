@@ -88,14 +88,19 @@ final readonly class ExtractedDocument
     }
 
     /**
-     * The text itself, whatever file it came in: the same document saved or
-     * exported again hashes the same.
+     * The text itself, whatever file it came in.
+     */
+    public function text(): string
+    {
+        return implode(' ', array_map(fn (Block $block): string => $block->text, $this->blocks));
+    }
+
+    /**
+     * The same document saved or exported again hashes the same.
      */
     public function textHash(): string
     {
-        $text = implode(' ', array_map(fn (Block $block): string => $block->text, $this->blocks));
-
-        return hash('sha256', mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $text))));
+        return hash('sha256', mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $this->text()))));
     }
 
     public function characterCount(): int

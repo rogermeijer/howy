@@ -59,6 +59,23 @@ processed again against what is now live. `reject` removes everything the versio
 as `rejected`, so the same file sent again is recognised and stays out; uploading it again on purpose is a new
 decision. A document with only rejected versions is not listed.
 
+## Knowledge base language
+
+Each account builds its knowledge base in one language, `accounts.knowledge_locale` (`KnowledgeLanguage`),
+separate from its default interface language and, for a new account, the same until someone sets it.
+Everything Howy writes itself is in it, whatever language the source is in: section and document summaries,
+facts, folder names and folder summaries, statements from mail, and a conflict's explanation. A fact is
+searched with that language's configuration (`search_config`). So the same claim in a Dutch and an English
+document is one claim, and is recognised as known.
+
+What stays in its own language: the document's text, its chunks and their context lines (search and citations
+quote the source, with the document's own search configuration); answers and replies to mail, in the
+sender's language; each user's interface language.
+
+A document's language is chosen at upload. A mailed file has nobody to choose it, and the mail's language is no
+guide (a Dutch mail carrying an English handbook), so the placement step reads it from the text
+(`TextLanguage`: the share of common words per shipped language; too little text or a mix is left alone).
+
 ## Read once
 
 Nothing is processed or added twice. Each unit has a fingerprint, and what is known is context, never a source:
