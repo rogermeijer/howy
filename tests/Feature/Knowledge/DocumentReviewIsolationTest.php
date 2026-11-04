@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Knowledge;
 
+use App\Enums\FactStatus;
 use App\Enums\ProcessingStatus;
 use App\Facades\Tenancy;
 use App\Models\Account;
 use App\Models\Document;
+use App\Models\DocumentSection;
 use App\Models\DocumentVersion;
+use App\Models\KnowledgeFact;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -48,6 +51,10 @@ class DocumentReviewIsolationTest extends TestCase
 
         $this->post(route('knowledge.documents.versions.approve', [$version->document_id, $version->id]))->assertNotFound();
         $this->post(route('knowledge.documents.versions.reject', [$version->document_id, $version->id]))->assertNotFound();
+
+        $fact = Tenancy::for($this->theirs, fn () => KnowledgeFact::factory()->create(['section_id' => DocumentSection::factory()->create(['document_id' => $version->document_id, 'document_version_id' => $version->id])->id, 'status' => FactStatus::Proposed]));
+        $this->patch(route('knowledge.documents.versions.facts.choice', [$version->document_id, $version->id, $fact->id]), ['choice' => 'omit'])->assertNotFound();
+        $this->assertNull(Tenancy::for($this->theirs, fn () => $fact->fresh()?->review_choice));
 
         Tenancy::for($this->theirs, function () use ($version) {
             $this->assertSame(ProcessingStatus::Review, $version->fresh()?->status);

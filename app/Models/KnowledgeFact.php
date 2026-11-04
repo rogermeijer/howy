@@ -37,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $review_verdict
  * @property int|null $related_fact_id
  * @property string|null $review_explanation
+ * @property string|null $review_choice what a reviewer chose while it waits: new, keep or omit
  * @property Carbon|null $valid_from
  * @property Carbon|null $valid_until
  * @property int|null $superseded_by_id
@@ -63,7 +64,7 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable([
     'source_type', 'source_id', 'document_id', 'document_version_id', 'section_id', 'chunk_id',
-    'statement', 'quote', 'subject', 'status', 'review_verdict', 'related_fact_id', 'review_explanation', 'valid_from', 'valid_until', 'superseded_by_id',
+    'statement', 'quote', 'subject', 'status', 'review_verdict', 'related_fact_id', 'review_explanation', 'review_choice', 'valid_from', 'valid_until', 'superseded_by_id',
     'confidence', 'page_from', 'page_to', 'content_hash', 'embedding', 'embedding_model',
     'search_config',
 ])]

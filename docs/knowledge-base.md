@@ -42,9 +42,10 @@ current and its facts stay `proposed`, so nothing of it is searched. `documents.
 **published** version; a new version of a live document leaves the old one answering until it is approved.
 A version waiting for approval opens on its **Review** tab (`DocumentInspectorController::review`,
 `version-review.tsx`); the document's sections and its processing are tabs beside it. A decision bar on top
-holds Approve and Reject: approving needs a choice per conflict ("the new fact" or "the known fact";
-`DocumentReviewController` refuses without), and takes the new facts the reviewer left out (`omit`), which are
-never added. Below: conflicts side by side with the known fact and its source, new facts per section, what
+holds Approve and Reject. Each choice is saved the moment it is made (`knowledge_facts.review_choice`,
+`knowledge.documents.versions.facts.choice`), so a review can be left and picked up later: per conflict "the new
+fact" (`new`) or "the known fact" (`keep`), and for a new fact "leave out" (`omit`). Approving acts on the saved
+choices and is refused while a conflict has none; left-out facts are never added. Below: conflicts side by side with the known fact and its source, new facts per section, what
 expires, and folded rows for what needs no decision (already known, carried over, stays elsewhere). Picking a
 fact shows where the document says it (`knowledge.documents.facts.source`, `FactPassage`): the section's
 passage with the words marked — the `quote` the enricher copied from the section, kept only when it really

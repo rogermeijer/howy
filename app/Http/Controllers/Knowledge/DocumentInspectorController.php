@@ -300,7 +300,7 @@ class DocumentInspectorController extends Controller
      * Facts by where they are in the document, with the section they come from.
      *
      * @param  Collection<int, KnowledgeFact>  $facts
-     * @return list<array{id: int, statement: string, sectionId: int|null, heading: string|null}>
+     * @return list<array{id: int, statement: string, sectionId: int|null, heading: string|null, omitted: bool}>
      */
     private function listed(Collection $facts): array
     {
@@ -311,6 +311,7 @@ class DocumentInspectorController extends Controller
                 'statement' => $fact->statement,
                 'sectionId' => $fact->section_id,
                 'heading' => $fact->section?->heading_path,
+                'omitted' => $fact->review_choice === 'omit',
             ])
             ->all());
     }
@@ -351,6 +352,8 @@ class DocumentInspectorController extends Controller
             'id' => $fact->id,
             'statement' => $fact->statement,
             'explanation' => $this->readable($fact->review_explanation),
+            // What the reviewer chose so far, kept until approval.
+            'choice' => in_array($fact->review_choice, ['new', 'keep'], true) ? $fact->review_choice : null,
             'sectionId' => $fact->section_id,
             'heading' => $fact->section?->heading_path,
             'existing' => $known === null ? null : [

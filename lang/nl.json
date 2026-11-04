@@ -1274,7 +1274,6 @@
     "Nothing new to decide": "Niets nieuws om te beslissen",
     "Everything this version says is already known: approving makes it one more source of those facts.": "Alles wat deze versie zegt is al bekend: goedkeuren maakt het een extra bron van die feiten.",
     "Conflicts (:count)": "Conflicten (:count)",
-    "This document says something else than the knowledge base. Choose for each conflict what holds.": "Dit document zegt iets anders dan de kennisbank. Kies per conflict wat geldt.",
     "Added when you approve. Pick a fact to see where the document says it; leave out what is not knowledge.": "Komen erbij als je goedkeurt. Kies een feit om te zien waar het in het document staat; laat weg wat geen kennis is.",
     "Added when this version is approved. Pick a fact to see where the document says it.": "Komen erbij als deze versie wordt goedgekeurd. Kies een feit om te zien waar het in het document staat.",
     ":count facts are already in the knowledge base": ":count feiten staan al in de kennisbank",
@@ -1301,5 +1300,7 @@
     ":count to look at": ":count te bekijken",
     "Document": "Document",
     "Choose for every conflict what holds.": "Kies bij elk conflict wat geldt.",
-    "the known fact": "het bekende feit"
+    "the known fact": "het bekende feit",
+    "This document says something else than the knowledge base. Choose for each conflict what holds; your choices are kept until you approve.": "Dit document zegt iets anders dan de kennisbank. Kies per conflict wat geldt; je keuzes blijven bewaard tot je goedkeurt.",
+    "That choice does not fit this fact.": "Die keuze past niet bij dit feit."
 }

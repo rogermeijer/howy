@@ -103,6 +103,9 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
             Route::post('documents/{document}/versions/{version}/reject', [DocumentReviewController::class, 'reject'])
                 ->scopeBindings()
                 ->name('documents.versions.reject');
+            Route::patch('documents/{document}/versions/{version}/facts/{fact}/choice', [DocumentReviewController::class, 'choose'])
+                ->scopeBindings()
+                ->name('documents.versions.facts.choice');
 
             Route::post('folders', [KnowledgeTopicController::class, 'store'])->name('topics.store');
             Route::post('folders/approve', [KnowledgeTopicController::class, 'approveAll'])->name('topics.approve-all');

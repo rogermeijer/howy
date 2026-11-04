@@ -1,4 +1,4 @@
-import { Form, Link } from '@inertiajs/react';
+import { Form, Link, router } from '@inertiajs/react';
 import {
     Check,
     ChevronDown,
@@ -61,28 +61,67 @@ type Passage = {
     statement: string;
 };
 
-export function useReviewChoices(review: VersionReview | null): ReviewChoices {
+/**
+ * The reviewer's choices, as the server keeps them: each one is saved the
+ * moment it is made, so a review can be left and picked up later. Nothing
+ * is approved by it.
+ */
+export function useReviewChoices(
+    review: VersionReview | null,
+    documentId: number,
+    versionId: number | null,
+): ReviewChoices {
     const [decisions, setDecisions] = useState<Record<number, 'new' | 'keep'>>(
-        {},
+        () =>
+            Object.fromEntries(
+                (review?.conflicts ?? [])
+                    .filter((fact) => fact.choice)
+                    .map((fact) => [fact.id, fact.choice as 'new' | 'keep']),
+            ),
     );
-    const [omitted, setOmitted] = useState<number[]>([]);
+    const [omitted, setOmitted] = useState<number[]>(() =>
+        (review?.newFacts ?? [])
+            .filter((fact) => fact.omitted)
+            .map((fact) => fact.id),
+    );
     const [selected, setSelected] = useState<number | null>(
         review?.conflicts[0]?.id ?? review?.newFacts[0]?.id ?? null,
     );
+
+    const save = (factId: number, choice: 'new' | 'keep' | 'omit' | null) => {
+        if (versionId === null) {
+            return;
+        }
+
+        router.patch(
+            DocumentReviewController.choose.url([
+                documentId,
+                versionId,
+                factId,
+            ]),
+            { choice },
+            { preserveScroll: true, preserveState: true, only: ['review'] },
+        );
+    };
 
     return {
         decisions,
         decide: (factId, choice) => {
             setDecisions((current) => ({ ...current, [factId]: choice }));
             setSelected(factId);
+            save(factId, choice);
         },
         omitted,
-        toggleOmit: (factId) =>
+        toggleOmit: (factId) => {
+            const leaving = !omitted.includes(factId);
+
             setOmitted((current) =>
-                current.includes(factId)
-                    ? current.filter((id) => id !== factId)
-                    : [...current, factId],
-            ),
+                leaving
+                    ? [...current, factId]
+                    : current.filter((id) => id !== factId),
+            );
+            save(factId, leaving ? 'omit' : null);
+        },
         selected,
         select: setSelected,
     };
@@ -187,24 +226,6 @@ export function ReviewDecision({
                         >
                             {({ processing, errors }) => (
                                 <>
-                                    {Object.entries(choices.decisions).map(
-                                        ([id, choice]) => (
-                                            <input
-                                                key={id}
-                                                type="hidden"
-                                                name={`conflicts[${id}]`}
-                                                value={choice}
-                                            />
-                                        ),
-                                    )}
-                                    {choices.omitted.map((id) => (
-                                        <input
-                                            key={id}
-                                            type="hidden"
-                                            name="omit[]"
-                                            value={id}
-                                        />
-                                    ))}
                                     <Button
                                         type="submit"
                                         className="h-11 px-5"
@@ -374,7 +395,7 @@ export function ReviewTab({
                                 count: review.conflicts.length,
                             })}
                             caption={t(
-                                'This document says something else than the knowledge base. Choose for each conflict what holds.',
+                                'This document says something else than the knowledge base. Choose for each conflict what holds; your choices are kept until you approve.',
                             )}
                         >
                             {review.conflicts.map((fact) => (

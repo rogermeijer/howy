@@ -102,7 +102,11 @@ export default function DocumentInspector({
     const [chosenTab, setTab] = useState<Tab>(review ? 'review' : 'structure');
     const tab: Tab =
         chosenTab === 'review' && !review ? 'structure' : chosenTab;
-    const choices = useReviewChoices(review);
+    const choices = useReviewChoices(
+        review,
+        document.id,
+        review ? (version?.id ?? null) : null,
+    );
 
     const current = versions.find((item) => item.id === version?.id);
     const processing = isProcessing(current?.status);

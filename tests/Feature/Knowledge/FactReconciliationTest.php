@@ -134,7 +134,8 @@ class FactReconciliationTest extends TestCase
         $document = $this->upload();
         $conflictId = Tenancy::for($this->account, fn () => KnowledgeFact::query()->where('statement', self::SICK_NEW)->value('id'));
 
-        $this->approve($document, ['conflicts' => [$conflictId => 'new']]);
+        $this->choose($document, $conflictId, 'new');
+        $this->approve($document);
 
         Tenancy::for($this->account, function () use ($sick) {
             $new = KnowledgeFact::query()->where('statement', self::SICK_NEW)->sole();
@@ -153,7 +154,8 @@ class FactReconciliationTest extends TestCase
         $document = $this->upload();
         $conflictId = Tenancy::for($this->account, fn () => KnowledgeFact::query()->where('statement', self::SICK_NEW)->value('id'));
 
-        $this->approve($document, ['conflicts' => [$conflictId => 'keep']]);
+        $this->choose($document, $conflictId, 'keep');
+        $this->approve($document);
 
         Tenancy::for($this->account, function () use ($sick) {
             $this->assertFalse(KnowledgeFact::query()->where('statement', self::SICK_NEW)->exists());
@@ -233,15 +235,52 @@ class FactReconciliationTest extends TestCase
         return Tenancy::for($this->account, fn () => Document::query()->where('title', 'Personeelshandboek')->sole());
     }
 
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    private function approve(Document $document, array $data = []): void
+    public function test_choices_are_kept_until_approval(): void
+    {
+        [, $sick] = $this->knownFacts();
+        $this->fakeConflictChecker($sick);
+        $document = $this->upload();
+        $conflictId = Tenancy::for($this->account, fn () => KnowledgeFact::query()->where('statement', self::SICK_NEW)->value('id'));
+
+        $this->choose($document, $conflictId, 'keep');
+
+        // Picked up later: the choice is there, nothing is approved yet.
+        $this->actingAs($this->admin)
+            ->get(route('knowledge.documents.show', $document))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('review.conflicts.0.choice', 'keep'));
+
+        $this->assertSame(FactStatus::Proposed, Tenancy::for($this->account, fn () => KnowledgeFact::query()->whereKey($conflictId)->value('status')));
+
+        // A choice that does not fit the fact is refused.
+        $version = Tenancy::for($this->account, fn () => $document->latestVersion()->value('id'));
+        $this->actingAs($this->admin)
+            ->patch(route('knowledge.documents.versions.facts.choice', [$document, $version, $conflictId]), ['choice' => 'omit'])
+            ->assertSessionHasErrors('choice');
+
+        // Only an administrator chooses.
+        $member = User::factory()->withAccount($this->account, isAdmin: false)->create();
+        $this->actingAs($member)
+            ->patch(route('knowledge.documents.versions.facts.choice', [$document, $version, $conflictId]), ['choice' => 'new'])
+            ->assertForbidden();
+    }
+
+    private function choose(Document $document, int $factId, ?string $choice): void
     {
         $version = Tenancy::for($this->account, fn () => $document->latestVersion()->value('id'));
 
         $this->actingAs($this->admin)
-            ->post(route('knowledge.documents.versions.approve', [$document, $version]), $data)
+            ->patch(route('knowledge.documents.versions.facts.choice', [$document, $version, $factId]), ['choice' => $choice])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+    }
+
+    private function approve(Document $document): void
+    {
+        $version = Tenancy::for($this->account, fn () => $document->latestVersion()->value('id'));
+
+        $this->actingAs($this->admin)
+            ->post(route('knowledge.documents.versions.approve', [$document, $version]))
             ->assertRedirect();
     }
 }

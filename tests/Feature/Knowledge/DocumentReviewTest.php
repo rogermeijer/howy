@@ -154,8 +154,15 @@ class DocumentReviewTest extends TestCase
         [$left, $kept] = Tenancy::for($this->account, fn () => KnowledgeFact::query()->orderBy('id')->take(2)->get()->all());
 
         $this->actingAs($this->admin)
-            ->post(route('knowledge.documents.versions.approve', [$document, $this->latest($document)]), ['omit' => [$left->id]])
+            ->patch(route('knowledge.documents.versions.facts.choice', [$document, $this->latest($document), $left->id]), ['choice' => 'omit'])
             ->assertRedirect();
+
+        // Kept while the review goes on.
+        $this->actingAs($this->admin)
+            ->get(route('knowledge.documents.show', $document))
+            ->assertInertia(fn (Assert $page) => $page->where('review.newFacts.0.omitted', true));
+
+        $this->approve($document)->assertRedirect();
 
         Tenancy::for($this->account, function () use ($left, $kept) {
             $this->assertFalse(KnowledgeFact::query()->whereKey($left->id)->exists());

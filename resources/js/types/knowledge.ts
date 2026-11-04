@@ -174,6 +174,8 @@ export type ReviewFact = {
     statement: string;
     sectionId: number | null;
     heading: string | null;
+    /** Left out by a reviewer: not added on approval. */
+    omitted?: boolean;
 };
 
 /** A fact of the previous version that expires when this one is approved. */
@@ -276,6 +278,8 @@ export type JudgedFact = {
     explanation: string | null;
     sectionId: number | null;
     heading: string | null;
+    /** What a reviewer chose so far, kept until approval. */
+    choice?: 'new' | 'keep' | null;
     existing: {
         statement: string;
         status: FactStatus;
