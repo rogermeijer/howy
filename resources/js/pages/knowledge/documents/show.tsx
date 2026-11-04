@@ -18,6 +18,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useFormatDate } from '@/hooks/use-format-date';
+import { FactSources } from '@/components/knowledge/fact-sources';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { knowledge } from '@/routes';
@@ -379,7 +380,7 @@ export default function DocumentInspector({
                                                 {section.facts.map((fact) => (
                                                     <li
                                                         key={fact.id}
-                                                        className="flex items-start gap-3 rounded-lg bg-cc-bg px-3 py-2.5"
+                                                        className="flex flex-wrap items-start gap-x-3 gap-y-2 rounded-lg bg-cc-bg px-3 py-2.5"
                                                     >
                                                         <span
                                                             className={cn(
@@ -410,6 +411,19 @@ export default function DocumentInspector({
                                                                 )}
                                                             </span>
                                                         )}
+                                                        <span className="basis-full">
+                                                            <FactSources
+                                                                sources={
+                                                                    fact.sources
+                                                                }
+                                                                except={
+                                                                    section.id
+                                                                }
+                                                                label={t(
+                                                                    'Also in',
+                                                                )}
+                                                            />
+                                                        </span>
                                                     </li>
                                                 ))}
                                             </ul>

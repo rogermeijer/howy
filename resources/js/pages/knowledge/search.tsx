@@ -49,6 +49,8 @@ type FactHitView = {
     pageFrom: number | null;
     emailId: number | null;
     emailSubject: string | null;
+    sourcesCount: number;
+    sourceRemoved: boolean;
 };
 
 type Props = {
@@ -204,25 +206,53 @@ export default function KnowledgeSearchPage({
                                             <span className="cc-body">
                                                 {fact.statement}
                                             </span>
-                                            {fact.emailId !== null ? (
-                                                <EmailSourceChip
-                                                    subject={
-                                                        fact.emailSubject ||
-                                                        t('(no subject)')
-                                                    }
-                                                    emailId={fact.emailId}
-                                                />
-                                            ) : (
-                                                <SourceChip
-                                                    documentId={fact.documentId}
-                                                    title={fact.documentTitle}
-                                                    headingPath={
-                                                        fact.headingPath
-                                                    }
-                                                    pageFrom={fact.pageFrom}
-                                                    sectionId={fact.sectionId}
-                                                />
-                                            )}
+                                            <span className="flex flex-wrap items-center gap-2">
+                                                {fact.emailId !== null ? (
+                                                    <EmailSourceChip
+                                                        subject={
+                                                            fact.emailSubject ||
+                                                            t('(no subject)')
+                                                        }
+                                                        emailId={fact.emailId}
+                                                    />
+                                                ) : fact.sourceRemoved ? (
+                                                    <span className="cc-caption">
+                                                        {t(':title (removed)', {
+                                                            title:
+                                                                fact.documentTitle ??
+                                                                '',
+                                                        })}
+                                                    </span>
+                                                ) : (
+                                                    <SourceChip
+                                                        documentId={
+                                                            fact.documentId
+                                                        }
+                                                        title={
+                                                            fact.documentTitle
+                                                        }
+                                                        headingPath={
+                                                            fact.headingPath
+                                                        }
+                                                        pageFrom={fact.pageFrom}
+                                                        sectionId={
+                                                            fact.sectionId
+                                                        }
+                                                    />
+                                                )}
+                                                {fact.sourcesCount > 1 && (
+                                                    <span className="cc-caption">
+                                                        {t(
+                                                            '+:count more sources',
+                                                            {
+                                                                count:
+                                                                    fact.sourcesCount -
+                                                                    1,
+                                                            },
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </span>
                                         </li>
                                     ))}
                                 </ul>

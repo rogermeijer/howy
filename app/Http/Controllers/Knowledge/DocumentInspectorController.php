@@ -19,6 +19,7 @@ use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeFact;
 use App\Models\KnowledgeTopic;
 use App\Models\KnowledgeTopicLink;
+use App\Services\Knowledge\Facts\FactSourcePresenter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -31,6 +32,8 @@ use Inertia\Response;
  */
 class DocumentInspectorController extends Controller
 {
+    public function __construct(private readonly FactSourcePresenter $sources) {}
+
     public function show(Request $request, Document $document): Response
     {
         $document->load(['currentVersion', 'latestVersion', 'uploadedBy']);
@@ -45,7 +48,7 @@ class DocumentInspectorController extends Controller
 
         $sections = $version === null ? collect() : DocumentSection::query()
             ->where('document_version_id', $version->id)
-            ->withCount(['chunks', 'facts'])
+            ->withCount(['chunks', 'factSources as facts_count'])
             ->orderBy('ordinal')
             ->get();
 
@@ -93,7 +96,14 @@ class DocumentInspectorController extends Controller
             return null;
         }
 
-        $section->load(['summary', 'chunks', 'facts' => fn ($query) => $query->orderBy('id')]);
+        $section->load(['summary', 'chunks']);
+
+        // What it states, also where the fact is cited from somewhere else.
+        $facts = KnowledgeFact::query()
+            ->with(['sources.version', 'sources.section'])
+            ->whereHas('sources', fn ($query) => $query->where('section_id', $section->id))
+            ->orderBy('id')
+            ->get();
 
         $topics = KnowledgeTopicLink::query()
             ->with('topic')
@@ -120,13 +130,14 @@ class DocumentInspectorController extends Controller
                 'embedded' => $chunk->embedding_model !== null,
                 'isCurrent' => $chunk->is_current,
             ]),
-            'facts' => $section->facts->map(fn (KnowledgeFact $fact): array => [
+            'facts' => $facts->map(fn (KnowledgeFact $fact): array => [
                 'id' => $fact->id,
                 'statement' => $fact->statement,
                 'status' => $fact->status->value,
                 'validFrom' => $fact->valid_from?->toDateString(),
                 'validUntil' => $fact->valid_until?->toDateString(),
                 'pageFrom' => $fact->page_from,
+                'sources' => $this->sources->present($fact),
             ]),
             'topics' => $topics->map(fn (KnowledgeTopicLink $link): array => [
                 'id' => $link->topic->id,
@@ -272,7 +283,7 @@ class DocumentInspectorController extends Controller
                 'status' => $known->status->value,
                 'source' => $email !== null
                     ? ['type' => 'email', 'id' => $email->id, 'title' => (string) $email->subject]
-                    : ['type' => 'document', 'id' => $known->document_id, 'title' => (string) $known->document?->title, 'versionNumber' => $known->version?->version_number],
+                    : ['type' => 'document', 'id' => $known->document_id, 'title' => $known->documentTitle(), 'versionNumber' => $known->version?->version_number],
             ],
         ];
     }

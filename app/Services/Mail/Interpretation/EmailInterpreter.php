@@ -18,6 +18,7 @@ use App\Models\KnowledgeFact;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
 use App\Services\Knowledge\Ai\Agents\QuestionAnswerer;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\Facts\FactSources;
 use App\Services\Knowledge\KnowledgeLanguage;
 use App\Services\Knowledge\Review\FactReconciler;
 use App\Services\Knowledge\Search\FactHit;
@@ -77,6 +78,7 @@ class EmailInterpreter
         private readonly MailAttachments $attachments,
         private readonly FactReconciler $reconciler,
         private readonly ThreadDocumentWriter $threads,
+        private readonly FactSources $sources,
     ) {}
 
     public function interpret(Email $email): EmailInterpretation
@@ -436,6 +438,7 @@ class EmailInterpreter
         ksort($judged);
         $judged = array_values($judged);
         $judged = $this->addNewFacts($judged, $email);
+        $this->confirmKnown($judged, $email);
 
         $verdicts = array_column($judged, 'verdict');
         $interpretation->statements = $judged;
@@ -476,6 +479,26 @@ class EmailInterpreter
             $judged,
             array_keys($judged),
         );
+    }
+
+    /**
+     * What the mail says that is known already: the mail is one more source
+     * of it. It changes nothing that is known, so it waits for nobody.
+     *
+     * @param  list<Statement>  $judged
+     */
+    private function confirmKnown(array $judged, Email $email): void
+    {
+        $ids = array_values(array_filter(array_map(
+            fn (array $statement): ?int => $statement['verdict'] === 'duplicate' ? $statement['existing_fact_id'] : null,
+            $judged,
+        )));
+
+        foreach (KnowledgeFact::query()->whereKey($ids)->get() as $known) {
+            if ($this->sources->canConfirm($known)) {
+                $this->sources->confirmByMail($known, $email);
+            }
+        }
     }
 
     /**
@@ -551,7 +574,7 @@ class EmailInterpreter
         foreach (KnowledgeFact::query()->with(['document', 'section'])->whereKey($ids)->get() as $fact) {
             $sources[$fact->id] = $fact->source_type === 'email'
                 ? ['type' => 'email', 'id' => $fact->source_id, 'title' => (string) Email::query()->whereKey($fact->source_id)->value('subject'), 'section_id' => null, 'heading_path' => null, 'page' => null]
-                : ['type' => 'document', 'id' => (int) $fact->document_id, 'title' => (string) $fact->document?->title, 'section_id' => $fact->section_id, 'heading_path' => $fact->section?->heading_path, 'page' => $fact->page_from];
+                : ['type' => 'document', 'id' => (int) $fact->document_id, 'title' => $fact->documentTitle(), 'section_id' => $fact->section_id, 'heading_path' => $fact->section?->heading_path, 'page' => $fact->page_from];
         }
 
         return $sources;

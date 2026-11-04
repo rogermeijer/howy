@@ -127,7 +127,7 @@ class InterpretationPresenter
         foreach ($facts as $fact) {
             $sources[$fact->id] = $fact->source_type === 'email'
                 ? ['type' => 'email', 'id' => $fact->source_id, 'title' => (string) ($subjects[$fact->source_id] ?? ''), 'sectionId' => null, 'headingPath' => null, 'page' => null]
-                : ['type' => 'document', 'id' => (int) $fact->document_id, 'title' => (string) $fact->document?->title, 'sectionId' => $fact->section_id, 'headingPath' => $fact->section?->heading_path, 'page' => $fact->page_from];
+                : ['type' => 'document', 'id' => (int) $fact->document_id, 'title' => $fact->documentTitle(), 'sectionId' => $fact->section_id, 'headingPath' => $fact->section?->heading_path, 'page' => $fact->page_from];
         }
 
         return $sources;

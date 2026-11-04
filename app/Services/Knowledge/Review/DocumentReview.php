@@ -19,6 +19,7 @@ use App\Models\KnowledgeTopicLink;
 use App\Models\User;
 use App\Services\Knowledge\Enrichment\SectionEnrichment;
 use App\Services\Knowledge\Enrichment\TopicOrganizer;
+use App\Services\Knowledge\Facts\FactSources;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -36,6 +37,7 @@ class DocumentReview
     public function __construct(
         private readonly SectionEnrichment $enrichment,
         private readonly TopicOrganizer $topics,
+        private readonly FactSources $sources,
     ) {}
 
     /**
@@ -57,6 +59,7 @@ class DocumentReview
 
             $this->enrichment->handOver($version);
             $this->settleConflicts($version, $keepExisting);
+            $this->confirmKnown($version);
 
             KnowledgeFact::query()
                 ->where('document_version_id', $version->id)
@@ -83,6 +86,27 @@ class DocumentReview
         });
 
         RefreshTopicSummaries::dispatch()->afterCommit();
+    }
+
+    /**
+     * A claim the knowledge base already holds is not added again: this
+     * version becomes one more source of the known fact. One that is itself
+     * still waiting is not relied on and goes in as a fact of its own.
+     */
+    private function confirmKnown(DocumentVersion $version): void
+    {
+        $duplicates = KnowledgeFact::query()
+            ->with('relatedFact')
+            ->where('document_version_id', $version->id)
+            ->where('status', FactStatus::Proposed)
+            ->where('review_verdict', 'duplicate')
+            ->get();
+
+        foreach ($duplicates as $duplicate) {
+            if ($duplicate->relatedFact !== null && $this->sources->canConfirm($duplicate->relatedFact)) {
+                $this->sources->confirm($duplicate->relatedFact, $duplicate);
+            }
+        }
     }
 
     public function reject(DocumentVersion $version): void

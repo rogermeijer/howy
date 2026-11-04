@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\BelongsToAccount;
 use App\Enums\FactStatus;
+use App\Services\Knowledge\Facts\FactSources;
 use Database\Factories\KnowledgeFactFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
@@ -56,6 +58,7 @@ use Illuminate\Support\Carbon;
  * @property-read KnowledgeFact|null $supersededBy
  * @property-read KnowledgeFact|null $relatedFact
  * @property-read Collection<int, KnowledgeTopicLink> $topicLinks
+ * @property-read Collection<int, KnowledgeFactSource> $sources
  */
 #[Fillable([
     'source_type', 'source_id', 'document_id', 'document_version_id', 'section_id', 'chunk_id',
@@ -70,6 +73,33 @@ class KnowledgeFact extends Model
 
     /** @use HasFactory<KnowledgeFactFactory> */
     use HasFactory;
+
+    /**
+     * Every new fact is stated somewhere: its own source is its first.
+     */
+    protected static function booted(): void
+    {
+        static::created(fn (KnowledgeFact $fact) => app(FactSources::class)->recordPrimary($fact));
+    }
+
+    /**
+     * Every place it is stated, its primary source included.
+     *
+     * @return HasMany<KnowledgeFactSource, $this>
+     */
+    public function sources(): HasMany
+    {
+        return $this->hasMany(KnowledgeFactSource::class);
+    }
+
+    /**
+     * The document it is cited from, by name: also when that document was
+     * removed and the fact kept.
+     */
+    public function documentTitle(): string
+    {
+        return $this->document->title ?? (string) $this->sources()->where('kind', 'document')->orderBy('id')->value('title');
+    }
 
     /**
      * @return MorphTo<Model, $this>

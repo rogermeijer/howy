@@ -76,6 +76,24 @@ A document's language is chosen at upload. A mailed file has nobody to choose it
 guide (a Dutch mail carrying an English handbook), so the placement step reads it from the text
 (`TextLanguage`: the share of common words per shipped language; too little text or a mix is left alone).
 
+## Sources of a fact
+
+A fact is one claim, stated in as many places as say it (`knowledge_fact_sources`, `FactSources`): a section of
+a document, or a mail. Its own source columns on `knowledge_facts` stay its primary source, the place it is cited
+from; every source, that one included, is a row, recorded when the fact is made. Each row keeps the title it had,
+so a removed document can still be named.
+
+- **Approving a document**: a new fact found already known (`review_verdict = duplicate`) is not added again; the
+  version becomes one more source of the known fact. Only a fact that counts already takes sources on; one still
+  waiting elsewhere is not relied on, and the document keeps its own.
+- **Mail**: a statement that is already known adds the mail as a source of the known fact right away. It changes
+  nothing that is known, so it waits for nobody.
+- **A new version**: what its unchanged sections state moves along. Every other source in the previous version
+  goes; a fact with no other place left expires (its sources kept as history), one stated elsewhere stays and is
+  cited from there (`FactSources::promote`).
+- **Pages**: a folder lists every fact stated in its sections; a section in the inspector lists what it states,
+  with the other places as "Also in"; search shows the cited source and how many more there are.
+
 ## Read once
 
 Nothing is processed or added twice. Each unit has a fingerprint, and what is known is context, never a source:

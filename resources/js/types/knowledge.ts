@@ -91,6 +91,20 @@ export type ChunkView = {
 
 export type FactStatus = 'core' | 'supplementary' | 'expired' | 'proposed';
 
+/** One place a fact is stated. */
+export type FactSourceView = {
+    kind: 'document' | 'mail';
+    title: string;
+    documentId: number | null;
+    versionNumber: number | null;
+    sectionId: number | null;
+    headingPath: string | null;
+    pageFrom: number | null;
+    emailId: number | null;
+    /** Its document was removed and the fact kept. */
+    removed: boolean;
+};
+
 export type FactView = {
     id: number;
     statement: string;
@@ -98,6 +112,8 @@ export type FactView = {
     validFrom: string | null;
     validUntil: string | null;
     pageFrom: number | null;
+    /** Every place it is stated, the cited one first. */
+    sources: FactSourceView[];
 };
 
 export type SectionDetail = {
@@ -252,6 +268,8 @@ export type TopicFact = {
     sectionId: number | null;
     headingPath: string | null;
     pageFrom: number | null;
+    /** Every place it is stated, the cited one first. */
+    sources: FactSourceView[];
 };
 
 export type TopicSource = {
