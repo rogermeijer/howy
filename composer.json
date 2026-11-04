@@ -22,6 +22,7 @@
         "laravel/wayfinder": "^0.1.14",
         "opcodesio/log-viewer": "^3.24",
         "predis/predis": "^3.6",
+        "resend/resend-php": "^1.18",
         "symfony/html-sanitizer": "^7.4"
     },
     "require-dev": {

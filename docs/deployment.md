@@ -86,8 +86,9 @@ DB_PASSWORD=…           # Forge shows it once when the server is created
 QUEUE_CONNECTION=redis  # Horizon only works redis queues
 REDIS_CLIENT=phpredis   # or predis
 
-MAIL_MAILER=…           # real mailer: password resets, invites, contact form
-MAIL_FROM_ADDRESS=…
+MAIL_MAILER=resend      # Resend's API (resend/resend-php): password resets, invites, contact form
+RESEND_API_KEY=…        # the MAIL_HOST/PORT/USERNAME/PASSWORD SMTP settings are then unused
+MAIL_FROM_ADDRESS=…     # on a domain verified in Resend
 
 OPENAI_API_KEY=…        # without it documents are still extracted and text-searchable
 
