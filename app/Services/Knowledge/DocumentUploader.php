@@ -31,9 +31,12 @@ class DocumentUploader
         return $this->intake->newVersion($document, $this->path($file), $file->getClientOriginalName(), IntakeSource::upload($user));
     }
 
-    public function delete(Document $document): void
+    /**
+     * @return array{kept: int, removed: int}
+     */
+    public function delete(Document $document, bool $keepFacts): array
     {
-        $this->intake->delete($document);
+        return $this->intake->delete($document, $keepFacts);
     }
 
     private function path(UploadedFile $file): string

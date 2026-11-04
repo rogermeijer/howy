@@ -174,7 +174,7 @@ class DocumentUploadTest extends TestCase
 
         $version = Tenancy::for($this->account, fn () => DocumentVersion::query()->sole());
 
-        $this->delete(route('knowledge.documents.destroy', $version->document_id))
+        $this->delete(route('knowledge.documents.destroy', $version->document_id), ['facts' => 'remove'])
             ->assertRedirect(route('knowledge.documents.index'));
 
         Storage::disk('knowledge')->assertMissing($version->path);

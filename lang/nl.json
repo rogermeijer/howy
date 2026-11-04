@@ -534,7 +534,6 @@
     "This file has already been uploaded as :title (version :version).": "Dit bestand is al geüpload als :title (versie :version).",
     "Untitled document": "Naamloos document",
     "Remove :title?": ":title verwijderen?",
-    "All versions, the original files and everything derived from them — sections, summaries and facts — are removed. This cannot be undone.": "Alle versies, de originele bestanden en alles wat eruit is afgeleid — secties, samenvattingen en feiten — worden verwijderd. Dit kan niet ongedaan worden gemaakt.",
     "Click to choose another file": "Klik om een ander bestand te kiezen",
     "Drop a PDF or Word file here, or click to browse": "Sleep een PDF- of Word-bestand hierheen, of klik om te bladeren",
     ".pdf or .docx, up to :size MB": ".pdf of .docx, tot :size MB",
@@ -1239,5 +1238,14 @@
     "(introduction)": "(inleiding)",
     "Also in": "Ook in",
     ":title (removed)": ":title (verwijderd)",
-    "+:count more sources": "+:count andere bronnen"
+    "+:count more sources": "+:count andere bronnen",
+    "Choose what happens to its facts.": "Kies wat er met de feiten gebeurt.",
+    ":title is removed; its :count facts stay in the knowledge base.": ":title is verwijderd; de :count feiten blijven in de kennisbank.",
+    "All versions, the original files, sections and summaries are removed. This cannot be undone. What happens to its facts is up to you.": "Alle versies, de originele bestanden, secties en samenvattingen worden verwijderd. Dit kan niet ongedaan worden gemaakt. Wat er met de feiten gebeurt, kies je zelf.",
+    ":only facts are stated only in this document; :elsewhere also in another document or a mail. Those always stay.": ":only feiten staan alleen in dit document; :elsewhere ook in een ander document of een mail. Die blijven altijd.",
+    "Its facts": "De feiten",
+    "Keep its facts": "Feiten behouden",
+    "They keep counting and are cited as from the removed document.": "Ze blijven gelden en verwijzen naar het verwijderde document.",
+    "Remove the facts only this document states": "Feiten verwijderen die alleen in dit document staan",
+    "Facts that something else states too stay, cited from there.": "Feiten die ook elders staan blijven, met daar hun bron."
 }

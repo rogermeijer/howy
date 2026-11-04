@@ -91,6 +91,7 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
 
             Route::post('documents', [DocumentController::class, 'store'])->name('documents.store');
             Route::patch('documents/{document}', [DocumentController::class, 'update'])->name('documents.update');
+            Route::get('documents/{document}/removal', [DocumentController::class, 'removal'])->name('documents.removal');
             Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
             Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('documents.reprocess');
             Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store'])->name('documents.versions.store');

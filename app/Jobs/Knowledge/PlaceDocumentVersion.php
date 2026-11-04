@@ -169,7 +169,7 @@ class PlaceDocumentVersion extends KnowledgeJob
             DocumentSource::query()->where('document_version_id', $version->id)->update(['document_id' => $target->id]);
 
             if (! $placeholder->versions()->exists()) {
-                $intake->delete($placeholder);
+                $intake->delete($placeholder, keepFacts: false);
             }
         });
 
@@ -200,7 +200,7 @@ class PlaceDocumentVersion extends KnowledgeJob
         $version->delete();
 
         if (! $document->versions()->exists()) {
-            $intake->delete($document);
+            $intake->delete($document, keepFacts: false);
         }
     }
 }

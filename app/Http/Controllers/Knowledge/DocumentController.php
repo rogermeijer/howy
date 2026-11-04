@@ -6,12 +6,15 @@ use App\Enums\DocumentFormat;
 use App\Enums\DocumentType;
 use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Knowledge\DestroyDocumentRequest;
 use App\Http\Requests\Knowledge\StoreDocumentRequest;
 use App\Http\Requests\Knowledge\UpdateDocumentRequest;
 use App\Http\Resources\Knowledge\DocumentResource;
 use App\Jobs\Knowledge\ProcessDocumentVersion;
 use App\Models\Document;
 use App\Services\Knowledge\DocumentUploader;
+use App\Services\Knowledge\Facts\FactSources;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -70,13 +73,24 @@ class DocumentController extends Controller
         return back();
     }
 
-    public function destroy(Document $document, DocumentUploader $uploader): RedirectResponse
+    /**
+     * What removing a document would do to its facts, for the remover to
+     * choose: how many are stated only here, and how many elsewhere too.
+     */
+    public function removal(Document $document, FactSources $facts): JsonResponse
     {
-        $uploader->delete($document);
+        return response()->json($facts->impact($document));
+    }
+
+    public function destroy(DestroyDocumentRequest $request, Document $document, DocumentUploader $uploader): RedirectResponse
+    {
+        $result = $uploader->delete($document, $request->keepsFacts());
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => __(':title is removed from the knowledge base.', ['title' => $document->title]),
+            'message' => $request->keepsFacts() && $result['kept'] > 0
+                ? __(':title is removed; its :count facts stay in the knowledge base.', ['title' => $document->title, 'count' => $result['kept']])
+                : __(':title is removed from the knowledge base.', ['title' => $document->title]),
         ]);
 
         return to_route('knowledge.documents.index');

@@ -91,6 +91,11 @@ so a removed document can still be named.
 - **A new version**: what its unchanged sections state moves along. Every other source in the previous version
   goes; a fact with no other place left expires (its sources kept as history), one stated elsewhere stays and is
   cited from there (`FactSources::promote`).
+- **Removing a document** is a choice about its facts, made in the remove dialog (no default; the request is
+  refused without one). It shows how many facts are stated only there (`knowledge.documents.removal`). A fact
+  stated elsewhere too always stays, cited from there. One stated only there is kept ("keep": it keeps counting
+  and names the removed document) or removed ("remove"). Proposed and expired facts go with the document either
+  way (`FactSources::release`).
 - **Pages**: a folder lists every fact stated in its sections; a section in the inspector lists what it states,
   with the other places as "Also in"; search shows the cited source and how many more there are.
 

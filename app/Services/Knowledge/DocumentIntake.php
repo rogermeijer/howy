@@ -11,6 +11,7 @@ use App\Jobs\Knowledge\ProcessDocumentVersion;
 use App\Models\Document;
 use App\Models\DocumentSource;
 use App\Models\DocumentVersion;
+use App\Services\Knowledge\Facts\FactSources;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,8 @@ class DocumentIntake
      * @var list<string>
      */
     private array $written = [];
+
+    public function __construct(private readonly FactSources $facts) {}
 
     /**
      * @param  array{title?: string|null, type: string|DocumentType, is_core: bool, language: string|Locale, effective_date?: string|null}  $attributes
@@ -73,15 +76,26 @@ class DocumentIntake
 
     /**
      * Remove a document, its versions and their files. Everything derived from
-     * them goes with the database cascade.
+     * them goes with the database cascade, except its facts: a fact stated
+     * elsewhere too stays, and one stated only here stays or goes as the
+     * remover chose (FactSources::release).
+     *
+     * @return array{kept: int, removed: int}
      */
-    public function delete(Document $document): void
+    public function delete(Document $document, bool $keepFacts): array
     {
         $directory = self::directory($document);
 
-        $document->delete();
+        $result = DB::transaction(function () use ($document, $keepFacts): array {
+            $result = $this->facts->release($document, $keepFacts);
+            $document->delete();
+
+            return $result;
+        });
 
         Storage::disk((string) config('knowledge.disk'))->deleteDirectory($directory);
+
+        return $result;
     }
 
     /**
@@ -128,8 +142,9 @@ class DocumentIntake
             $document = $existing->document;
             $existing->delete();
 
+            // A rejected version left no facts behind.
             if (! $document->versions()->exists()) {
-                $this->delete($document);
+                $this->delete($document, keepFacts: false);
             }
 
             return null;
