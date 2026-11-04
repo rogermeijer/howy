@@ -1302,5 +1302,6 @@
     "Choose for every conflict what holds.": "Kies bij elk conflict wat geldt.",
     "the known fact": "het bekende feit",
     "This document says something else than the knowledge base. Choose for each conflict what holds; your choices are kept until you approve.": "Dit document zegt iets anders dan de kennisbank. Kies per conflict wat geldt; je keuzes blijven bewaard tot je goedkeurt.",
-    "That choice does not fit this fact.": "Die keuze past niet bij dit feit."
+    "That choice does not fit this fact.": "Die keuze past niet bij dit feit.",
+    "The passage could not be loaded. Reload the page and try again.": "De passage kon niet worden geladen. Laad de pagina opnieuw en probeer het nog eens."
 }

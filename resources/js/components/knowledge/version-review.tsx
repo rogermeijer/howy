@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import DocumentReviewController from '@/actions/App/Http/Controllers/Knowledge/DocumentReviewController';
 import InputError from '@/components/input-error';
 import { FactSources } from '@/components/knowledge/fact-sources';
+import { MarkdownTable } from '@/components/knowledge/rich-text';
 import {
     EmailSourceChip,
     SourceChip,
@@ -868,9 +869,11 @@ function SourcePanel({
 }) {
     const t = useTranslations();
     const [passage, setPassage] = useState<Passage | null>(null);
+    const [failed, setFailed] = useState(false);
 
     useEffect(() => {
         setPassage(null);
+        setFailed(false);
 
         if (factId === null) {
             return;
@@ -885,9 +888,19 @@ function SourcePanel({
             },
             signal: controller.signal,
         })
-            .then((response) => (response.ok ? response.json() : null))
-            .then((data: Passage | null) => setPassage(data))
-            .catch(() => undefined);
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(String(response.status));
+                }
+
+                return response.json();
+            })
+            .then((data: Passage) => setPassage(data))
+            .catch((error: unknown) => {
+                if (!controller.signal.aborted) {
+                    setFailed(error instanceof Error);
+                }
+            });
 
         return () => controller.abort();
     }, [documentId, factId]);
@@ -901,22 +914,18 @@ function SourcePanel({
                 <p className="cc-caption">
                     {factId === null
                         ? t('Pick a fact to see where the document says it.')
-                        : t('Loading…')}
+                        : failed
+                          ? t(
+                                'The passage could not be loaded. Reload the page and try again.',
+                            )
+                          : t('Loading…')}
                 </p>
             ) : (
                 <>
                     <span className="text-[13px] font-semibold">
                         {passage.heading || t('(introduction)')}
                     </span>
-                    <p className="text-[13px] leading-[1.65] whitespace-pre-line text-cc-muted">
-                        {passage.before}
-                        {passage.quote && (
-                            <mark className="rounded-[3px] bg-cc-highlight/60 px-0.5 text-cc-ink">
-                                {passage.quote}
-                            </mark>
-                        )}
-                        {passage.after}
-                    </p>
+                    <PassageText passage={passage} />
                     {passage.quote && !passage.exact && (
                         <span className="cc-caption">
                             {t('Marked by the words it shares with the fact.')}
@@ -952,6 +961,100 @@ function SourcePanel({
                 </>
             )}
         </section>
+    );
+}
+
+/**
+ * A passage as it reads: text with the quoted words marked, and tables as
+ * tables (scrolling sideways in the narrow column) with the quoted row
+ * marked.
+ */
+function PassageText({ passage }: { passage: Passage }) {
+    const text = passage.before + (passage.quote ?? '') + passage.after;
+    const from = passage.before.length;
+    const to = from + (passage.quote?.length ?? 0);
+
+    // Runs of lines that are either table rows or text.
+    const runs: { table: boolean; lines: { text: string; start: number }[] }[] =
+        [];
+    let offset = 0;
+
+    for (const line of text.split('\n')) {
+        const table = line.trim().startsWith('|');
+        const last = runs.at(-1);
+
+        if (last && last.table === table) {
+            last.lines.push({ text: line, start: offset });
+        } else {
+            runs.push({ table, lines: [{ text: line, start: offset }] });
+        }
+
+        offset += line.length + 1;
+    }
+
+    return (
+        <div className="flex flex-col gap-2 text-[13px] leading-[1.65] text-cc-muted">
+            {runs.map((run, index) => {
+                const body = run.lines.map((line) => line.text).join('\n');
+                const start = run.lines[0].start;
+                const end = start + body.length;
+
+                if (run.table) {
+                    // Body rows the quote touches; the first row is the header.
+                    const marked: number[] = [];
+                    let row = -1;
+
+                    for (const line of run.lines) {
+                        if (/^\|(\s*:?-+:?\s*\|)+$/.test(line.text.trim())) {
+                            continue;
+                        }
+
+                        row++;
+
+                        if (
+                            row > 0 &&
+                            to > from &&
+                            line.start < to &&
+                            line.start + line.text.length > from
+                        ) {
+                            marked.push(row - 1);
+                        }
+                    }
+
+                    return (
+                        <MarkdownTable
+                            key={index}
+                            markdown={body}
+                            compact
+                            marked={marked}
+                        />
+                    );
+                }
+
+                if (body.trim() === '') {
+                    return null;
+                }
+
+                const markFrom = Math.max(from, start) - start;
+                const markTo = Math.min(to, end) - start;
+
+                return (
+                    <p key={index} className="whitespace-pre-line">
+                        {markTo > markFrom ? (
+                            <>
+                                {body.slice(0, markFrom)}
+                                <mark className="rounded-[3px] bg-cc-highlight/60 px-0.5 text-cc-ink">
+                                    {body.slice(markFrom, markTo)}
+                                </mark>
+                                {body.slice(markTo)}
+                            </>
+                        ) : (
+                            body
+                        )}
+                    </p>
+                );
+            })}
+        </div>
     );
 }
 
