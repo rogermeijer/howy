@@ -8,6 +8,7 @@ use App\Http\Controllers\EmailStatementController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\Knowledge\DocumentController;
 use App\Http\Controllers\Knowledge\DocumentInspectorController;
+use App\Http\Controllers\Knowledge\DocumentReviewController;
 use App\Http\Controllers\Knowledge\DocumentVersionController;
 use App\Http\Controllers\Knowledge\KnowledgeController;
 use App\Http\Controllers\Knowledge\KnowledgeSearchController;
@@ -84,6 +85,12 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
             Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
             Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('documents.reprocess');
             Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store'])->name('documents.versions.store');
+            Route::post('documents/{document}/versions/{version}/approve', [DocumentReviewController::class, 'approve'])
+                ->scopeBindings()
+                ->name('documents.versions.approve');
+            Route::post('documents/{document}/versions/{version}/reject', [DocumentReviewController::class, 'reject'])
+                ->scopeBindings()
+                ->name('documents.versions.reject');
 
             Route::post('folders', [KnowledgeTopicController::class, 'store'])->name('topics.store');
             Route::post('folders/approve', [KnowledgeTopicController::class, 'approveAll'])->name('topics.approve-all');

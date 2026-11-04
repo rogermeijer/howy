@@ -36,11 +36,14 @@ use Illuminate\Support\Carbon;
  * @property string|null $extracted_path
  * @property int|null $uploaded_by_user_id
  * @property Carbon|null $processed_at
+ * @property Carbon|null $approved_at
+ * @property int|null $approved_by_user_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Account $account
  * @property-read Document $document
  * @property-read User|null $uploadedBy
+ * @property-read User|null $approvedBy
  * @property-read Collection<int, DocumentSection> $sections
  * @property-read Collection<int, KnowledgeChunk> $chunks
  * @property-read Collection<int, KnowledgeFact> $facts
@@ -50,7 +53,7 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'document_id', 'version_number', 'original_filename', 'mime_type', 'size_bytes',
     'disk', 'path', 'sha256', 'page_count', 'status', 'error', 'extracted_path',
-    'uploaded_by_user_id', 'processed_at',
+    'uploaded_by_user_id', 'processed_at', 'approved_at', 'approved_by_user_id',
 ])]
 class DocumentVersion extends Model
 {
@@ -77,6 +80,14 @@ class DocumentVersion extends Model
     public function uploadedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by_user_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by_user_id');
     }
 
     /**
@@ -125,15 +136,46 @@ class DocumentVersion extends Model
     }
 
     /**
-     * The version this one replaced, if any.
+     * Approved by an administrator: its content may be searched.
+     */
+    public function isApproved(): bool
+    {
+        return $this->approved_at !== null;
+    }
+
+    /**
+     * Where a version ends up once it has been embedded but a later step gave
+     * up: still searchable when it is published, still reviewable when not.
+     */
+    public function settledStatus(): ProcessingStatus
+    {
+        return $this->isApproved() ? ProcessingStatus::Searchable : ProcessingStatus::Review;
+    }
+
+    /**
+     * The published version this one follows, if any. A version waiting for
+     * review is compared with what is live, never with another draft.
      */
     public function previous(): ?self
     {
         return self::query()
             ->where('document_id', $this->document_id)
             ->where('version_number', '<', $this->version_number)
+            ->whereNotNull('approved_at')
             ->orderByDesc('version_number')
             ->first();
+    }
+
+    /**
+     * Swap in one go: this version's chunks become the ones that answer for
+     * the document, every other version's stop.
+     */
+    public function makeCurrent(): void
+    {
+        $chunks = KnowledgeChunk::query()->where('document_id', $this->document_id)->where('source_type', 'document_version');
+
+        (clone $chunks)->where('source_id', '!=', $this->id)->update(['is_current' => false]);
+        (clone $chunks)->where('source_id', $this->id)->update(['is_current' => true]);
     }
 
     /**
@@ -144,6 +186,7 @@ class DocumentVersion extends Model
         return [
             'status' => ProcessingStatus::class,
             'processed_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
     }
 }

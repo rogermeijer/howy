@@ -8,7 +8,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * A document as listed in the knowledge base: its metadata plus the state of
- * its current version.
+ * its newest version, and which version is live.
  *
  * @mixin Document
  */
@@ -19,7 +19,7 @@ class DocumentResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $version = $this->currentVersion;
+        $version = $this->latestVersion ?? $this->currentVersion;
 
         return [
             'id' => $this->id,
@@ -30,6 +30,11 @@ class DocumentResource extends JsonResource
             'effectiveDate' => $this->effective_date?->toDateString(),
             'updatedAt' => $this->updated_at?->toIso8601String(),
             'uploadedBy' => $this->uploadedBy?->name,
+            // The version that answers; null while the first one waits for approval.
+            'publishedVersion' => $this->currentVersion === null ? null : [
+                'id' => $this->currentVersion->id,
+                'number' => $this->currentVersion->version_number,
+            ],
             'version' => $version === null ? null : [
                 'id' => $version->id,
                 'number' => $version->version_number,
@@ -39,6 +44,7 @@ class DocumentResource extends JsonResource
                 'pageCount' => $version->page_count,
                 'status' => $version->status->value,
                 'error' => $version->error,
+                'isApproved' => $version->isApproved(),
                 'createdAt' => $version->created_at?->toIso8601String(),
             ],
         ];

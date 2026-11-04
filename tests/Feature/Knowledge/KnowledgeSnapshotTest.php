@@ -20,6 +20,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\ApprovesDocuments;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\TestCase;
 
@@ -29,7 +30,7 @@ use Tests\TestCase;
  */
 class KnowledgeSnapshotTest extends TestCase
 {
-    use FakesKnowledgeAi, RefreshDatabase;
+    use ApprovesDocuments, FakesKnowledgeAi, RefreshDatabase;
 
     private string $directory;
 
@@ -60,6 +61,7 @@ class KnowledgeSnapshotTest extends TestCase
         $before = Tenancy::for($source, function () use ($source) {
             $user = User::factory()->withAccount($source)->create();
             app(DocumentUploader::class)->create(UploadedFile::fake()->createWithContent('handboek.pdf', '%PDF-1.4 snapshot'), ['type' => 'handbook', 'is_core' => true, 'language' => 'nl'], $user);
+            $this->approvePending($source, $user);
 
             app(KnowledgeSnapshot::class)->export($this->directory, 'bron', 'Bron');
 

@@ -24,12 +24,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\ApprovesDocuments;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\TestCase;
 
 class KnowledgeEnrichmentTest extends TestCase
 {
-    use FakesKnowledgeAi, RefreshDatabase;
+    use ApprovesDocuments, FakesKnowledgeAi, RefreshDatabase;
 
     private Account $account;
 
@@ -107,6 +108,19 @@ class KnowledgeEnrichmentTest extends TestCase
         SectionEnricher::assertPrompted(fn ($prompt) => $prompt->contains('Section: Personeelshandboek Noordkade › 3 Ziekmelding') && $prompt->contains('08:30'));
         TopicTreeProposer::assertPromptedTimes(1);
 
+        // While v2 waits for approval, v1's facts are what is known.
+        Tenancy::for($this->account, function () use ($oldFact, $unchangedFact) {
+            $this->assertSame(FactStatus::Core, $oldFact->refresh()->status);
+            $this->assertSame(FactStatus::Core, $unchangedFact->refresh()->status);
+            $this->assertNotSame(2, $unchangedFact->version->version_number);
+
+            $v2 = DocumentVersion::query()->where('version_number', 2)->sole();
+            $this->assertSame(ProcessingStatus::Review, $v2->status);
+            $this->assertTrue(KnowledgeFact::query()->where('document_version_id', $v2->id)->get()->every(fn (KnowledgeFact $fact) => $fact->status === FactStatus::Proposed));
+        });
+
+        $this->approvePending($this->account, $this->admin);
+
         Tenancy::for($this->account, function () use ($oldFact, $unchangedFact) {
             $v2 = DocumentVersion::query()->where('version_number', 2)->sole();
 
@@ -157,6 +171,7 @@ class KnowledgeEnrichmentTest extends TestCase
         $this->actingAs($this->admin)->post(route('knowledge.documents.versions.store', $documentId), [
             'file' => UploadedFile::fake()->createWithContent('handboek.pdf', '%PDF-1.4 v2'),
         ]);
+        $this->approvePending($this->account, $this->admin);
 
         Tenancy::for($this->account, fn () => $this->assertTrue(
             KnowledgeTopicLink::query()->where('origin', KnowledgeOrigin::Manual)->exists(),
@@ -181,5 +196,7 @@ class KnowledgeEnrichmentTest extends TestCase
             'is_core' => $isCore,
             'language' => 'nl',
         ])->assertSessionHasNoErrors();
+
+        $this->approvePending($this->account, $this->admin);
     }
 }

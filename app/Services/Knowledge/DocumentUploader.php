@@ -22,7 +22,8 @@ use Throwable;
  *
  * Uploading answers immediately; everything expensive happens on the queue. An
  * identical file (same sha256) is refused within the account, so a document is
- * only ever processed once.
+ * only ever processed once. A new version is not live yet: it becomes the
+ * current one when an administrator approves it.
  */
 class DocumentUploader
 {
@@ -107,8 +108,6 @@ class DocumentUploader
             'uploaded_by_user_id' => $user->id,
         ]);
 
-        $document->update(['current_version_id' => $version->id]);
-
         ProcessDocumentVersion::dispatch($version->id)->afterCommit();
 
         return $version;
@@ -147,6 +146,18 @@ class DocumentUploader
         $existing = DocumentVersion::query()->with('document')->where('sha256', $sha256)->first();
 
         if ($existing === null) {
+            return;
+        }
+
+        // Turned down before; uploading it on purpose is a new decision.
+        if ($existing->status === ProcessingStatus::Rejected) {
+            $document = $existing->document;
+            $existing->delete();
+
+            if (! $document->versions()->exists()) {
+                $this->delete($document);
+            }
+
             return;
         }
 

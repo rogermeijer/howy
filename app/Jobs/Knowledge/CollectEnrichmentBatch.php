@@ -2,7 +2,6 @@
 
 namespace App\Jobs\Knowledge;
 
-use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
 use App\Enums\StepStatus;
 use App\Models\DocumentProcessingStep;
@@ -51,8 +50,8 @@ class CollectEnrichmentBatch extends KnowledgeJob implements ShouldBeUnique
 
         if ($status->state === BatchStatus::FAILED) {
             $steps->finish($record, $status->error ?? __('The batch failed.'));
-            // Still searchable: only the summaries and facts are missing.
-            $version->update(['status' => ProcessingStatus::Searchable, 'error' => $status->error]);
+            // Still searchable (or reviewable): only the summaries and facts are missing.
+            $version->update(['status' => $version->settledStatus(), 'error' => $status->error]);
 
             return;
         }

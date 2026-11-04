@@ -18,14 +18,21 @@ import type { Auth } from '@/types';
 
 function TopBar() {
     const t = useTranslations();
-    const { auth, inbox: inboxCounts } = usePage<{
+    const {
+        auth,
+        inbox: inboxCounts,
+        knowledge: knowledgeCounts,
+    } = usePage<{
         auth: Auth;
         inbox: { needsReview: number };
+        knowledge: { awaitingApproval: number };
     }>().props;
     const needsReview = inboxCounts?.needsReview ?? 0;
+    const awaitingApproval = knowledgeCounts?.awaitingApproval ?? 0;
 
     // Titles are English source strings, translated where they are rendered.
-    // The inbox counts the mails waiting for review; none, no badge.
+    // The inbox counts the mails waiting for review, the knowledge base the
+    // documents waiting for approval; none, no badge.
     const navItems = [
         {
             title: 'Inbox',
@@ -36,8 +43,10 @@ function TopBar() {
         {
             title: 'Knowledge base',
             href: knowledge(),
-            badge: null,
-            badgeLabel: null,
+            badge: awaitingApproval > 0 ? awaitingApproval : null,
+            badgeLabel: t(':count documents ready for approval', {
+                count: awaitingApproval,
+            }),
         },
     ];
 

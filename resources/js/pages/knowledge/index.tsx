@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { FileText, FolderOpen, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/cc/page-header';
 import { WithHowy } from '@/components/brand/howy-name';
@@ -34,6 +34,9 @@ export default function Knowledge({
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
+    const awaitingApproval =
+        usePage<{ knowledge: { awaitingApproval: number } }>().props.knowledge
+            ?.awaitingApproval ?? 0;
 
     return (
         <>
@@ -67,6 +70,32 @@ export default function Knowledge({
                         </>
                     }
                 />
+
+                {canManage && awaitingApproval > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-cc-pending-bg/70 px-5 py-4">
+                        <p className="text-[14px]">
+                            <WithHowy
+                                text={t(
+                                    'Howy processed :count documents that wait for your approval. Nothing of them is searched until you approve.',
+                                    { count: awaitingApproval },
+                                )}
+                            />
+                        </p>
+                        <Button
+                            variant="outline"
+                            className="h-9 bg-cc-panel"
+                            asChild
+                        >
+                            <Link
+                                href={documentRoutes.index({
+                                    query: { filter: 'review' },
+                                })}
+                            >
+                                {t('Review documents')}
+                            </Link>
+                        </Button>
+                    </div>
+                )}
 
                 {canManage && newTopicsCount > 0 && (
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-cc-accent-tint/60 px-5 py-4">

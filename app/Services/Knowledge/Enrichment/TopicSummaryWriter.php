@@ -3,6 +3,7 @@
 namespace App\Services\Knowledge\Enrichment;
 
 use App\Enums\FactStatus;
+use App\Models\Document;
 use App\Models\DocumentSection;
 use App\Models\KnowledgeFact;
 use App\Models\KnowledgeTopic;
@@ -61,7 +62,12 @@ class TopicSummaryWriter
             ->where('linkable_type', 'document_section')
             ->pluck('linkable_id');
 
-        $sections = DocumentSection::query()->with(['summary', 'document'])->whereKey($sectionIds)->get();
+        // Only what is live: a version waiting for review has no say yet.
+        $sections = DocumentSection::query()
+            ->with(['summary', 'document'])
+            ->whereKey($sectionIds)
+            ->whereIn('document_version_id', Document::query()->select('current_version_id'))
+            ->get();
 
         foreach ($sections as $section) {
             $facts = KnowledgeFact::query()

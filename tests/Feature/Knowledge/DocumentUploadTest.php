@@ -47,12 +47,15 @@ class DocumentUploadTest extends TestCase
             ->assertSessionHasNoErrors();
 
         Tenancy::for($this->account, function () {
-            $document = Document::query()->with('currentVersion')->sole();
-            $version = $document->currentVersion;
+            $document = Document::query()->with('latestVersion')->sole();
+            $version = $document->latestVersion;
 
             $this->assertSame('Personeelshandboek 2026', $document->title);
             $this->assertTrue($document->is_core);
+            // Not live until an administrator approves it.
+            $this->assertNull($document->current_version_id);
             $this->assertNotNull($version);
+            $this->assertFalse($version->isApproved());
             $this->assertSame(1, $version->version_number);
             $this->assertSame(ProcessingStatus::Queued, $version->status);
             $this->assertSame(DocumentVersion::PDF, $version->mime_type);
@@ -103,7 +106,7 @@ class DocumentUploadTest extends TestCase
         $this->assertSame(0, Tenancy::for($this->account, fn () => Document::query()->count()));
     }
 
-    public function test_a_new_version_becomes_current_and_is_processed(): void
+    public function test_a_new_version_is_processed_while_the_old_one_stays_current(): void
     {
         $document = Tenancy::for($this->account, fn () => Document::factory()->withVersion()->create());
 
@@ -116,7 +119,8 @@ class DocumentUploadTest extends TestCase
         Tenancy::for($this->account, function () use ($document) {
             $document->refresh();
 
-            $this->assertSame(2, $document->currentVersion?->version_number);
+            $this->assertSame(1, $document->currentVersion?->version_number);
+            $this->assertSame(2, $document->latestVersion?->version_number);
             $this->assertSame(2, $document->versions()->count());
         });
 

@@ -6,8 +6,10 @@ export type ProcessingStatus =
     | 'embedding'
     | 'searchable'
     | 'enriching'
+    | 'review'
     | 'ready'
-    | 'failed';
+    | 'failed'
+    | 'rejected';
 
 export type DocumentType =
     | 'handbook'
@@ -25,6 +27,7 @@ export type DocumentVersionSummary = {
     pageCount: number | null;
     status: ProcessingStatus;
     error: string | null;
+    isApproved: boolean;
     createdAt: string | null;
 };
 
@@ -37,6 +40,9 @@ export type KnowledgeDocument = {
     effectiveDate: string | null;
     updatedAt: string | null;
     uploadedBy: string | null;
+    /** The version that answers; null while the first one waits for approval. */
+    publishedVersion: { id: number; number: number } | null;
+    /** The newest version, published or not. */
     version: DocumentVersionSummary | null;
 };
 
@@ -119,8 +125,26 @@ export type VersionOption = {
     number: number;
     filename: string;
     status: ProcessingStatus;
+    isApproved: boolean;
+    isCurrent: boolean;
     createdAt: string | null;
     isPdf: boolean;
+};
+
+/** What approving a version would change, for the administrator who decides. */
+export type VersionReview = {
+    replaces: number | null;
+    uploadedBy: string | null;
+    summary: string | null;
+    error: string | null;
+    sections: {
+        unchanged: number;
+        changed: number;
+        added: number;
+        removed: number;
+    };
+    facts: number;
+    folders: { id: number; name: string; isNew: boolean }[];
 };
 
 export type TopicFact = {

@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Knowledge;
 
+use App\Enums\FactStatus;
+use App\Enums\ProcessingStatus;
+use App\Enums\SectionChange;
+use App\Enums\TopicReview;
 use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Knowledge\DocumentResource;
@@ -11,6 +15,7 @@ use App\Models\DocumentSection;
 use App\Models\DocumentVersion;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeFact;
+use App\Models\KnowledgeTopic;
 use App\Models\KnowledgeTopicLink;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -25,12 +30,15 @@ class DocumentInspectorController extends Controller
 {
     public function show(Request $request, Document $document): Response
     {
-        $document->load(['currentVersion', 'uploadedBy']);
+        $document->load(['currentVersion', 'latestVersion', 'uploadedBy']);
+
+        // The version on screen is the one that is live, unless a newer one
+        // is in progress or waiting for approval.
 
         /** @var DocumentVersion|null $version */
         $version = $request->filled('version')
             ? $document->versions()->whereKey($request->integer('version'))->firstOrFail()
-            : $document->currentVersion;
+            : $document->latestVersion;
 
         $sections = $version === null ? collect() : DocumentSection::query()
             ->where('document_version_id', $version->id)
@@ -47,6 +55,8 @@ class DocumentInspectorController extends Controller
                 'number' => $item->version_number,
                 'filename' => $item->original_filename,
                 'status' => $item->status->value,
+                'isApproved' => $item->isApproved(),
+                'isCurrent' => $item->id === $document->current_version_id,
                 'createdAt' => $item->created_at?->toIso8601String(),
                 'isPdf' => $item->isPdf(),
             ]),
@@ -65,6 +75,7 @@ class DocumentInspectorController extends Controller
             ]),
             'section' => fn () => $selectedId ? $this->section($sections->firstWhere('id', $selectedId)) : null,
             'steps' => fn () => $version === null ? [] : $this->steps($version),
+            'review' => fn () => $version === null ? null : $this->review($document, $version),
             'canManage' => $request->user()->isAdminOf(Tenancy::account()),
         ]);
     }
@@ -118,6 +129,50 @@ class DocumentInspectorController extends Controller
                 'name' => $link->topic->name,
                 'origin' => $link->origin->value,
             ]),
+        ];
+    }
+
+    /**
+     * What approving this version would change, for the administrator who
+     * decides: what it replaces, which sections differ, what it adds.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function review(Document $document, DocumentVersion $version): ?array
+    {
+        if ($version->isApproved() || $version->status !== ProcessingStatus::Review) {
+            return null;
+        }
+
+        $previous = $version->previous();
+        $sections = DocumentSection::query()->where('document_version_id', $version->id)->get();
+        $matched = $sections->pluck('previous_section_id')->filter()->unique()->count();
+
+        $topics = KnowledgeTopic::query()
+            ->whereIn('id', KnowledgeTopicLink::query()
+                ->select('topic_id')
+                ->where('linkable_type', 'document_section')
+                ->whereIn('linkable_id', $sections->pluck('id')))
+            ->orderBy('name')
+            ->get();
+
+        return [
+            'replaces' => $previous === null || $previous->id !== $document->current_version_id ? null : $previous->version_number,
+            'uploadedBy' => $version->uploadedBy?->name,
+            'summary' => $version->summary?->text,
+            'error' => $version->error,
+            'sections' => [
+                'unchanged' => $sections->where('change_type', SectionChange::Unchanged)->count(),
+                'changed' => $sections->where('change_type', SectionChange::Changed)->count(),
+                'added' => $sections->where('change_type', SectionChange::Added)->count(),
+                'removed' => $previous === null ? 0 : max(0, DocumentSection::query()->where('document_version_id', $previous->id)->count() - $matched),
+            ],
+            'facts' => KnowledgeFact::query()->where('document_version_id', $version->id)->where('status', FactStatus::Proposed)->count(),
+            'folders' => $topics->map(fn (KnowledgeTopic $topic): array => [
+                'id' => $topic->id,
+                'name' => $topic->name,
+                'isNew' => $topic->review_status === TopicReview::New,
+            ])->values()->all(),
         ];
     }
 

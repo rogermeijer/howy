@@ -17,6 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\ApprovesDocuments;
 use Tests\TestCase;
 
 /**
@@ -25,7 +26,7 @@ use Tests\TestCase;
  */
 class DocumentPipelineTest extends TestCase
 {
-    use RefreshDatabase;
+    use ApprovesDocuments, RefreshDatabase;
 
     private Account $account;
 
@@ -100,6 +101,7 @@ class DocumentPipelineTest extends TestCase
                 'file' => UploadedFile::fake()->createWithContent('handboek.pdf', '%PDF-1.4 handboek v2'),
             ])
             ->assertSessionHasNoErrors();
+        $this->approvePending($this->account, $this->admin);
 
         Tenancy::for($this->account, function () {
             $v2 = DocumentVersion::query()->where('version_number', 2)->sole();
@@ -168,5 +170,7 @@ class DocumentPipelineTest extends TestCase
                 'language' => 'nl',
             ])
             ->assertSessionHasNoErrors();
+
+        $this->approvePending($this->account, $this->admin);
     }
 }

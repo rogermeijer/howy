@@ -32,7 +32,16 @@ class DocumentVersionFactory extends Factory
             'sha256' => $hash,
             'page_count' => 12,
             'status' => ProcessingStatus::Queued,
+            'approved_at' => now(),
         ];
+    }
+
+    /**
+     * Processed and waiting for an administrator to approve it.
+     */
+    public function awaitingReview(): static
+    {
+        return $this->state(fn (array $attributes) => ['status' => ProcessingStatus::Review, 'approved_at' => null]);
     }
 
     public function status(ProcessingStatus $status): static

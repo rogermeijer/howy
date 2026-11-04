@@ -13,6 +13,8 @@ declare module '@inertiajs/core' {
             auth: Auth;
             /** Mails waiting for someone to review what they would add. */
             inbox: { needsReview: number };
+            /** Document versions processed and waiting for approval. */
+            knowledge: { awaitingApproval: number };
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

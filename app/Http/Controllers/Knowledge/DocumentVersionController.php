@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Knowledge;
 
+use App\Enums\ProcessingStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Knowledge\StoreDocumentVersionRequest;
 use App\Models\Document;
@@ -34,6 +35,9 @@ class DocumentVersionController extends Controller
      */
     public function file(Document $document, DocumentVersion $version): StreamedResponse
     {
+        // A rejected version keeps its row, not its file.
+        abort_if($version->status === ProcessingStatus::Rejected, 404);
+
         return Storage::disk($version->disk)->response(
             $version->path,
             $version->original_filename,

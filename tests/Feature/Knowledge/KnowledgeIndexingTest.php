@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Embeddings;
 use Laravel\Ai\Prompts\EmbeddingsPrompt;
+use Tests\Concerns\ApprovesDocuments;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\TestCase;
 
@@ -28,7 +29,7 @@ use Tests\TestCase;
  */
 class KnowledgeIndexingTest extends TestCase
 {
-    use FakesKnowledgeAi, RefreshDatabase;
+    use ApprovesDocuments, FakesKnowledgeAi, RefreshDatabase;
 
     private Account $account;
 
@@ -97,6 +98,7 @@ class KnowledgeIndexingTest extends TestCase
         $this->actingAs($this->admin)->post(route('knowledge.documents.versions.store', $documentId), [
             'file' => UploadedFile::fake()->createWithContent('handboek.pdf', '%PDF-1.4 v2'),
         ])->assertSessionHasNoErrors();
+        $this->approvePending($this->account, $this->admin);
 
         Tenancy::for($this->account, function () {
             [$v1, $v2] = DocumentVersion::query()->orderBy('version_number')->get()->all();
@@ -144,5 +146,7 @@ class KnowledgeIndexingTest extends TestCase
             'is_core' => true,
             'language' => 'nl',
         ])->assertSessionHasNoErrors();
+
+        $this->approvePending($this->account, $this->admin);
     }
 }

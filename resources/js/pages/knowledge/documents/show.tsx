@@ -8,6 +8,7 @@ import { isProcessing } from '@/components/knowledge/labels';
 import { ProcessingTimeline } from '@/components/knowledge/processing-timeline';
 import { SectionTree, changeLabels } from '@/components/knowledge/section-tree';
 import { StatusPipeline } from '@/components/knowledge/status-pipeline';
+import { VersionReviewPanel } from '@/components/knowledge/version-review-panel';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -28,6 +29,7 @@ import type {
     SectionDetail,
     SectionNode,
     VersionOption,
+    VersionReview,
 } from '@/types';
 
 type Props = {
@@ -37,6 +39,7 @@ type Props = {
     sections: SectionNode[];
     section: SectionDetail | null;
     steps: ProcessingStepView[];
+    review: VersionReview | null;
     canManage: boolean;
 };
 
@@ -63,6 +66,8 @@ export default function DocumentInspector({
     sections,
     section,
     steps,
+    review,
+    canManage,
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
@@ -73,7 +78,16 @@ export default function DocumentInspector({
 
     const { start, stop } = usePoll(
         3000,
-        { only: ['document', 'versions', 'sections', 'section', 'steps'] },
+        {
+            only: [
+                'document',
+                'versions',
+                'sections',
+                'section',
+                'steps',
+                'review',
+            ],
+        },
         { autoStart: false },
     );
 
@@ -159,7 +173,7 @@ export default function DocumentInspector({
                                     }
                                 >
                                     <SelectTrigger
-                                        className="h-10 w-[180px]"
+                                        className="h-10 w-[260px]"
                                         aria-label={t('Version')}
                                     >
                                         <SelectValue />
@@ -173,6 +187,14 @@ export default function DocumentInspector({
                                                 {t('Version :number', {
                                                     number: item.number,
                                                 })}
+                                                {item.isCurrent
+                                                    ? ` · ${t('live')}`
+                                                    : item.status === 'review'
+                                                      ? ` · ${t('ready for approval')}`
+                                                      : item.status ===
+                                                          'rejected'
+                                                        ? ` · ${t('rejected')}`
+                                                        : ''}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -198,6 +220,16 @@ export default function DocumentInspector({
                     }
                 />
 
+                {review && current && (
+                    <VersionReviewPanel
+                        documentId={document.id}
+                        versionId={current.id}
+                        versionNumber={current.number}
+                        review={review}
+                        canManage={canManage}
+                    />
+                )}
+
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex gap-2" role="tablist">
                         {(['structure', 'processing'] as const).map((item) => (
@@ -221,7 +253,11 @@ export default function DocumentInspector({
                     {current && (
                         <StatusPipeline
                             status={current.status}
-                            error={document.version?.error}
+                            error={
+                                document.version?.id === current.id
+                                    ? document.version.error
+                                    : null
+                            }
                             className="w-[220px]"
                         />
                     )}

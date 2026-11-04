@@ -25,7 +25,8 @@ class DocumentController extends Controller
     public function index(Request $request): Response
     {
         $documents = Document::query()
-            ->with(['currentVersion', 'uploadedBy'])
+            ->listed()
+            ->with(['currentVersion', 'latestVersion', 'uploadedBy'])
             ->orderBy('title')
             ->get();
 
@@ -36,6 +37,7 @@ class DocumentController extends Controller
                 'label' => __($type->label()),
             ], DocumentType::cases()),
             'defaultLanguage' => Tenancy::account()->locale->value,
+            'filter' => $request->query('filter') === 'review' ? 'review' : null,
             'maxUploadMegabytes' => (int) round((int) config('knowledge.upload.max_kilobytes') / 1024),
             'canManage' => $request->user()->isAdminOf(Tenancy::account()),
         ]);
@@ -50,7 +52,7 @@ class DocumentController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => __(':title is uploaded and being processed.', ['title' => $document->title]),
+            'message' => __(':title is uploaded and being processed. It is searched once you approve it.', ['title' => $document->title]),
         ]);
 
         return to_route('knowledge.documents.index');
@@ -76,12 +78,12 @@ class DocumentController extends Controller
     }
 
     /**
-     * Run the pipeline again for the current version, e.g. after a failure.
+     * Run the pipeline again for the newest version, e.g. after a failure.
      */
     public function reprocess(Document $document): RedirectResponse
     {
-        if ($document->current_version_id !== null) {
-            ProcessDocumentVersion::dispatch($document->current_version_id);
+        if ($document->latestVersion !== null) {
+            ProcessDocumentVersion::dispatch($document->latestVersion->id);
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Processing again.')]);

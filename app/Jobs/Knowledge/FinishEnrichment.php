@@ -16,8 +16,9 @@ use App\Services\Knowledge\TokenEstimator;
 
 /**
  * Step 6: the document summary (from the section summaries), filing the
- * sections into folders, and embedding the new facts. Then the version is
- * ready, and the overviews of the folders it touched are refreshed.
+ * sections into folders, and embedding the new facts. Then a published
+ * version is ready and the overviews of the folders it touched are refreshed;
+ * a new one is ready for approval, and the folders wait for that.
  */
 class FinishEnrichment extends KnowledgeJob
 {
@@ -44,6 +45,13 @@ class FinishEnrichment extends KnowledgeJob
 
             return ['embedded' => count($vectors)];
         });
+
+        if (! $version->isApproved()) {
+            $version->update(['status' => ProcessingStatus::Review, 'error' => null]);
+            $version->document->touch();
+
+            return;
+        }
 
         $version->update(['status' => ProcessingStatus::Ready, 'error' => null]);
         $version->document->touch();

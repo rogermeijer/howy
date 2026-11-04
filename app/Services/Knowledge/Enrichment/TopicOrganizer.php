@@ -134,14 +134,17 @@ class TopicOrganizer
     {
         $documents = Document::query()->with('currentVersion')->get();
 
-        $material = $documents->map(function (Document $document): string {
-            $summary = $document->current_version_id === null ? null : KnowledgeSummary::query()
+        $material = $documents->map(function (Document $document) use ($version): string {
+            // The version being filed counts even while it waits for review.
+            $versionId = $document->id === $version->document_id ? $version->id : $document->current_version_id;
+
+            $summary = $versionId === null ? null : KnowledgeSummary::query()
                 ->where('summarizable_type', 'document_version')
-                ->where('summarizable_id', $document->current_version_id)
+                ->where('summarizable_id', $versionId)
                 ->value('text');
 
             $outline = DocumentSection::query()
-                ->where('document_version_id', $document->current_version_id)
+                ->where('document_version_id', $versionId)
                 ->where('level', '<=', 3)
                 ->whereNotNull('heading')
                 ->orderBy('ordinal')

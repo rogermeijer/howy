@@ -17,12 +17,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Concerns\ApprovesDocuments;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\TestCase;
 
 class KnowledgeSearchTest extends TestCase
 {
-    use FakesKnowledgeAi, RefreshDatabase;
+    use ApprovesDocuments, FakesKnowledgeAi, RefreshDatabase;
 
     private Account $ours;
 
@@ -147,7 +148,10 @@ class KnowledgeSearchTest extends TestCase
             $user = User::factory()->withAccount($account)->create();
             $file = UploadedFile::fake()->createWithContent('handboek.pdf', '%PDF-1.4 '.$body);
 
-            return app(DocumentUploader::class)->create($file, ['type' => 'handbook', 'is_core' => true, 'language' => 'nl'], $user);
+            $document = app(DocumentUploader::class)->create($file, ['type' => 'handbook', 'is_core' => true, 'language' => 'nl'], $user);
+            $this->approvePending($account, $user);
+
+            return $document;
         });
     }
 

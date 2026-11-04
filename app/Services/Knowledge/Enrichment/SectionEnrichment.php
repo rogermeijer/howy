@@ -23,13 +23,18 @@ use Illuminate\Support\Facades\DB;
  * single token: its summary is copied, its facts move to the new version and
  * keep their identity, its folder links come along. Facts of sections that
  * changed or disappeared expire, and are linked to their successor when a new
- * fact about the same subject replaces them.
+ * fact about the same subject replaces them. For a version that waits for
+ * review the facts only change hands when it is approved.
  */
 class SectionEnrichment
 {
     public function __construct(private readonly TokenEstimator $tokens) {}
 
     /**
+     * Copy what an unchanged section already has: its summary and its folder
+     * links. The facts follow only for a published version; a version that
+     * waits for review leaves the live facts alone until it is approved.
+     *
      * @return array{summaries: int, facts: int, links: int, expired: int}
      */
     public function carryOver(DocumentVersion $version): array
@@ -41,14 +46,8 @@ class SectionEnrichment
             return $counts;
         }
 
-        return DB::transaction(function () use ($version, $previous, $counts): array {
-            $sections = DocumentSection::query()
-                ->where('document_version_id', $version->id)
-                ->where('change_type', SectionChange::Unchanged)
-                ->whereNotNull('previous_section_id')
-                ->get();
-
-            foreach ($sections as $section) {
+        return DB::transaction(function () use ($version, $counts): array {
+            foreach ($this->unchangedSections($version) as $section) {
                 $old = (int) $section->previous_section_id;
 
                 $summary = KnowledgeSummary::query()->where('summarizable_type', 'document_section')->where('summarizable_id', $old)->first();
@@ -58,8 +57,38 @@ class SectionEnrichment
                     $counts['summaries']++;
                 }
 
-                $counts['facts'] += KnowledgeFact::query()
-                    ->where('section_id', $old)
+                foreach (KnowledgeTopicLink::query()->where('linkable_type', 'document_section')->where('linkable_id', $old)->get() as $link) {
+                    $link->replicate(['account_id'])->fill(['linkable_id' => $section->id])->save();
+                    $counts['links']++;
+                }
+            }
+
+            return $version->isApproved() ? [...$counts, ...$this->handOver($version)] : $counts;
+        });
+    }
+
+    /**
+     * The previous version's facts give way to this version: those of
+     * unchanged sections move along and keep their identity, the rest expire
+     * and are linked to the new fact about the same subject that replaces
+     * them. Runs when a version is published.
+     *
+     * @return array{facts: int, expired: int}
+     */
+    public function handOver(DocumentVersion $version): array
+    {
+        $previous = $version->previous();
+
+        if ($previous === null) {
+            return ['facts' => 0, 'expired' => 0];
+        }
+
+        return DB::transaction(function () use ($version, $previous): array {
+            $moved = 0;
+
+            foreach ($this->unchangedSections($version) as $section) {
+                $moved += KnowledgeFact::query()
+                    ->where('section_id', (int) $section->previous_section_id)
                     ->where('status', '!=', FactStatus::Expired)
                     ->update([
                         'section_id' => $section->id,
@@ -67,20 +96,27 @@ class SectionEnrichment
                         'source_id' => $version->id,
                         'chunk_id' => null,
                     ]);
-
-                foreach (KnowledgeTopicLink::query()->where('linkable_type', 'document_section')->where('linkable_id', $old)->get() as $link) {
-                    $link->replicate(['account_id'])->fill(['linkable_id' => $section->id])->save();
-                    $counts['links']++;
-                }
             }
 
             // Whatever is still attached to the previous version no longer holds.
-            $counts['expired'] = KnowledgeFact::query()
+            $expired = KnowledgeFact::query()
                 ->where('document_version_id', $previous->id)
                 ->where('status', '!=', FactStatus::Expired)
                 ->update(['status' => FactStatus::Expired, 'valid_until' => now()->toDateString()]);
 
-            return $counts;
+            // Facts written while this version waited for review replace the
+            // ones that only expired now.
+            $facts = KnowledgeFact::query()
+                ->with('section')
+                ->where('document_version_id', $version->id)
+                ->whereNotNull('subject')
+                ->get();
+
+            foreach ($facts as $fact) {
+                $this->supersede($fact, $fact->section?->previous_section_id);
+            }
+
+            return ['facts' => $moved, 'expired' => $expired];
         });
     }
 
@@ -165,7 +201,7 @@ class SectionEnrichment
                 'chunk_id' => $this->bestChunk($section->chunks, $statement)?->id,
                 'statement' => $statement,
                 'subject' => $subject === null ? null : mb_substr($subject, 0, 120),
-                'status' => FactStatus::Core,
+                'status' => $version->isApproved() ? FactStatus::Core : FactStatus::Proposed,
                 'valid_from' => $this->date($fact['valid_from'] ?? null) ?? $version->document->effective_date?->toDateString(),
                 'confidence' => isset($fact['confidence']) ? max(0, min(1, (float) $fact['confidence'])) : null,
                 'page_from' => $section->page_from,
@@ -175,19 +211,42 @@ class SectionEnrichment
             ]);
             $created++;
 
-            // An expired fact about the same subject in the section this one
-            // replaces is superseded by it.
-            if ($subject !== null && $section->previous_section_id !== null) {
-                KnowledgeFact::query()
-                    ->where('section_id', $section->previous_section_id)
-                    ->where('status', FactStatus::Expired)
-                    ->where('subject', $subject)
-                    ->whereNull('superseded_by_id')
-                    ->update(['superseded_by_id' => $new->id]);
-            }
+            $this->supersede($new, $section->previous_section_id);
         }
 
         return $created;
+    }
+
+    /**
+     * Sections of this version that are the same as in the one before.
+     *
+     * @return Collection<int, DocumentSection>
+     */
+    private function unchangedSections(DocumentVersion $version): Collection
+    {
+        return DocumentSection::query()
+            ->where('document_version_id', $version->id)
+            ->where('change_type', SectionChange::Unchanged)
+            ->whereNotNull('previous_section_id')
+            ->get();
+    }
+
+    /**
+     * An expired fact about the same subject in the section this one
+     * replaces is superseded by it.
+     */
+    private function supersede(KnowledgeFact $fact, ?int $previousSectionId): void
+    {
+        if ($fact->subject === null || $previousSectionId === null) {
+            return;
+        }
+
+        KnowledgeFact::query()
+            ->where('section_id', $previousSectionId)
+            ->where('status', FactStatus::Expired)
+            ->where('subject', $fact->subject)
+            ->whereNull('superseded_by_id')
+            ->update(['superseded_by_id' => $fact->id]);
     }
 
     /**

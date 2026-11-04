@@ -20,12 +20,24 @@ enum ProcessingStatus: string
     /** Summaries, facts and topics are being generated in a batch. */
     case Enriching = 'enriching';
 
+    /**
+     * Fully processed and waiting for an administrator: nothing of it is
+     * searched until the version is approved.
+     */
+    case Review = 'review';
+
     case Ready = 'ready';
     case Failed = 'failed';
 
+    /**
+     * An administrator kept it out. Only the row is left, so the same file is
+     * recognised when it is sent again and not proposed a second time.
+     */
+    case Rejected = 'rejected';
+
     public function isFinal(): bool
     {
-        return $this === self::Ready || $this === self::Failed;
+        return in_array($this, [self::Review, self::Ready, self::Failed, self::Rejected], true);
     }
 
     public function isSearchable(): bool
