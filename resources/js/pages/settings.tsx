@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslations } from '@/hooks/use-translations';
-import type { LocaleOption, Mailbox } from '@/types';
+import type { LocaleOption, Mailbox, MailFacts } from '@/types';
 
 type Props = {
     account: {
@@ -27,6 +27,7 @@ type Props = {
     locales: LocaleOption[];
     timezones: string[];
     sendPolicies: LocaleOption[];
+    mailFacts: MailFacts;
 };
 
 export default function Settings({
@@ -38,6 +39,7 @@ export default function Settings({
     locales,
     timezones,
     sendPolicies,
+    mailFacts,
 }: Props) {
     const t = useTranslations();
 
@@ -56,6 +58,8 @@ export default function Settings({
                     canManage={canManageMailboxes}
                     openConnect={openConnect}
                     sendPolicies={sendPolicies}
+                    company={account.name}
+                    facts={mailFacts}
                 />
 
                 <Section

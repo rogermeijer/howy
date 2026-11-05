@@ -1,8 +1,10 @@
 import { Form } from '@inertiajs/react';
+import { Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import MailboxController from '@/actions/App/Http/Controllers/Mailboxes/MailboxController';
 import { WithHowy } from '@/components/brand/howy-name';
 import InputError from '@/components/input-error';
+import { MailboxExplainerDialog } from '@/components/mailboxes/mailbox-explainer-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -23,11 +25,14 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from '@/hooks/use-translations';
-import type { LocaleOption, Mailbox, SendPolicy } from '@/types';
+import { parseList } from '@/lib/mailbox-rules';
+import type { LocaleOption, Mailbox, MailFacts, SendPolicy } from '@/types';
 
 type Props = {
     mailbox: Mailbox | null;
     policies: LocaleOption[];
+    company: string;
+    facts: MailFacts;
     onOpenChange: (open: boolean) => void;
 };
 
@@ -39,10 +44,18 @@ const fieldClass = 'border-[1.5px] border-cc-border-strong bg-cc-panel';
  * blacklist for "Same domain" and "Everyone". The list that is not shown
  * still travels along, so switching policies never throws a list away. On a
  * public domain such as gmail.com "Same domain" would mean everyone, so it is
- * not offered.
+ * not offered. The explanation it opens follows the rules as they are being
+ * set, so the effect of a choice shows before it is saved.
  */
-export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
+export function SendPolicyDialog({
+    mailbox,
+    policies,
+    company,
+    facts,
+    onOpenChange,
+}: Props) {
     const t = useTranslations();
+    const [explaining, setExplaining] = useState(false);
     const [policy, setPolicy] = useState<SendPolicy>('domain');
     const [whitelist, setWhitelist] = useState('');
     const [blacklist, setBlacklist] = useState('');
@@ -89,6 +102,42 @@ export function SendPolicyDialog({ mailbox, policies, onOpenChange }: Props) {
                         )}
                     />
                 </DialogDescription>
+
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 w-fit justify-self-start border-[1.5px] border-cc-border-strong"
+                    onClick={() => setExplaining(true)}
+                >
+                    <Info />
+                    <span>
+                        <WithHowy
+                            text={t(
+                                'See exactly what Howy does with these rules',
+                            )}
+                        />
+                    </span>
+                </Button>
+
+                {mailbox && (
+                    <MailboxExplainerDialog
+                        open={explaining}
+                        onOpenChange={setExplaining}
+                        rules={{
+                            address: mailbox.emailAddress,
+                            domain: mailbox.domain,
+                            policy,
+                            whitelist: parseList(whitelist),
+                            blacklist: parseList(blacklist),
+                            repliesEnabled,
+                        }}
+                        company={company}
+                        facts={facts}
+                        note={t(
+                            'This follows the rules as they are set now in the dialog, saved or not.',
+                        )}
+                    />
+                )}
 
                 {mailbox && (
                     <Form

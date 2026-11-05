@@ -72,6 +72,11 @@ class AccountController extends Controller
                 fn (SendPolicy $policy): array => ['value' => $policy->value, 'label' => $policy->label()],
                 SendPolicy::cases(),
             ),
+            // The numbers the explanation of a mailbox quotes, from where they are set.
+            'mailFacts' => [
+                'answerConfidence' => (int) round((float) config('knowledge.mail.answer_min_confidence') * 100),
+                'aiLogDays' => config('knowledge.ai_log.payloads') ? (int) config('knowledge.ai_log.payload_retention_days') : 0,
+            ],
         ]);
     }
 

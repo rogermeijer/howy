@@ -19,6 +19,14 @@ export type Mailbox = {
     sendBlacklist: string[];
 };
 
+/** The numbers the explanation of a mailbox quotes, as configured. */
+export type MailFacts = {
+    /** How sure an answer must be, in percent, before Howy sends it. */
+    answerConfidence: number;
+    /** Days what went to the AI provider is kept; 0 when it is not kept. */
+    aiLogDays: number;
+};
+
 export type MailboxSearchResult = {
     id: string;
     threadId: string | null;

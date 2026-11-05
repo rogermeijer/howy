@@ -127,6 +127,24 @@ class MailboxSendPolicyTest extends TestCase
                 ->has('sendPolicies', 3));
     }
 
+    public function test_the_explanation_of_a_mailbox_quotes_the_configured_numbers(): void
+    {
+        config(['knowledge.mail.answer_min_confidence' => 0.8, 'knowledge.ai_log.payload_retention_days' => 14]);
+
+        $this->actingAs($this->admin)
+            ->get(route('settings'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('mailFacts.answerConfidence', 80)
+                ->where('mailFacts.aiLogDays', 14));
+
+        // Not logging what went to the AI provider, it keeps it for no days.
+        config(['knowledge.ai_log.payloads' => false]);
+
+        $this->actingAs($this->admin)
+            ->get(route('settings'))
+            ->assertInertia(fn (Assert $page) => $page->where('mailFacts.aiLogDays', 0));
+    }
+
     public function test_the_policy_decides_who_is_accepted_and_may_get_a_reply(): void
     {
         $mailbox = new Mailbox(['email_address' => 'Kennis@Noordkade.nl']);

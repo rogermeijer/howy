@@ -2,6 +2,7 @@ import { router, usePoll } from '@inertiajs/react';
 import {
     AlertTriangle,
     Download,
+    Info,
     Mail,
     MessageSquareReply,
     MoreHorizontal,
@@ -17,6 +18,7 @@ import { WithHowy } from '@/components/brand/howy-name';
 import { ConnectMailboxDialog } from '@/components/mailboxes/connect-mailbox-dialog';
 import { DisconnectMailboxDialog } from '@/components/mailboxes/disconnect-mailbox-dialog';
 import { ImportMailboxDialog } from '@/components/mailboxes/import-mailbox-dialog';
+import { MailboxExplainerDialog } from '@/components/mailboxes/mailbox-explainer-dialog';
 import { SendPolicyDialog } from '@/components/mailboxes/send-policy-dialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,17 +28,28 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
+import { type MailboxRules, rulesOf } from '@/lib/mailbox-rules';
 import { settings } from '@/routes';
 import mailboxRoutes from '@/routes/mailboxes';
-import type { LocaleOption, Mailbox } from '@/types';
+import type { LocaleOption, Mailbox, MailFacts } from '@/types';
 
 type Props = {
     mailboxes: Mailbox[];
     canManage: boolean;
     openConnect: boolean;
     sendPolicies: LocaleOption[];
+    /** The account's name, as the explanation of a mailbox says whose it is. */
+    company: string;
+    facts: MailFacts;
 };
 
 export function MailboxesSection({
@@ -44,9 +57,13 @@ export function MailboxesSection({
     canManage,
     openConnect,
     sendPolicies,
+    company,
+    facts,
 }: Props) {
     const t = useTranslations();
     const [connecting, setConnecting] = useState(openConnect);
+    const [explaining, setExplaining] = useState(false);
+    const [explainedId, setExplainedId] = useState<number | null>(null);
     const [importing, setImporting] = useState<number | null>(null);
     const [disconnecting, setDisconnecting] = useState<Mailbox | null>(null);
     const [replySettings, setReplySettings] = useState<Mailbox | null>(null);
@@ -81,6 +98,22 @@ export function MailboxesSection({
     }, [importRunning, start, stop]);
 
     const active = mailboxes.filter((mailbox) => mailbox.status === 'active');
+
+    // Explained for everyone, not only for who manages the mailboxes: it says
+    // what happens to their mail. Without a mailbox, an example one.
+    const explained =
+        mailboxes.find((mailbox) => mailbox.id === explainedId) ?? mailboxes[0];
+    const example = t('howy@yourcompany.com');
+    const explainedRules: MailboxRules = explained
+        ? rulesOf(explained)
+        : {
+              address: example,
+              domain: example.slice(example.indexOf('@') + 1),
+              policy: 'domain',
+              whitelist: [],
+              blacklist: [],
+              repliesEnabled: true,
+          };
 
     return (
         <Section
@@ -148,16 +181,70 @@ export function MailboxesSection({
                 </ul>
             )}
 
-            <p className="flex items-center gap-2.5 text-[13px] text-cc-subtle">
-                <ShieldCheck className="size-4 shrink-0" />
-                <span>
-                    <WithHowy
-                        text={t(
-                            'Howy only reads mail from the senders a mailbox lets in, only replies to them, and never changes or deletes anything in the mailbox.',
-                        )}
-                    />
-                </span>
-            </p>
+            <div className="flex flex-col gap-3 rounded-xl bg-cc-bg px-4 py-3.5 sm:flex-row sm:items-center">
+                <p className="flex flex-1 items-start gap-2.5 text-[13px] text-cc-subtle">
+                    <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+                    <span>
+                        <WithHowy
+                            text={t(
+                                'Howy only reads mail from the senders a mailbox lets in, only replies to them, and never changes or deletes anything in the mailbox.',
+                            )}
+                        />
+                    </span>
+                </p>
+                <Button
+                    variant="outline"
+                    className="h-10 shrink-0 self-start border-[1.5px] border-cc-border-strong bg-cc-panel sm:self-auto"
+                    onClick={() => setExplaining(true)}
+                >
+                    <Info />
+                    <span>
+                        <WithHowy text={t('What Howy does with mail')} />
+                    </span>
+                </Button>
+            </div>
+
+            <MailboxExplainerDialog
+                open={explaining}
+                onOpenChange={setExplaining}
+                rules={explainedRules}
+                company={company}
+                facts={facts}
+                note={
+                    explained
+                        ? undefined
+                        : t(
+                              'An example mailbox. Once a mailbox is connected, this follows its own rules.',
+                          )
+                }
+                picker={
+                    mailboxes.length > 1 && (
+                        <Select
+                            value={String(explained?.id)}
+                            onValueChange={(value) =>
+                                setExplainedId(Number(value))
+                            }
+                        >
+                            <SelectTrigger
+                                aria-label={t('Mailbox')}
+                                className="h-10 w-full border-[1.5px] border-cc-border-strong bg-cc-panel sm:w-fit"
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {mailboxes.map((mailbox) => (
+                                    <SelectItem
+                                        key={mailbox.id}
+                                        value={String(mailbox.id)}
+                                    >
+                                        {mailbox.emailAddress}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )
+                }
+            />
 
             {canManage && (
                 <>
@@ -173,6 +260,8 @@ export function MailboxesSection({
                     <SendPolicyDialog
                         mailbox={replySettings}
                         policies={sendPolicies}
+                        company={company}
+                        facts={facts}
                         onOpenChange={(open) => !open && setReplySettings(null)}
                     />
                     <DisconnectMailboxDialog
