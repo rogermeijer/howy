@@ -113,7 +113,9 @@ export default function Settings({
                     )}
                 </Section>
 
+                {/* Keyed on what is stored, so it starts over whenever that changes. */}
                 <KnowledgeLanguageSection
+                    key={`${account.id}:${account.knowledgeLocale}`}
                     current={account.knowledgeLocale}
                     locales={locales}
                     canManage={canManageAccount}

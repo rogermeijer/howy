@@ -95,7 +95,7 @@ class AccountController extends Controller
     {
         $account = Tenancy::account();
         $before = $account->knowledge_locale;
-        $account->update(['knowledge_locale' => $request->validated('knowledge_locale')]);
+        $account->forceFill(['knowledge_locale' => $request->validated('knowledge_locale')])->save();
 
         if ($account->knowledge_locale !== $before) {
             TranslateKnowledge::dispatch(folders: true);

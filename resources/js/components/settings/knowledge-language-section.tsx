@@ -47,12 +47,19 @@ export function KnowledgeLanguageSection({
     const [confirming, setConfirming] = useState(false);
     const [understood, setUnderstood] = useState(false);
     const [processing, setProcessing] = useState(false);
-    const label =
-        locales.find((locale) => locale.value === selected)?.label ?? selected;
+    const labelOf = (value: string) =>
+        locales.find((locale) => locale.value === value)?.label ?? value;
+    const label = labelOf(selected);
 
+    // Closed without saving, the choice goes back to the stored language: the
+    // dropdown never shows a language the knowledge base is not built in.
     const confirm = (open: boolean) => {
         setConfirming(open);
         setUnderstood(false);
+
+        if (!open) {
+            setSelected(current);
+        }
     };
 
     const save = () =>
@@ -117,6 +124,14 @@ export function KnowledgeLanguageSection({
                             {t('Save')}
                         </Button>
                     </div>
+                    {selected !== current && (
+                        <p className="cc-caption">
+                            {t(
+                                'Not saved. The knowledge base is still built in :language.',
+                                { language: labelOf(current) },
+                            )}
+                        </p>
+                    )}
                     <p className="flex gap-2 rounded-[8px] bg-cc-pending-bg px-3 py-2 text-[13px] leading-[1.5] text-cc-pending-fg">
                         <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                         <span>

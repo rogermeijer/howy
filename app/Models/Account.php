@@ -26,14 +26,16 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Collection<int, User> $users
  */
-#[Fillable(['name', 'locale', 'knowledge_locale', 'timezone'])]
+#[Fillable(['name', 'locale', 'timezone'])]
 class Account extends Model
 {
     /** @use HasFactory<AccountFactory> */
     use HasFactory;
 
     /**
-     * The knowledge base starts out in the account's own language.
+     * The knowledge base starts out in the account's own language, and from
+     * then on goes its own way: knowledge_locale is not fillable, so no
+     * account form can change it, only its own setting.
      */
     protected static function booted(): void
     {

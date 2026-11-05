@@ -57,6 +57,37 @@ class KnowledgeLanguageTest extends TestCase
         $this->assertSame(Locale::English, Account::factory()->create(['locale' => 'en'])->knowledge_locale);
     }
 
+    public function test_changing_the_account_language_never_changes_the_knowledge_language(): void
+    {
+        // Both Dutch, as an account starts out; only the account moves to English.
+        $account = Account::factory()->create(['locale' => 'nl']);
+        $admin = User::factory()->withAccount($account)->create();
+
+        $this->actingAs($admin)
+            ->patch(route('account.update'), ['name' => $account->name, 'locale' => 'en', 'timezone' => 'UTC', 'knowledge_locale' => 'en'])
+            ->assertRedirect(route('settings'));
+
+        $this->assertSame(Locale::English, $account->refresh()->locale);
+        $this->assertSame(Locale::Dutch, $account->knowledge_locale);
+
+        // Nor does anything else that fills an account from an array.
+        $account->update(['knowledge_locale' => 'en']);
+        $this->assertSame(Locale::Dutch, $account->refresh()->knowledge_locale);
+    }
+
+    public function test_a_super_admin_changing_the_account_language_leaves_the_knowledge_language_alone(): void
+    {
+        $account = Account::factory()->create(['locale' => 'nl']);
+        $superAdmin = User::factory()->superAdmin()->withAccount()->create();
+
+        $this->actingAs($superAdmin)
+            ->patch(route('admin.accounts.update', $account), ['name' => $account->name, 'locale' => 'en', 'timezone' => 'UTC', 'knowledge_locale' => 'en'])
+            ->assertRedirect(route('admin.accounts.show', $account));
+
+        $this->assertSame(Locale::English, $account->refresh()->locale);
+        $this->assertSame(Locale::Dutch, $account->knowledge_locale);
+    }
+
     public function test_an_english_document_is_summarised_and_its_facts_written_in_the_knowledge_language(): void
     {
         $this->actingAs($this->admin)->post(route('knowledge.documents.store'), [

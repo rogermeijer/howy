@@ -1226,6 +1226,7 @@
     "Knowledge base language": "Taal van de kennisbank",
     "Howy writes facts, summaries, folder names and statements from mail in this language, whatever language a document or mail is in. What comes in and what goes out can still be in any language.": "Howy schrijft feiten, samenvattingen, mapnamen en uitspraken uit mail in deze taal, in welke taal een document of mail ook is. Wat binnenkomt en wat uitgaat, kan nog steeds in elke taal zijn.",
     "Choose this once. Changing it later is strongly discouraged: it lowers the quality of the knowledge base.": "Kies dit één keer. Later wijzigen raden we sterk af: het verlaagt de kwaliteit van de kennisbank.",
+    "Not saved. The knowledge base is still built in :language.": "Niet opgeslagen. De kennisbank wordt nog steeds opgebouwd in :language.",
     "Build the knowledge base in :language?": "Kennisbank voortaan opbouwen in :language?",
     "We strongly discourage this. It lowers the quality of the knowledge base.": "Dit raden we sterk af. Het verlaagt de kwaliteit van de kennisbank.",
     "Nothing is read again. Howy machine-translates what it already wrote (facts, summaries and folder names) into :language, in the background, using your AI provider.": "Er wordt niets opnieuw gelezen. Howy vertaalt wat het al schreef (feiten, samenvattingen en mapnamen) automatisch naar :language, op de achtergrond, met je AI-provider.",
