@@ -280,7 +280,7 @@ class HybridKnowledgeSearch implements KnowledgeSearch
             return [];
         }
 
-        $facts = KnowledgeFact::query()->with(['document', 'section'])->whereKey(array_keys($ranked))->get()->keyBy('id');
+        $facts = KnowledgeFact::query()->with(['document', 'section', 'sources'])->whereKey(array_keys($ranked))->get()->keyBy('id');
 
         // Facts taken from mail cite the mail; everything else cites a document.
         $emails = Email::query()
@@ -293,19 +293,23 @@ class HybridKnowledgeSearch implements KnowledgeSearch
             $fact = $facts->get($id);
 
             if ($fact !== null) {
+                $removed = $fact->source_type !== 'email' && $fact->document === null;
+
                 $hits[] = new FactHit(
                     $fact->id,
                     $fact->statement,
                     $fact->status,
                     $fact->valid_from?->toDateString(),
                     $fact->document_id,
-                    $fact->document?->title,
+                    $removed ? $fact->sources->first()?->title : $fact->document?->title,
                     $fact->section_id,
                     $fact->section?->heading_path,
                     $fact->page_from,
                     $rank['score'],
                     $fact->source_type === 'email' ? $fact->source_id : null,
                     $fact->source_type === 'email' ? (string) ($emails[$fact->source_id] ?? '') : null,
+                    max(1, $fact->sources->count()),
+                    $removed,
                 );
             }
         }

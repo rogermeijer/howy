@@ -4,9 +4,12 @@ namespace App\Services\Gmail;
 
 use App\Enums\MailboxProvider;
 use App\Enums\MailboxStatus;
+use App\Enums\SenderAccess;
+use App\Exceptions\MailboxConnectedElsewhereException;
 use App\Jobs\StartGmailWatch;
 use App\Models\Mailbox;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Bus;
 use Laravel\Socialite\Two\User as GoogleUser;
 use Throwable;
@@ -16,8 +19,13 @@ use Throwable;
  */
 class MailboxConnector
 {
+    /** The partial index that keeps an address active in one account at most. */
+    private const string ACTIVE_ADDRESS_INDEX = 'mailboxes_one_active_per_address';
+
     /**
      * Create the mailbox, or bring an existing one back to life on re-auth.
+     *
+     * @throws MailboxConnectedElsewhereException when the address is active in another account.
      */
     public function connect(GoogleUser $google, User $by): Mailbox
     {
@@ -38,7 +46,26 @@ class MailboxConnector
             'last_error' => null,
         ]);
 
-        $mailbox->save();
+        // The database decides, so two accounts connecting at once cannot both
+        // win. In its own transaction, so a refused write cannot poison an outer
+        // one. Nothing is revoked on refusal: the grant Google just handed out is
+        // the one the other account is using.
+        try {
+            $mailbox->saveOrFail();
+        } catch (UniqueConstraintViolationException $e) {
+            if (str_contains($e->getMessage(), self::ACTIVE_ADDRESS_INDEX)) {
+                throw MailboxConnectedElsewhereException::for($mailbox->email_address);
+            }
+
+            throw $e;
+        }
+
+        // On gmail.com "the same domain" is everyone: a new mailbox there
+        // reads only the senders listed, starting with whoever connected it.
+        // Connected again, a mailbox keeps the senders it has.
+        if ($mailbox->wasRecentlyCreated && $mailbox->isOnPublicDomain()) {
+            $mailbox->senders()->create(['entry' => mb_strtolower($by->email), 'access' => SenderAccess::LearnAndAnswer]);
+        }
 
         StartGmailWatch::dispatch($mailbox->id);
 

@@ -44,6 +44,7 @@ use Illuminate\Support\Carbon;
  * @property-read DocumentSection|null $previousSection
  * @property-read Collection<int, KnowledgeChunk> $chunks
  * @property-read Collection<int, KnowledgeFact> $facts
+ * @property-read Collection<int, KnowledgeFactSource> $factSources
  * @property-read KnowledgeSummary|null $summary
  * @property-read Collection<int, KnowledgeTopicLink> $topicLinks
  */
@@ -113,6 +114,16 @@ class DocumentSection extends Model
     public function facts(): HasMany
     {
         return $this->hasMany(KnowledgeFact::class, 'section_id');
+    }
+
+    /**
+     * Every fact stated in this section, also those cited from elsewhere.
+     *
+     * @return HasMany<KnowledgeFactSource, $this>
+     */
+    public function factSources(): HasMany
+    {
+        return $this->hasMany(KnowledgeFactSource::class, 'section_id');
     }
 
     /**

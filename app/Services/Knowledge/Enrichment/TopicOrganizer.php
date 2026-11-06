@@ -15,6 +15,7 @@ use App\Services\Knowledge\Ai\Agents\TopicAssigner;
 use App\Services\Knowledge\Ai\Agents\TopicSplitter;
 use App\Services\Knowledge\Ai\Agents\TopicTreeProposer;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\KnowledgeLanguage;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 
@@ -58,7 +59,7 @@ class TopicOrganizer
             return ['topics' => 0, 'new_folders' => $created];
         }
 
-        $result = $this->ai->structured(new TopicAssigner, $this->tree()."\n\n".$this->sectionList($sections), 'topics', $version);
+        $result = $this->ai->structured(new TopicAssigner, KnowledgeLanguage::instruction()."\n\n".$this->tree()."\n\n".$this->sectionList($sections), 'topics', $version);
 
         $named = [];
 
@@ -134,14 +135,17 @@ class TopicOrganizer
     {
         $documents = Document::query()->with('currentVersion')->get();
 
-        $material = $documents->map(function (Document $document): string {
-            $summary = $document->current_version_id === null ? null : KnowledgeSummary::query()
+        $material = $documents->map(function (Document $document) use ($version): string {
+            // The version being filed counts even while it waits for review.
+            $versionId = $document->id === $version->document_id ? $version->id : $document->current_version_id;
+
+            $summary = $versionId === null ? null : KnowledgeSummary::query()
                 ->where('summarizable_type', 'document_version')
-                ->where('summarizable_id', $document->current_version_id)
+                ->where('summarizable_id', $versionId)
                 ->value('text');
 
             $outline = DocumentSection::query()
-                ->where('document_version_id', $document->current_version_id)
+                ->where('document_version_id', $versionId)
                 ->where('level', '<=', 3)
                 ->whereNotNull('heading')
                 ->orderBy('ordinal')
@@ -152,7 +156,7 @@ class TopicOrganizer
             return "<document title=\"{$document->title}\">\nSummary: ".($summary ?? '–')."\nOutline:\n{$outline}\n</document>";
         })->implode("\n\n");
 
-        $result = $this->ai->structured(new TopicTreeProposer, $material, 'topics', $version);
+        $result = $this->ai->structured(new TopicTreeProposer, KnowledgeLanguage::instruction()."\n\n".$material, 'topics', $version);
 
         $created = 0;
 
@@ -264,7 +268,7 @@ class TopicOrganizer
             ->with('summary')
             ->get();
 
-        $result = $this->ai->structured(new TopicSplitter, "Folder: {$topic->name} — {$topic->description}\n\n".$this->sectionList($sections), 'topics', $version);
+        $result = $this->ai->structured(new TopicSplitter, KnowledgeLanguage::instruction()."\nFolder: {$topic->name} — {$topic->description}\n\n".$this->sectionList($sections), 'topics', $version);
 
         $created = 0;
 

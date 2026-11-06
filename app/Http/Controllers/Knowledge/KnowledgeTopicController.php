@@ -11,8 +11,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\DocumentSection;
 use App\Models\KnowledgeFact;
+use App\Models\KnowledgeFactSource;
 use App\Models\KnowledgeTopic;
 use App\Models\KnowledgeTopicLink;
+use App\Services\Knowledge\Facts\FactSourcePresenter;
 use App\Services\Knowledge\Topics\TopicStats;
 use App\Services\Knowledge\Topics\TopicTree;
 use Illuminate\Http\RedirectResponse;
@@ -30,6 +32,7 @@ class KnowledgeTopicController extends Controller
     public function __construct(
         private readonly TopicTree $tree,
         private readonly TopicStats $stats,
+        private readonly FactSourcePresenter $sources,
     ) {}
 
     /**
@@ -76,14 +79,16 @@ class KnowledgeTopicController extends Controller
 
         $currentSections = $sections->filter(fn (DocumentSection $section): bool => $current->contains($section->document_version_id));
 
+        // Every fact stated in these sections, also where it is cited from elsewhere.
         $facts = KnowledgeFact::query()
-            ->with(['document', 'section', 'version'])
-            ->whereIn('section_id', $sections->keys())
+            ->with(['document', 'section', 'version', 'sources.version', 'sources.section'])
+            ->whereHas('sources', fn ($query) => $query->whereIn('section_id', $sections->keys()))
             ->orderBy('status')
             ->orderBy('id')
             ->get()
             // Live facts come from current versions; expired ones may be older.
-            ->filter(fn (KnowledgeFact $fact): bool => $fact->status === FactStatus::Expired || $currentSections->has((int) $fact->section_id));
+            ->filter(fn (KnowledgeFact $fact): bool => $fact->status === FactStatus::Expired
+                || $fact->sources->contains(fn (KnowledgeFactSource $source): bool => $currentSections->has((int) $source->section_id)));
 
         return Inertia::render('knowledge/topics/show', [
             'topic' => [
@@ -109,6 +114,7 @@ class KnowledgeTopicController extends Controller
                 'sectionId' => $fact->section_id,
                 'headingPath' => $fact->section?->heading_path,
                 'pageFrom' => $fact->page_from,
+                'sources' => $this->sources->present($fact),
             ])->values(),
             'sources' => $links
                 ->filter(fn (KnowledgeTopicLink $link): bool => $currentSections->has($link->linkable_id))

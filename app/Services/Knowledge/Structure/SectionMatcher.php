@@ -23,7 +23,7 @@ use Illuminate\Support\Collection;
  */
 class SectionMatcher
 {
-    private const string EMPTY_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+    public const string EMPTY_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
     /**
      * @param  list<SectionDraft>  $drafts

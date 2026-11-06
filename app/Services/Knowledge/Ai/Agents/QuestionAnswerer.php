@@ -34,6 +34,9 @@ class QuestionAnswerer implements Agent, HasStructuredOutput
         - Write the answer in the requested language, as the body of a short, friendly email
           reply: plain text, no greeting line, no signature. Keep numbers, dates and amounts
           exactly as the sources state them. Do not repeat what is missing in the answer.
+        - The question may be a request for a piece of text ("Schrijf een alinea over …", a
+          summary, a short list). Then the answer is that text, in the form asked for, still
+          only from the sources.
         - sources: the ids of the sources the answer relies on.
         - confidence: 0 to 1, how sure you are that what you answer is right and is what was
           asked. A correct partial answer can still be sure; a gap lowers it only as far as

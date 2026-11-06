@@ -33,7 +33,8 @@ class KnowledgeController extends Controller
         ]);
 
         $recent = Document::query()
-            ->with(['currentVersion', 'uploadedBy'])
+            ->listed()
+            ->with(['currentVersion', 'latestVersion', 'uploadedBy'])
             ->latest('updated_at')
             ->limit(12)
             ->get();
@@ -41,7 +42,7 @@ class KnowledgeController extends Controller
         return Inertia::render('knowledge/index', [
             'topics' => $topics,
             'recent' => DocumentResource::collection($recent)->resolve(),
-            'documentsCount' => Document::query()->count(),
+            'documentsCount' => Document::query()->listed()->count(),
             'newTopicsCount' => KnowledgeTopic::query()->where('review_status', TopicReview::New)->count(),
             'canManage' => $request->user()->isAdminOf(Tenancy::account()),
         ]);

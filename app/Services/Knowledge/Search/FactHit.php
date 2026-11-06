@@ -20,5 +20,9 @@ final readonly class FactHit
         /** Set when the fact came from a mail rather than a document. */
         public ?int $emailId = null,
         public ?string $emailSubject = null,
+        /** Every place it is stated, the cited one included. */
+        public int $sourcesCount = 1,
+        /** Its document was removed and the fact kept: named, not linked. */
+        public bool $sourceRemoved = false,
     ) {}
 }

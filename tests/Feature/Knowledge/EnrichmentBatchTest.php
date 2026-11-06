@@ -104,7 +104,8 @@ class EnrichmentBatchTest extends TestCase
         $this->artisan('knowledge:poll-batches')->assertSuccessful();
 
         Tenancy::for($account, function () {
-            $this->assertSame(ProcessingStatus::Ready, DocumentVersion::query()->sole()->status);
+            // Fully processed; it waits for an administrator before it counts.
+            $this->assertSame(ProcessingStatus::Review, DocumentVersion::query()->sole()->status);
 
             $section = DocumentSection::query()->where('heading', '3 Ziekmelding')->sole();
             $this->assertSame('Batchsamenvatting.', $section->summary?->text);

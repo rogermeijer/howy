@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Embeddings;
 use RuntimeException;
+use Tests\Concerns\ApprovesDocuments;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\TestCase;
 
@@ -29,7 +30,7 @@ use Tests\TestCase;
  */
 class PipelineResilienceTest extends TestCase
 {
-    use FakesKnowledgeAi, RefreshDatabase;
+    use ApprovesDocuments, FakesKnowledgeAi, RefreshDatabase;
 
     private Account $account;
 
@@ -67,12 +68,20 @@ class PipelineResilienceTest extends TestCase
     {
         Embeddings::fake(fn () => throw new RuntimeException('HTTP request returned status code 429'));
 
-        $this->upload();
+        $this->upload(approve: false);
+
+        // Still reviewable, with what went wrong, and approved it is found by text.
+        Tenancy::for($this->account, function () {
+            $version = DocumentVersion::query()->sole();
+            $this->assertSame(ProcessingStatus::Review, $version->status);
+            $this->assertNotNull($version->error);
+        });
+
+        $this->approvePending($this->account, $this->admin);
 
         Tenancy::for($this->account, function () {
             $version = DocumentVersion::query()->sole();
-            $this->assertSame(ProcessingStatus::Searchable, $version->status);
-            $this->assertNotNull($version->error);
+            $this->assertSame(ProcessingStatus::Ready, $version->status);
             $this->assertTrue(KnowledgeChunk::query()->get()->every(fn (KnowledgeChunk $chunk) => $chunk->is_current));
 
             $result = app(KnowledgeSearch::class)->search(new SearchQuery('ziekmelding WhatsApp'));
@@ -100,7 +109,7 @@ class PipelineResilienceTest extends TestCase
         });
     }
 
-    private function upload(): void
+    private function upload(bool $approve = true): void
     {
         $this->actingAs($this->admin)->post(route('knowledge.documents.store'), [
             'file' => UploadedFile::fake()->createWithContent('handboek.pdf', '%PDF-1.4 resilience'),
@@ -108,5 +117,9 @@ class PipelineResilienceTest extends TestCase
             'is_core' => true,
             'language' => 'nl',
         ])->assertSessionHasNoErrors();
+
+        if ($approve) {
+            $this->approvePending($this->account, $this->admin);
+        }
     }
 }

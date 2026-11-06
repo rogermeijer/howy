@@ -7,7 +7,6 @@ import {
     Server,
     X,
 } from 'lucide-react';
-import { useState } from 'react';
 import { WithHowy } from '@/components/brand/howy-name';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,15 +23,12 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useTranslations } from '@/hooks/use-translations';
-import { cn } from '@/lib/utils';
 import mailboxes from '@/routes/mailboxes';
 
 type Props = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
 };
-
-type Backfill = 'none' | '30d';
 
 // English source strings; translated where rendered.
 const comingSoon = [
@@ -52,12 +48,10 @@ const comingSoon = [
 
 export function ConnectMailboxDialog({ open, onOpenChange }: Props) {
     const t = useTranslations();
-    const [backfill, setBackfill] = useState<Backfill>('none');
 
     // A full navigation, not an Inertia visit: this leaves the app for Google.
-    const href = mailboxes.gmail.redirect.url(
-        backfill === '30d' ? { query: { backfill: '30d' } } : undefined,
-    );
+    // Older mail is imported afterwards, from the mailbox's card.
+    const href = mailboxes.gmail.redirect.url();
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -125,28 +119,6 @@ export function ConnectMailboxDialog({ open, onOpenChange }: Props) {
                     ))}
                 </fieldset>
 
-                <fieldset className="flex flex-col gap-2.5">
-                    <legend className="cc-label mb-2.5">
-                        {t('Existing emails')}
-                    </legend>
-                    <div className="grid gap-2.5 sm:grid-cols-2">
-                        <BackfillOption
-                            value="none"
-                            current={backfill}
-                            onChange={setBackfill}
-                            title={t('Only new emails')}
-                            detail={t('You can always import later')}
-                        />
-                        <BackfillOption
-                            value="30d"
-                            current={backfill}
-                            onChange={setBackfill}
-                            title={t('Also the last 30 days')}
-                            detail={t('Starts an import right away')}
-                        />
-                    </div>
-                </fieldset>
-
                 <ul className="flex flex-col gap-2.5 rounded-xl bg-cc-bg p-4 text-[13px]">
                     <li className="flex items-center gap-2.5">
                         <Check
@@ -167,7 +139,7 @@ export function ConnectMailboxDialog({ open, onOpenChange }: Props) {
                             className="size-4 shrink-0 text-cc-pending-fg"
                             strokeWidth={2.5}
                         />
-                        {t('Only sends when you set it up')}
+                        {t('Only replies to whom you allow')}
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -185,7 +157,7 @@ export function ConnectMailboxDialog({ open, onOpenChange }: Props) {
                                 <TooltipContent className="max-w-[280px] bg-cc-ink px-3.5 py-3 text-[12px] leading-[1.5] text-cc-bg">
                                     <WithHowy
                                         text={t(
-                                            'By default Howy sends nothing. If you turn sending on, you can limit it to colleagues on your own domain or to a list of allowed addresses.',
+                                            'By default Howy learns from and answers colleagues on your own domain, and ignores everyone else. Per sender you decide whether Howy learns from their mail, answers it, or both.',
                                         )}
                                     />
                                 </TooltipContent>
@@ -235,41 +207,5 @@ function ProviderIcon({ icon: Icon }: { icon: typeof Mail }) {
         <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-cc-raised">
             <Icon className="size-[18px]" />
         </span>
-    );
-}
-
-function BackfillOption({
-    value,
-    current,
-    onChange,
-    title,
-    detail,
-}: {
-    value: Backfill;
-    current: Backfill;
-    onChange: (value: Backfill) => void;
-    title: string;
-    detail: string;
-}) {
-    return (
-        <label
-            className={cn(
-                'flex cursor-pointer items-start gap-2.5 rounded-xl border-[1.5px] px-3.5 py-3',
-                current === value ? 'border-cc-ink' : 'border-cc-border-strong',
-            )}
-        >
-            <input
-                type="radio"
-                name="backfill"
-                value={value}
-                checked={current === value}
-                onChange={() => onChange(value)}
-                className="mt-px size-[18px] accent-cc-ink"
-            />
-            <span className="flex flex-col gap-0.5">
-                <span className="text-[14px] font-semibold">{title}</span>
-                <span className="text-[12px] text-cc-subtle">{detail}</span>
-            </span>
-        </label>
     );
 }

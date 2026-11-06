@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Mailboxes;
 
 use App\Enums\EmailSource;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Mailboxes\MailboxSendPolicyRequest;
+use App\Http\Requests\Mailboxes\MailboxRulesRequest;
 use App\Jobs\SyncGmailMailbox;
 use App\Models\Mailbox;
 use App\Services\Gmail\MailboxConnector;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class MailboxController extends Controller
@@ -25,13 +26,29 @@ class MailboxController extends Controller
     }
 
     /**
-     * Who Howy may reply to from this mailbox.
+     * What Howy may do with each sender's mail on this mailbox, and whether it
+     * replies at all.
      */
-    public function updateSendPolicy(MailboxSendPolicyRequest $request, Mailbox $mailbox): RedirectResponse
+    public function updateRules(MailboxRulesRequest $request, Mailbox $mailbox): RedirectResponse
     {
-        $mailbox->fill($request->validated())->save();
+        DB::transaction(function () use ($request, $mailbox): void {
+            $mailbox->update(['domain_access' => $request->validated('domain_access')]);
+            $mailbox->syncSenders($request->senders());
+        });
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Reply settings saved.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Mailbox rules saved.')]);
+
+        return back();
+    }
+
+    /**
+     * The one-time offer to import a new mailbox's older mail, turned down.
+     * Taken up, it goes through the import dialog, and the import itself ends
+     * the offer.
+     */
+    public function dismissImportOffer(Mailbox $mailbox): RedirectResponse
+    {
+        $mailbox->forceFill(['import_offer_answered_at' => now()])->save();
 
         return back();
     }

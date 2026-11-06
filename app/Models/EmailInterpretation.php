@@ -8,6 +8,7 @@ use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
 use App\Enums\ReplyStatus;
+use App\Enums\SenderAccess;
 use Database\Factories\EmailInterpretationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,13 +24,14 @@ use Illuminate\Support\Carbon;
  * (needs_review) before it reaches the knowledge base.
  *
  * @phpstan-type Citation array{type: 'document'|'email', id: int, title: string, section_id: int|null, heading_path: string|null, page: int|null}
- * @phpstan-type Statement array{statement: string, subject: string|null, valid_from: string|null, verdict: 'new'|'duplicate'|'conflict', fact_id: int|null, existing_fact_id: int|null, existing_statement: string|null, explanation: string|null, flag: string|null, review: 'pending'|'approved'|'rejected'|null, reviewed_by: int|null, reviewed_at: string|null}
+ * @phpstan-type Statement array{statement: string, subject: string|null, valid_from: string|null, verdict: 'new'|'duplicate'|'conflict', fact_id: int|null, existing_fact_id: int|null, existing_statement: string|null, explanation: string|null, flag: string|null, from_history?: bool, review: 'pending'|'approved'|'rejected'|null, reviewed_by: int|null, reviewed_at: string|null}
  *
  * @property int $id
  * @property int $account_id
  * @property int $email_id
  * @property InterpretationStatus $status
  * @property InterpretationMode $mode
+ * @property SenderAccess $sender_access
  * @property EmailIntent|null $intent
  * @property float|null $intent_confidence
  * @property InterpretationOutcome|null $outcome
@@ -55,7 +57,7 @@ use Illuminate\Support\Carbon;
  * @property-read Email $email
  */
 #[Fillable([
-    'email_id', 'status', 'mode', 'intent', 'intent_confidence', 'outcome', 'needs_review', 'summary', 'language',
+    'email_id', 'status', 'mode', 'sender_access', 'intent', 'intent_confidence', 'outcome', 'needs_review', 'summary', 'language',
     'question', 'answer', 'answer_confidence', 'answer_gaps', 'citations', 'statements', 'reply_status', 'reply_text',
     'reply_recipients',
     'reply_provider_message_id', 'replied_at', 'error', 'processed_at',
@@ -75,6 +77,7 @@ class EmailInterpretation extends Model
     protected $attributes = [
         'status' => 'queued',
         'mode' => 'addressed',
+        'sender_access' => 'learn_answer',
         'reply_status' => 'none',
         'needs_review' => false,
     ];
@@ -95,6 +98,7 @@ class EmailInterpretation extends Model
         return [
             'status' => InterpretationStatus::class,
             'mode' => InterpretationMode::class,
+            'sender_access' => SenderAccess::class,
             'intent' => EmailIntent::class,
             'intent_confidence' => 'float',
             'outcome' => InterpretationOutcome::class,

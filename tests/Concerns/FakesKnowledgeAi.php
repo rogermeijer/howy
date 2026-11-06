@@ -6,6 +6,7 @@ use App\Services\Knowledge\Ai\Agents\ContextLineWriter;
 use App\Services\Knowledge\Ai\Agents\DocumentSummarizer;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
 use App\Services\Knowledge\Ai\Agents\FactConflictChecker;
+use App\Services\Knowledge\Ai\Agents\ImageInterpreter;
 use App\Services\Knowledge\Ai\Agents\QuestionAnswerer;
 use App\Services\Knowledge\Ai\Agents\SectionEnricher;
 use App\Services\Knowledge\Ai\Agents\TopicAssigner;
@@ -56,6 +57,16 @@ trait FakesKnowledgeAi
         })->preventStrayPrompts();
 
         DocumentSummarizer::fake(fn (): array => ['summary' => 'Samenvatting van het document.'])->preventStrayPrompts();
+
+        ImageInterpreter::fake(fn (string $prompt): array => str_contains($prompt, 'logo') ? [
+            'kind' => 'decoration', 'worth_keeping' => false, 'title' => 'Logo', 'description' => 'Het logo van het bedrijf.', 'markdown' => '',
+        ] : [
+            'kind' => 'photo',
+            'worth_keeping' => true,
+            'title' => 'Planning op het whiteboard',
+            'description' => 'Een foto van het whiteboard met de planning van de monteurs voor week 12.',
+            'markdown' => "## Week 12\n\n- Maandag: Jan bij Bakker, warmtepomp\n- Dinsdag: Piet bij De Vries, onderhoud",
+        ])->preventStrayPrompts();
 
         TopicTreeProposer::fake(fn (): array => ['domains' => [
             ['name' => 'Personeel', 'description' => 'Alles over medewerkers.', 'topics' => [

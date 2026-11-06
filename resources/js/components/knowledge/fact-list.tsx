@@ -4,7 +4,7 @@ import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import type { FactStatus, TopicFact } from '@/types';
-import { SourceChip } from './source-chip';
+import { FactSources } from './fact-sources';
 
 const groups: { status: FactStatus; label: string; tone: string }[] = [
     {
@@ -87,16 +87,8 @@ export function FactList({ facts }: { facts: TopicFact[] }) {
                                             {fact.statement}
                                         </span>
                                         <span className="flex flex-wrap items-center gap-2">
-                                            <SourceChip
-                                                documentId={fact.documentId}
-                                                title={fact.documentTitle}
-                                                versionNumber={
-                                                    fact.versionNumber ??
-                                                    undefined
-                                                }
-                                                headingPath={fact.headingPath}
-                                                pageFrom={fact.pageFrom}
-                                                sectionId={fact.sectionId}
+                                            <FactSources
+                                                sources={fact.sources}
                                             />
                                             {fact.validFrom && (
                                                 <span className="cc-caption">

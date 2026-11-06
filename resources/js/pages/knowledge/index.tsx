@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { FileText, FolderOpen, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/cc/page-header';
 import { WithHowy } from '@/components/brand/howy-name';
@@ -10,6 +10,7 @@ import { useFormatDate } from '@/hooks/use-format-date';
 import { sourcesLabel } from '@/components/knowledge/labels';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
+import knowledgeRoutes from '@/routes/knowledge';
 import documentRoutes from '@/routes/knowledge/documents';
 import topicRoutes from '@/routes/knowledge/topics';
 import type { KnowledgeDocument, TopicFolder } from '@/types';
@@ -34,6 +35,9 @@ export default function Knowledge({
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
+    const awaitingApproval =
+        usePage<{ knowledge: { awaitingApproval: number } }>().props.knowledge
+            ?.awaitingApproval ?? 0;
 
     return (
         <>
@@ -67,6 +71,28 @@ export default function Knowledge({
                         </>
                     }
                 />
+
+                {canManage && awaitingApproval > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-cc-pending-bg/70 px-5 py-4">
+                        <p className="text-[14px]">
+                            <WithHowy
+                                text={t(
+                                    'Howy processed :count items from uploads and mail that wait for your approval. None of it is searched until you approve it.',
+                                    { count: awaitingApproval },
+                                )}
+                            />
+                        </p>
+                        <Button
+                            variant="outline"
+                            className="h-9 bg-cc-panel"
+                            asChild
+                        >
+                            <Link href={knowledgeRoutes.approvals()}>
+                                {t('Review')}
+                            </Link>
+                        </Button>
+                    </div>
+                )}
 
                 {canManage && newTopicsCount > 0 && (
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-cc-accent-tint/60 px-5 py-4">

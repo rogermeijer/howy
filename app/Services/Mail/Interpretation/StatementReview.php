@@ -23,14 +23,14 @@ class StatementReview
 
     public function approve(EmailInterpretation $interpretation, int $index, User $reviewer): void
     {
-        $this->decide($interpretation, $index, $reviewer, function (array $statement, Email $email) use ($interpretation): array {
+        $this->decide($interpretation, $index, $reviewer, function (array $statement, Email $email): array {
             $fact = $statement['fact_id'] !== null ? KnowledgeFact::query()->find($statement['fact_id']) : null;
 
             if ($fact !== null) {
                 $fact->update(['status' => FactStatus::Supplementary]);
             } else {
                 // A conflict, or a proposed fact that has gone since.
-                $fact = $this->facts->write($email, [$statement], FactStatus::Supplementary, $interpretation->language)[0];
+                $fact = $this->facts->write($email, [$statement], FactStatus::Supplementary)[0];
             }
 
             // The fact it contradicts no longer holds: this one replaces it.

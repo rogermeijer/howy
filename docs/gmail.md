@@ -45,9 +45,9 @@ There is no imports table.
 
 ## Sending
 
-`gmail.send` is requested now, so mailboxes will not have to reconnect when sending ships. Each mailbox
-has `send_policy` (`off` | `domain` | `allowlist`, default `off`) and `send_allowlist`. **Nothing sends
-yet.**
+Howy replies in the thread with `gmail.send`, and only to senders the mailbox's rules let it answer. Each
+mailbox has `domain_access` for its own domain and its listed senders in `mailbox_senders` (per address or
+domain: learn, answer, both or ignore); everyone else is ignored. See "Sender rules" in [`knowledge-base.md`](knowledge-base.md).
 
 ## One-time Google Cloud setup
 

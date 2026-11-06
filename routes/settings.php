@@ -17,6 +17,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('tenant')->group(function () {
         Route::get('settings', [AccountController::class, 'edit'])->name('settings');
         Route::patch('settings', [AccountController::class, 'update'])->name('account.update');
+        Route::patch('settings/knowledge-language', [AccountController::class, 'updateKnowledgeLanguage'])->name('account.knowledge-language.update');
 
         // Mailboxes belong to the account, so only its administrators manage them.
         Route::middleware('account.admin')->prefix('settings/mailboxes')->name('mailboxes.')->group(function () {
@@ -24,7 +25,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('gmail/callback', [GmailOAuthController::class, 'callback'])->name('gmail.callback');
 
             Route::post('{mailbox}/sync', [MailboxController::class, 'sync'])->name('sync');
-            Route::patch('{mailbox}/send-policy', [MailboxController::class, 'updateSendPolicy'])->name('send-policy.update');
+            Route::patch('{mailbox}/rules', [MailboxController::class, 'updateRules'])->name('rules.update');
+            Route::delete('{mailbox}/import-offer', [MailboxController::class, 'dismissImportOffer'])->name('import-offer.destroy');
             Route::delete('{mailbox}', [MailboxController::class, 'destroy'])->name('destroy');
 
             Route::get('{mailbox}/import/search', [MailboxImportController::class, 'search'])->name('import.search');

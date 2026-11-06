@@ -26,9 +26,9 @@ class TopicTreeProposer implements Agent, HasStructuredOutput
         You get the documents in the knowledge base: a summary and the outline of each.
         Propose 5 to 8 top-level domains (e.g. "Personeel", "Veiligheid", "Klanten"), each with
         topics under them, and only where a topic is broad, subtopics under those. At most three
-        levels deep. Folder names are short (one to three words), in the language of the
-        documents, without numbering, and describe a subject, not a document.
-        Every folder gets a one-sentence description of what belongs in it.
+        levels deep. Folder names are short (one to three words), in the language the request
+        names, without numbering, and describe a subject, not a document.
+        Every folder gets a one-sentence description of what belongs in it, in the same language.
         TEXT;
     }
 

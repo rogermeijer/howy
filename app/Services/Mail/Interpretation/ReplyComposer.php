@@ -3,9 +3,7 @@
 namespace App\Services\Mail\Interpretation;
 
 use App\Enums\Locale;
-use App\Facades\Tenancy;
 use App\Models\EmailInterpretation;
-use Carbon\CarbonInterface;
 use Illuminate\Support\Traits\Localizable;
 
 /**
@@ -52,47 +50,6 @@ class ReplyComposer
                 'answer' => trim($answer),
                 'gaps' => $gaps,
                 'sources' => $this->sources($citations),
-            ]);
-        });
-    }
-
-    /**
-     * A suggested answer for the people a question was put to. It goes to
-     * them alone, so it says so, and that their own answer will be filed.
-     *
-     * @param  list<Citation>  $citations
-     */
-    public function suggestion(string $asker, ?CarbonInterface $askedAt, string $question, string $answer, array $citations, ?string $gaps, float $confidence, string $locale): ComposedReply
-    {
-        return $this->withLocale($locale, function () use ($asker, $askedAt, $question, $answer, $citations, $gaps, $confidence, $locale): ComposedReply {
-            $lines = [
-                $this->line(__(':name asked:', ['name' => $asker])),
-                '"'.trim($question).'"',
-                '',
-                $this->line(__('A possible answer from the knowledge base:')),
-                '',
-                trim($answer),
-            ];
-
-            if ($gaps !== null) {
-                $lines[] = '';
-                $lines[] = $this->line(__('Not in the knowledge base yet: :gaps', ['gaps' => $gaps]));
-                $lines[] = $this->line(__('Do you know? Put it in your answer to :name, and the knowledge base learns it too.', ['name' => $asker]));
-            }
-
-            array_push($lines, ...$this->sourceLines($citations));
-            $lines[] = '';
-            $lines[] = $this->line(__('This suggestion was sent only to you, not to :name. When you answer, your answer is taken into the knowledge base.', ['name' => $asker]));
-
-            return $this->compose('mail.cc.suggestion', $lines, [
-                'asker' => $asker,
-                'initials' => $this->initials($asker),
-                'askedAt' => $askedAt?->copy()->timezone(Tenancy::account()->timezone)->locale($locale)->isoFormat('D MMMM, HH:mm'),
-                'question' => trim($question),
-                'answer' => trim($answer),
-                'gaps' => $gaps,
-                'sources' => $this->sources($citations),
-                'confidence' => (int) round($confidence * 100),
             ]);
         });
     }
@@ -242,14 +199,6 @@ class ReplyComposer
             'detail' => $detail,
             'label' => implode(', ', array_filter([$citation['title'], $detail])),
         ];
-    }
-
-    private function initials(string $name): string
-    {
-        $words = preg_split('/[\s@.]+/u', trim($name), flags: PREG_SPLIT_NO_EMPTY) ?: [];
-        $letters = array_map(fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)), array_slice($words, 0, 2));
-
-        return implode('', $letters) ?: '?';
     }
 
     /**

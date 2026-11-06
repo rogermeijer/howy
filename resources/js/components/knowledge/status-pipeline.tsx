@@ -1,4 +1,4 @@
-import { AlertCircle, Check } from 'lucide-react';
+import { AlertCircle, Ban, Check, Hourglass } from 'lucide-react';
 import {
     Tooltip,
     TooltipContent,
@@ -37,6 +37,34 @@ export function StatusPipeline({ status, error, className }: Props) {
                     </TooltipContent>
                 )}
             </Tooltip>
+        );
+    }
+
+    if (status === 'review') {
+        return (
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-cc-pending-bg px-2.5 py-1 text-[12px] font-semibold text-cc-pending-fg">
+                        <Hourglass className="size-3.5" />
+                        {t(statusLabels.review)}
+                    </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[320px]">
+                    {error ??
+                        t(
+                            'Fully processed. Nothing of it is searched until an administrator approves it.',
+                        )}
+                </TooltipContent>
+            </Tooltip>
+        );
+    }
+
+    if (status === 'rejected') {
+        return (
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-cc-raised px-2.5 py-1 text-[12px] font-semibold text-cc-muted">
+                <Ban className="size-3.5" />
+                {t(statusLabels.rejected)}
+            </span>
         );
     }
 

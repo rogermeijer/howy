@@ -29,4 +29,9 @@ class DocumentExtractionException extends RuntimeException
     {
         return new self(__('No text was found in this document.'));
     }
+
+    public static function unreadableImage(): self
+    {
+        return new self(__('This image could not be read. Images are read by the AI provider, so one has to be configured.'));
+    }
 }

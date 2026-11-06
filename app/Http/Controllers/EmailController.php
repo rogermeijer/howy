@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Facades\Tenancy;
+use App\Models\DocumentVersion;
 use App\Models\Email;
 use App\Services\Mail\Interpretation\InterpretationPresenter;
+use App\Services\Mail\MailNovelty;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -18,7 +20,7 @@ class EmailController extends Controller
      *
      * Typed binding, so another account's email 404s through the tenant scope.
      */
-    public function show(Request $request, Email $email, InterpretationPresenter $presenter): Response
+    public function show(Request $request, Email $email, InterpretationPresenter $presenter, MailNovelty $novelty): Response
     {
         $thread = Email::query()
             ->with('interpretation')
@@ -29,6 +31,13 @@ class EmailController extends Controller
             ->get();
 
         $oldest = $thread->last();
+
+        // The documents the thread's attachments are, to show where each went.
+        $versions = DocumentVersion::query()
+            ->with('document')
+            ->whereKey($thread->flatMap(fn (Email $item): array => array_column($item->attachments ?? [], 'document_version_id'))->filter()->unique())
+            ->get()
+            ->keyBy('id');
         $participants = $thread->reverse()
             ->map(fn (Email $item): ?string => $item->from_name ?? $item->from_email)
             ->filter()
@@ -54,17 +63,14 @@ class EmailController extends Controller
                 'contentText' => $item->content_text ?? $item->body_text,
                 'interpretation' => $item->interpretation !== null ? $presenter->full($item->interpretation) : null,
                 'excerpt' => Str::limit(Str::squish($item->content_text ?? $item->snippet ?? ''), 160),
-                'attachments' => array_map(
-                    fn (array $a): array => ['filename' => $a['filename'], 'size' => $a['size']],
-                    $item->attachments ?? [],
-                ),
+                'attachments' => $this->attachments($item, $versions),
                 'quotes' => array_map(
                     fn (array $quote): array => [
                         'name' => $quote['name'] ?? $quote['email'],
                         'date' => $quote['date'],
                         'dateText' => $quote['date_text'],
                         'text' => $quote['text'],
-                        'messageId' => $this->quotedMessage($quote, $item, $thread)?->id,
+                        'messageId' => $novelty->quotedEmail($quote, $item, $thread)?->id,
                     ],
                     $item->quotes ?? [],
                 ),
@@ -73,19 +79,31 @@ class EmailController extends Controller
     }
 
     /**
-     * The earlier message in this conversation that a quote repeats, if any:
-     * same sender, and its own text matches the start of the quote.
+     * Each attachment with what became of it: the document it is, or why it
+     * was left out.
      *
-     * @param  array{name: string|null, email: string|null, date: string|null, date_text: string|null, text: string}  $quote
-     * @param  Collection<int, Email>  $thread
+     * @param  Collection<int, DocumentVersion>  $versions
+     * @return list<array<string, mixed>>
      */
-    private function quotedMessage(array $quote, Email $quoting, Collection $thread): ?Email
+    private function attachments(Email $email, Collection $versions): array
     {
-        $needle = Str::limit(Str::squish($quote['text']), 80, '');
+        return array_map(function (array $attachment, int $index) use ($versions): array {
+            $version = $versions->get((int) ($attachment['document_version_id'] ?? 0));
 
-        return $thread->first(fn (Email $candidate): bool => ! $candidate->is($quoting)
-            && ($quote['email'] === null || $quote['email'] === $candidate->from_email)
-            && $needle !== ''
-            && str_starts_with(Str::squish($candidate->content_text ?? $candidate->body_text ?? ''), $needle));
+            return [
+                'index' => $index,
+                'filename' => $attachment['filename'],
+                'size' => $attachment['size'],
+                'decision' => $attachment['decision'] ?? null,
+                'reason' => $attachment['reason'] ?? null,
+                'canAdd' => ($attachment['decision'] ?? null) === null || in_array($attachment['decision'], ['ignored', 'decorative', 'failed'], true),
+                'document' => $version === null ? null : [
+                    'id' => $version->document_id,
+                    'title' => $version->document->title,
+                    'versionNumber' => $version->version_number,
+                    'status' => $version->status->value,
+                ],
+            ];
+        }, $email->attachments ?? [], array_keys($email->attachments ?? []));
     }
 }

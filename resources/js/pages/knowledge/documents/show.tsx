@@ -8,6 +8,11 @@ import { isProcessing } from '@/components/knowledge/labels';
 import { ProcessingTimeline } from '@/components/knowledge/processing-timeline';
 import { SectionTree, changeLabels } from '@/components/knowledge/section-tree';
 import { StatusPipeline } from '@/components/knowledge/status-pipeline';
+import {
+    ReviewDecision,
+    ReviewTab,
+    useReviewChoices,
+} from '@/components/knowledge/version-review';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -17,17 +22,24 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useFormatDate } from '@/hooks/use-format-date';
+import { FactSources } from '@/components/knowledge/fact-sources';
+import {
+    EmailSourceChip,
+    SourceChip,
+} from '@/components/knowledge/source-chip';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { knowledge } from '@/routes';
 import documentRoutes from '@/routes/knowledge/documents';
 import topicRoutes from '@/routes/knowledge/topics';
 import type {
+    FactView,
     KnowledgeDocument,
     ProcessingStepView,
     SectionDetail,
     SectionNode,
     VersionOption,
+    VersionReview,
 } from '@/types';
 
 type Props = {
@@ -37,10 +49,11 @@ type Props = {
     sections: SectionNode[];
     section: SectionDetail | null;
     steps: ProcessingStepView[];
+    review: VersionReview | null;
     canManage: boolean;
 };
 
-type Tab = 'structure' | 'processing';
+type Tab = 'review' | 'structure' | 'processing';
 
 const factStatusStyles = {
     core: 'bg-cc-knowledge-bg text-cc-knowledge-fg',
@@ -56,6 +69,23 @@ const factStatusLabels = {
     proposed: 'Proposed',
 } as const;
 
+// A fact waiting for approval is told by how it compares with what is known.
+const verdictStyles = {
+    new: 'bg-cc-knowledge-bg text-cc-knowledge-fg',
+    duplicate: 'bg-cc-raised text-cc-muted',
+    conflict: 'bg-cc-action-bg text-cc-action-fg',
+    unchecked: 'bg-cc-pending-bg text-cc-pending-fg',
+    carried: 'bg-cc-raised text-cc-muted',
+} as const;
+
+const verdictLabels = {
+    new: 'New fact',
+    duplicate: 'Already known',
+    conflict: 'Conflict',
+    unchecked: 'Not checked',
+    carried: 'Unchanged',
+} as const;
+
 export default function DocumentInspector({
     document,
     versions,
@@ -63,17 +93,36 @@ export default function DocumentInspector({
     sections,
     section,
     steps,
+    review,
+    canManage,
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
-    const [tab, setTab] = useState<Tab>('structure');
+    // A version waiting for approval opens on what there is to decide.
+    const [chosenTab, setTab] = useState<Tab>(review ? 'review' : 'structure');
+    const tab: Tab =
+        chosenTab === 'review' && !review ? 'structure' : chosenTab;
+    const choices = useReviewChoices(
+        review,
+        document.id,
+        review ? (version?.id ?? null) : null,
+    );
 
     const current = versions.find((item) => item.id === version?.id);
     const processing = isProcessing(current?.status);
 
     const { start, stop } = usePoll(
         3000,
-        { only: ['document', 'versions', 'sections', 'section', 'steps'] },
+        {
+            only: [
+                'document',
+                'versions',
+                'sections',
+                'section',
+                'steps',
+                'review',
+            ],
+        },
         { autoStart: false },
     );
 
@@ -159,7 +208,7 @@ export default function DocumentInspector({
                                     }
                                 >
                                     <SelectTrigger
-                                        className="h-10 w-[180px]"
+                                        className="h-10 w-[300px]"
                                         aria-label={t('Version')}
                                     >
                                         <SelectValue />
@@ -173,6 +222,14 @@ export default function DocumentInspector({
                                                 {t('Version :number', {
                                                     number: item.number,
                                                 })}
+                                                {item.isCurrent
+                                                    ? ` · ${t('live')}`
+                                                    : item.status === 'review'
+                                                      ? ` · ${t('ready for approval')}`
+                                                      : item.status ===
+                                                          'rejected'
+                                                        ? ` · ${t('rejected')}`
+                                                        : ''}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -198,9 +255,45 @@ export default function DocumentInspector({
                     }
                 />
 
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex gap-2" role="tablist">
-                        {(['structure', 'processing'] as const).map((item) => (
+                {review && current && (
+                    <ReviewDecision
+                        documentId={document.id}
+                        versionId={current.id}
+                        versionNumber={current.number}
+                        review={review}
+                        choices={choices}
+                        canManage={canManage}
+                    />
+                )}
+
+                <div className="flex flex-wrap items-end justify-between gap-3 border-b border-cc-border">
+                    <div className="flex flex-wrap gap-1.5" role="tablist">
+                        {(
+                            [
+                                ...(review
+                                    ? [
+                                          [
+                                              'review',
+                                              t('Review'),
+                                              t(':count to look at', {
+                                                  count:
+                                                      review.conflicts.length +
+                                                      review.newFacts.length +
+                                                      review.expiring.length,
+                                              }),
+                                          ] as const,
+                                      ]
+                                    : []),
+                                [
+                                    'structure',
+                                    t('Document'),
+                                    t(':count sections', {
+                                        count: sections.length,
+                                    }),
+                                ] as const,
+                                ['processing', t('Processing'), ''] as const,
+                            ] as const
+                        ).map(([item, label, meta]) => (
                             <button
                                 key={item}
                                 type="button"
@@ -208,26 +301,49 @@ export default function DocumentInspector({
                                 aria-selected={tab === item}
                                 onClick={() => setTab(item)}
                                 className={cn(
-                                    'cc-pill',
-                                    tab === item && 'cc-pill-active',
+                                    '-mb-px inline-flex h-11 cursor-pointer items-center gap-2 border-b-2 px-3.5 text-[14px] transition-colors',
+                                    tab === item
+                                        ? 'border-cc-ink font-bold text-cc-ink'
+                                        : 'border-transparent font-medium text-cc-subtle hover:text-cc-ink',
                                 )}
                             >
-                                {item === 'structure'
-                                    ? t('Structure')
-                                    : t('Processing')}
+                                {label}
+                                {meta && (
+                                    <span className="text-[12px] font-medium text-cc-subtle">
+                                        {meta}
+                                    </span>
+                                )}
                             </button>
                         ))}
                     </div>
-                    {current && (
+                    {/* Only while it says something the page does not: how far
+                        processing is, or that it failed. */}
+                    {current && (processing || current.status === 'failed') && (
                         <StatusPipeline
                             status={current.status}
-                            error={document.version?.error}
-                            className="w-[220px]"
+                            error={
+                                document.version?.id === current.id
+                                    ? document.version.error
+                                    : null
+                            }
+                            className="mb-2 w-[220px]"
                         />
                     )}
                 </div>
 
-                {tab === 'processing' ? (
+                {tab === 'review' && review ? (
+                    <ReviewTab
+                        documentId={document.id}
+                        review={review}
+                        choices={choices}
+                        canManage={canManage}
+                        fileUrl={fileUrl()}
+                        onOpenSection={(id) => {
+                            setTab('structure');
+                            visit({ section: id });
+                        }}
+                    />
+                ) : tab === 'processing' ? (
                     <div className="cc-panel px-6 py-2">
                         <ProcessingTimeline steps={steps} />
                     </div>
@@ -339,24 +455,45 @@ export default function DocumentInspector({
                                             <span className="cc-label">
                                                 {t('Facts')}
                                             </span>
+                                            {section.facts.some(
+                                                (fact) => fact.verdict,
+                                            ) && (
+                                                <p className="cc-caption">
+                                                    {t(
+                                                        'Waiting for approval. On approval a new fact is added, an already known one becomes one more source of the known fact, and an unchanged one carries on as it is.',
+                                                    )}
+                                                </p>
+                                            )}
                                             <ul className="flex flex-col gap-2">
                                                 {section.facts.map((fact) => (
                                                     <li
                                                         key={fact.id}
-                                                        className="flex items-start gap-3 rounded-lg bg-cc-bg px-3 py-2.5"
+                                                        className="flex flex-wrap items-start gap-x-3 gap-y-2 rounded-lg bg-cc-bg px-3 py-2.5"
                                                     >
                                                         <span
                                                             className={cn(
                                                                 'mt-0.5 shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
-                                                                factStatusStyles[
-                                                                    fact.status
-                                                                ],
+                                                                fact.verdict
+                                                                    ? verdictStyles[
+                                                                          fact
+                                                                              .verdict
+                                                                      ]
+                                                                    : factStatusStyles[
+                                                                          fact
+                                                                              .status
+                                                                      ],
                                                             )}
                                                         >
                                                             {t(
-                                                                factStatusLabels[
-                                                                    fact.status
-                                                                ],
+                                                                fact.verdict
+                                                                    ? verdictLabels[
+                                                                          fact
+                                                                              .verdict
+                                                                      ]
+                                                                    : factStatusLabels[
+                                                                          fact
+                                                                              .status
+                                                                      ],
                                                             )}
                                                         </span>
                                                         <span className="cc-body flex-1">
@@ -374,6 +511,33 @@ export default function DocumentInspector({
                                                                 )}
                                                             </span>
                                                         )}
+                                                        {fact.known && (
+                                                            <KnownFact
+                                                                known={
+                                                                    fact.known
+                                                                }
+                                                                conflict={
+                                                                    fact.verdict ===
+                                                                    'conflict'
+                                                                }
+                                                                explanation={
+                                                                    fact.explanation
+                                                                }
+                                                            />
+                                                        )}
+                                                        <span className="basis-full">
+                                                            <FactSources
+                                                                sources={
+                                                                    fact.sources
+                                                                }
+                                                                except={
+                                                                    section.id
+                                                                }
+                                                                label={t(
+                                                                    'Also in',
+                                                                )}
+                                                            />
+                                                        </span>
                                                     </li>
                                                 ))}
                                             </ul>
@@ -402,5 +566,56 @@ export default function DocumentInspector({
                 )}
             </div>
         </>
+    );
+}
+
+/**
+ * The fact the knowledge base already holds: where a repeated fact is known
+ * from, or what a contradicted one says.
+ */
+function KnownFact({
+    known,
+    conflict,
+    explanation,
+}: {
+    known: NonNullable<FactView['known']>;
+    conflict: boolean;
+    explanation: string | null;
+}) {
+    const t = useTranslations();
+    const source =
+        known.source.type === 'email' ? (
+            <EmailSourceChip
+                subject={known.source.title || t('(no subject)')}
+                emailId={known.source.id}
+            />
+        ) : (
+            <SourceChip
+                documentId={known.source.id}
+                title={known.source.title}
+                versionNumber={known.source.versionNumber ?? undefined}
+            />
+        );
+
+    if (!conflict) {
+        return (
+            <span className="flex basis-full flex-wrap items-center gap-1.5">
+                <span className="cc-caption">{t('Known from')}</span>
+                {source}
+            </span>
+        );
+    }
+
+    return (
+        <span className="flex basis-full flex-col gap-1.5 border-l-2 border-cc-accent pl-3">
+            <span className="cc-caption">{t('The knowledge base says')}</span>
+            <span className="text-[13px] leading-[1.5] text-cc-muted">
+                {known.statement}
+            </span>
+            {explanation && (
+                <span className="text-[13px] leading-[1.5]">{explanation}</span>
+            )}
+            <span className="self-start">{source}</span>
+        </span>
     );
 }

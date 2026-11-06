@@ -2,6 +2,7 @@
 
 namespace App\Concerns;
 
+use App\Enums\DocumentFormat;
 use App\Enums\DocumentType;
 use App\Enums\Locale;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -10,20 +11,18 @@ use Illuminate\Validation\Rule;
 trait DocumentValidationRules
 {
     /**
-     * An uploaded original: a PDF or a .docx, checked by content and extension.
+     * An uploaded original in a format the knowledge base reads, checked by
+     * content and extension.
      *
      * @return array<int, ValidationRule|array<mixed>|string>
      */
     protected function documentFileRules(): array
     {
-        /** @var list<string> $mimeTypes */
-        $mimeTypes = config('knowledge.upload.mime_types');
-
         return [
             'required',
             'file',
-            'extensions:pdf,docx',
-            'mimetypes:'.implode(',', $mimeTypes),
+            'extensions:'.implode(',', DocumentFormat::allExtensions()),
+            'mimetypes:'.implode(',', DocumentFormat::allMimeTypes()),
             'max:'.(int) config('knowledge.upload.max_kilobytes'),
         ];
     }

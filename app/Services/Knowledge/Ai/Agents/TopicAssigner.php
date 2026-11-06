@@ -28,7 +28,7 @@ class TopicAssigner implements Agent, HasStructuredOutput
         fits reasonably.
 
         Only when no folder fits at all, propose a new folder under an existing parent folder
-        (by parent id) in new_folders, with a short name in the language of the documents and a
+        (by parent id) in new_folders, with a short name in the language the request names and a
         one-sentence description, and refer to it from the section by its name in
         new_folder_names. Never propose a new top-level folder. Sections with no real content
         (only a title) get no folders.

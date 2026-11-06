@@ -60,7 +60,7 @@ class GmailWebhookTest extends TestCase
         $this->assertFalse(Tenancy::disabled());
     }
 
-    public function test_an_address_connected_in_two_accounts_syncs_both_separately(): void
+    public function test_an_address_once_connected_elsewhere_only_syncs_where_it_is_active(): void
     {
         $this->trustPushes();
 
@@ -68,15 +68,13 @@ class GmailWebhookTest extends TestCase
         $globex = Account::factory()->create();
 
         $acmeMailbox = Tenancy::for($acme, fn () => Mailbox::factory()->create(['email_address' => 'shared@noordkade.nl']));
-        $globexMailbox = Tenancy::for($globex, fn () => Mailbox::factory()->create(['email_address' => 'shared@noordkade.nl']));
+        Tenancy::for($globex, fn () => Mailbox::factory()->disconnected()->create(['email_address' => 'shared@noordkade.nl']));
 
         $this->postJson(route('webhooks.gmail'), GmailFixtures::push('shared@noordkade.nl'))->assertNoContent();
 
-        Queue::assertPushed(SyncGmailMailbox::class, 2);
+        Queue::assertPushed(SyncGmailMailbox::class, 1);
         Queue::assertPushed(SyncGmailMailbox::class, fn (SyncGmailMailbox $job) => $job->mailboxId === $acmeMailbox->id
             && $job->tenantAccountId === $acme->id);
-        Queue::assertPushed(SyncGmailMailbox::class, fn (SyncGmailMailbox $job) => $job->mailboxId === $globexMailbox->id
-            && $job->tenantAccountId === $globex->id);
     }
 
     public function test_the_webhook_skips_csrf_so_pubsub_posts_are_not_rejected(): void

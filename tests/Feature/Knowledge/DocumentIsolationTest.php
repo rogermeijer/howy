@@ -48,7 +48,8 @@ class DocumentIsolationTest extends TestCase
         $this->actingAs($this->admin);
 
         $this->patch(route('knowledge.documents.update', $document->id), ['title' => 'Mine now'])->assertNotFound();
-        $this->delete(route('knowledge.documents.destroy', $document->id))->assertNotFound();
+        $this->delete(route('knowledge.documents.destroy', $document->id), ['facts' => 'remove'])->assertNotFound();
+        $this->getJson(route('knowledge.documents.removal', $document->id))->assertNotFound();
         $this->post(route('knowledge.documents.reprocess', $document->id))->assertNotFound();
         $this->post(route('knowledge.documents.versions.store', $document->id), [
             'file' => UploadedFile::fake()->createWithContent('x.pdf', '%PDF-1.4 x'),

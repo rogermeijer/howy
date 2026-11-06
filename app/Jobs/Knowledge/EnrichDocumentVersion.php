@@ -15,7 +15,7 @@ use Throwable;
 /**
  * Step 5: summaries and facts per section. Unchanged sections are carried
  * over for free; the rest goes to the batch API (or runs right away in sync
- * mode). The document stays searchable meanwhile.
+ * mode). A published document stays searchable meanwhile.
  */
 class EnrichDocumentVersion extends KnowledgeJob
 {
@@ -25,7 +25,7 @@ class EnrichDocumentVersion extends KnowledgeJob
 
         if (! $ai->enabled()) {
             $steps->skip($version, ProcessingStep::Enrich, 'No AI provider configured.');
-            $version->update(['status' => ProcessingStatus::Ready]);
+            $version->update(['status' => $version->isApproved() ? ProcessingStatus::Ready : ProcessingStatus::Review]);
 
             return;
         }
@@ -74,7 +74,7 @@ class EnrichDocumentVersion extends KnowledgeJob
         );
 
         if ($failed === count($requests)) {
-            $version->update(['status' => ProcessingStatus::Searchable, 'error' => __('The summaries could not be made.')]);
+            $version->update(['status' => $version->settledStatus(), 'error' => __('The summaries could not be made.')]);
 
             return;
         }

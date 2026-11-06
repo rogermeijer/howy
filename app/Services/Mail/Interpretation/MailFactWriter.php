@@ -3,11 +3,10 @@
 namespace App\Services\Mail\Interpretation;
 
 use App\Enums\FactStatus;
-use App\Enums\Locale;
-use App\Facades\Tenancy;
 use App\Models\Email;
 use App\Models\KnowledgeFact;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\KnowledgeLanguage;
 use Throwable;
 
 /**
@@ -23,9 +22,10 @@ class MailFactWriter
      * @param  list<array{statement: string, subject: string|null, valid_from: string|null}>  $statements
      * @return list<KnowledgeFact> in the order given
      */
-    public function write(Email $email, array $statements, FactStatus $status, ?string $language): array
+    public function write(Email $email, array $statements, FactStatus $status): array
     {
-        $searchConfig = (Locale::tryFrom(strtolower((string) $language)) ?? Tenancy::account()->locale)->searchConfiguration();
+        // Statements are written in the knowledge base's language, whatever the mail's.
+        $searchConfig = KnowledgeLanguage::searchConfiguration();
 
         $facts = array_map(fn (array $statement): KnowledgeFact => KnowledgeFact::create([
             'source_type' => 'email',

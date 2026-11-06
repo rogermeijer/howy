@@ -11,9 +11,9 @@ enum InterpretationMode: string
     case Addressed = 'addressed';
 
     /**
-     * The mailbox is only copied: Howy listens. It never writes to the sender;
-     * it may suggest an answer to whoever was asked, and it files what the
-     * people in the conversation answer.
+     * The mailbox is only copied (or blind-copied): Howy listens. It answers
+     * nothing and writes to no one; it files what the people in the
+     * conversation say.
      */
     case Copied = 'copied';
 

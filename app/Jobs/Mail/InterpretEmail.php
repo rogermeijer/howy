@@ -11,6 +11,7 @@ use App\Tenancy\Concerns\InteractsWithTenancy;
 use App\Tenancy\Contracts\TenantAware;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -20,9 +21,15 @@ use Throwable;
  */
 class InterpretEmail implements ShouldQueue, TenantAware
 {
-    use InteractsWithTenancy, Queueable;
+    use InteractsWithTenancy {
+        middleware as tenancyMiddleware;
+    }
+    use Queueable;
 
-    public int $tries = 3;
+    /** Waiting for the same mail in another mailbox is not a failure. */
+    public int $tries = 6;
+
+    public int $maxExceptions = 3;
 
     public int $timeout = 600;
 
@@ -34,10 +41,25 @@ class InterpretEmail implements ShouldQueue, TenantAware
     /**
      * @param  bool  $force  interpret again even if it was done before
      */
+    /** The Message-ID, so one mail reaching two mailboxes is read one at a time. */
+    public string $messageKey;
+
     public function __construct(public int $emailId, public bool $force = false)
     {
         $this->rememberTenant();
         $this->onQueue((string) config('knowledge.queue'));
+        $this->messageKey = sha1((string) (Email::query()->whereKey($emailId)->value('message_id_header') ?? "email-{$emailId}"));
+    }
+
+    /**
+     * @return list<object>
+     */
+    public function middleware(): array
+    {
+        return [
+            ...$this->tenancyMiddleware(),
+            (new WithoutOverlapping("mail-read:{$this->tenantAccountId}:{$this->messageKey}"))->releaseAfter(30)->expireAfter($this->timeout + 60),
+        ];
     }
 
     public function handle(EmailInterpreter $interpreter): void

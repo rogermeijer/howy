@@ -11,10 +11,12 @@ use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Promptable;
 
 /**
- * Sorts a mail sent or copied to the knowledge mailbox: a question to answer,
- * new information to file, or neither. A reply is read with the message it
+ * Sorts a mail sent or copied to the knowledge mailbox: a question to answer
+ * (or, written to the mailbox alone, a request to it), new information to
+ * file, or neither. A reply is read with the message it
  * answers as context, so "yes, up to three days" becomes a claim of its own. Runs on the light model; it also pulls out
- * the question or the statements, so what follows needs no second read.
+ * the question or the statements, so what follows needs no second read, and
+ * decides which of its attachments belong in the knowledge base.
  */
 #[Strict]
 class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
@@ -31,6 +33,13 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
         <earlier> may end with <missing>: what the knowledge base was found not to know about
         the question. A reply that supplies it is information; state it fully.
 
+        The mail may also carry <history> or <forwarded>: earlier messages of the thread that the
+        knowledge base has not read yet (a forwarded mail, or a thread the mailbox was added to
+        later). Unlike <earlier>, these are a source: take statements from them as well when they
+        are still current (not replaced by a later message), and set from_history to true for
+        those. For a forward, judge the intent from the forwarded content, not from a short note
+        like "FYI". <history filed="document"> means the history is filed elsewhere; leave it out.
+
         Decide what the sender wants:
         - "question": they ask something the company's knowledge (policies, procedures,
           agreements, facts about the organisation) could answer.
@@ -39,26 +48,52 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
         - "other": anything else (thanks, small talk, an out-of-office, a newsletter, spam).
         When a mail does both, choose what it mainly does.
 
+        "Written to: the knowledge mailbox alone" at the top means the mail was written to the
+        mailbox and to no one else, so the sender expects it to act. Then a request to write
+        something from the company's knowledge is a "question" too: a paragraph, a summary, a
+        short text for a document ("Kun je een korte tekst maken over ons verlofbeleid?").
+        Without that line, a request to write something is "other": it is meant for the people
+        the mail was written to. A question put as a request ("Kun je uitleggen hoe het verlof
+        werkt?") is a "question" either way; thanks, small talk and out-of-office replies are
+        "other" either way.
+
         Return:
         - intent and confidence (0 to 1).
         - summary: one sentence that says how you read the mail, in the mail's language.
         - language: the ISO 639-1 code of the mail's language ("nl", "en").
         - question: for a question, the question rewritten so it stands on its own, in the
-          mail's language. Otherwise an empty string.
+          mail's language. For a request that counts as a question, the request itself, keeping
+          the form it asks for ("Schrijf een korte tekst over ons verlofbeleid."). Otherwise an
+          empty string.
         - statements: for information, the claims it makes, each as one atomic,
-          self-contained statement that is understandable without the mail ("Vanaf 1 januari
+          self-contained statement that is understandable without the mail, written in the
+          knowledge base language given at the top, whatever language the mail is in (translate
+          faithfully; keep names, amounts and terms as they are) ("Vanaf 1 januari
           2027 is de vergoeding voor thuiswerken 3 euro per dag."). One claim per statement.
           Only what the mail literally says; use the earlier message only to make a reply's
           claims self-contained ("Medewerkers mogen maximaal drie dagen per week thuiswerken."
           for "Ja, tot drie dagen." to "Hoeveel dagen mogen we thuiswerken?"). subject: a short lowercase topic label;
           valid_from: an ISO date (YYYY-MM-DD) if the mail says from when it applies, else null.
           flag: empty when the statement is a fact about how this organisation works, has decided
-          or has agreed. Otherwise one short sentence, in the mail's language, saying why someone
+          or has agreed. Otherwise one short sentence, in the knowledge base language, saying why someone
           should look before it goes into the knowledge base: general advice or best practice
           rather than how the organisation does it ("Algemeen advies over TLS, niet hoe wij het
           geregeld hebben."), an opinion or a guess, or it does not answer what the earlier
           message asked.
+          The attachments carry their own content: never make a statement that only announces,
+          names or describes an attachment or a file ("Er is een nieuw personeelshandboek in het
+          Engels.", "Bijgevoegd is de verlofregeling."). A mail whose only point is to send a
+          file is information with no statements; the attachments decide what goes in.
           Otherwise an empty list.
+        - attachments: when the mail lists <attachments>, decide for each one listed as new
+          whether it belongs in the knowledge base. "knowledge" for documents, presentations,
+          spreadsheets and images that hold how the organisation works or what it knows or
+          decided: a policy, a handbook, a procedure, a price list, a planning, a floor plan,
+          a photo of a whiteboard. "ignore" for what is only about this one exchange or person:
+          an invoice, a quote, a CV, a ticket, a signature logo, a calendar invite. Judge from
+          the mail's text, the file name and the type. reason: one short sentence, in the mail's
+          language. Attachments marked known are already in the knowledge base; leave them out.
+          An empty list when there are no new attachments.
         TEXT;
     }
 
@@ -76,6 +111,14 @@ class EmailClassifier implements Agent, HasProviderOptions, HasStructuredOutput
                     'subject' => $schema->string()->required(),
                     'valid_from' => $schema->string()->nullable()->required(),
                     'flag' => $schema->string()->required(),
+                    'from_history' => $schema->boolean()->required(),
+                ])->withoutAdditionalProperties()
+            )->required(),
+            'attachments' => $schema->array()->items(
+                $schema->object([
+                    'id' => $schema->string()->required(),
+                    'use' => $schema->string()->enum(['knowledge', 'ignore'])->required(),
+                    'reason' => $schema->string()->required(),
                 ])->withoutAdditionalProperties()
             )->required(),
         ];

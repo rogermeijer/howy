@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Knowledge;
 
+use App\Enums\ProcessingStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Knowledge\StoreDocumentVersionRequest;
 use App\Models\Document;
@@ -30,15 +31,19 @@ class DocumentVersionController extends Controller
     }
 
     /**
-     * The original file, shown inline so a PDF opens at #page=n in the browser.
+     * The original file, shown inline so a PDF opens at #page=n in the browser
+     * and an image shows as itself; the rest downloads.
      */
     public function file(Document $document, DocumentVersion $version): StreamedResponse
     {
+        // A rejected version keeps its row, not its file.
+        abort_if($version->status === ProcessingStatus::Rejected, 404);
+
         return Storage::disk($version->disk)->response(
             $version->path,
             $version->original_filename,
             ['Content-Type' => $version->mime_type, 'X-Content-Type-Options' => 'nosniff'],
-            $version->isPdf() ? 'inline' : 'attachment',
+            $version->format()->opensInline() ? 'inline' : 'attachment',
         );
     }
 }

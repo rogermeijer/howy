@@ -2,12 +2,14 @@
 
 namespace App\Services\Mail\Interpretation;
 
+use App\Enums\FingerprintUse;
 use App\Enums\ReplyStatus;
 use App\Exceptions\MailboxNeedsReauthException;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
 use App\Services\Gmail\GmailClient;
 use App\Services\Gmail\GmailMessageParser;
+use App\Services\Mail\MailFingerprints;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Str;
@@ -15,14 +17,16 @@ use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email as MimeEmail;
 
 /**
- * Replies to a mail in its own thread, from the mailbox it came in on: to the
- * sender, or with a suggestion to the people who were asked. Only to whom the
- * mailbox's send policy allows. A blocked or failed reply is
- * kept on the interpretation, so the answer is never lost.
+ * Replies to a mail in its own thread, from the mailbox it came in on, to the
+ * sender and only to whom the mailbox's send policy allows. A blocked or
+ * failed reply is kept on the interpretation, so the answer is never lost.
  */
 class ThreadReplier
 {
-    public function __construct(private readonly GmailMessageParser $parser) {}
+    public function __construct(
+        private readonly GmailMessageParser $parser,
+        private readonly MailFingerprints $fingerprints,
+    ) {}
 
     /**
      * Answer the sender (Reply-To when set, else From), with everyone else
@@ -33,30 +37,6 @@ class ThreadReplier
         $recipient = $this->recipient($email);
 
         $this->deliver($interpretation, $email, $recipient !== null ? [$recipient] : [], $body, $this->copiedOn($email, $recipient));
-    }
-
-    /**
-     * Suggest an answer to the people a question was put to, and to no one
-     * else: the sender never hears from Howy when the mailbox is only copied.
-     */
-    public function suggest(EmailInterpretation $interpretation, Email $email, ComposedReply $body): void
-    {
-        $this->deliver($interpretation, $email, $this->askedOf($email), $body);
-    }
-
-    /**
-     * The people a mail was written to: To, without the sender and the mailbox.
-     *
-     * @return list<string>
-     */
-    public function askedOf(Email $email): array
-    {
-        $exclude = array_filter([strtolower((string) $email->from_email), strtolower((string) $email->mailbox?->email_address)]);
-
-        return array_values(array_unique(array_filter(
-            array_map(fn (array $recipient): string => strtolower($recipient['email']), $email->to ?? []),
-            fn (string $address): bool => $address !== '' && ! in_array($address, $exclude, true),
-        )));
     }
 
     /**
@@ -123,6 +103,9 @@ class ThreadReplier
 
         $interpretation->fill(['reply_provider_message_id' => $sent['id'], 'replied_at' => now()]);
         $this->finish($interpretation, ReplyStatus::Sent);
+
+        // Quoted back under the next reply, Howy's own words are not news.
+        $this->fingerprints->record($email, $body->text, FingerprintUse::Reply);
     }
 
     /**

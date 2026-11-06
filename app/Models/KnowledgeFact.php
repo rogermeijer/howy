@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\BelongsToAccount;
 use App\Enums\FactStatus;
+use App\Services\Knowledge\Facts\FactSources;
 use Database\Factories\KnowledgeFactFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
@@ -29,8 +31,13 @@ use Illuminate\Support\Carbon;
  * @property int|null $section_id
  * @property int|null $chunk_id
  * @property string $statement
+ * @property string|null $quote the words in the source that state it, as they stand there
  * @property string|null $subject
  * @property FactStatus $status
+ * @property string|null $review_verdict
+ * @property int|null $related_fact_id
+ * @property string|null $review_explanation
+ * @property string|null $review_choice what a reviewer chose while it waits: new, keep or omit
  * @property Carbon|null $valid_from
  * @property Carbon|null $valid_until
  * @property int|null $superseded_by_id
@@ -51,11 +58,13 @@ use Illuminate\Support\Carbon;
  * @property-read DocumentSection|null $section
  * @property-read KnowledgeChunk|null $chunk
  * @property-read KnowledgeFact|null $supersededBy
+ * @property-read KnowledgeFact|null $relatedFact
  * @property-read Collection<int, KnowledgeTopicLink> $topicLinks
+ * @property-read Collection<int, KnowledgeFactSource> $sources
  */
 #[Fillable([
     'source_type', 'source_id', 'document_id', 'document_version_id', 'section_id', 'chunk_id',
-    'statement', 'subject', 'status', 'valid_from', 'valid_until', 'superseded_by_id',
+    'statement', 'quote', 'subject', 'status', 'review_verdict', 'related_fact_id', 'review_explanation', 'review_choice', 'valid_from', 'valid_until', 'superseded_by_id',
     'confidence', 'page_from', 'page_to', 'content_hash', 'embedding', 'embedding_model',
     'search_config',
 ])]
@@ -66,6 +75,33 @@ class KnowledgeFact extends Model
 
     /** @use HasFactory<KnowledgeFactFactory> */
     use HasFactory;
+
+    /**
+     * Every new fact is stated somewhere: its own source is its first.
+     */
+    protected static function booted(): void
+    {
+        static::created(fn (KnowledgeFact $fact) => app(FactSources::class)->recordPrimary($fact));
+    }
+
+    /**
+     * Every place it is stated, its primary source included.
+     *
+     * @return HasMany<KnowledgeFactSource, $this>
+     */
+    public function sources(): HasMany
+    {
+        return $this->hasMany(KnowledgeFactSource::class);
+    }
+
+    /**
+     * The document it is cited from, by name: also when that document was
+     * removed and the fact kept.
+     */
+    public function documentTitle(): string
+    {
+        return $this->document->title ?? (string) $this->sources()->where('kind', 'document')->orderBy('id')->value('title');
+    }
 
     /**
      * @return MorphTo<Model, $this>
@@ -89,6 +125,17 @@ class KnowledgeFact extends Model
     public function version(): BelongsTo
     {
         return $this->belongsTo(DocumentVersion::class, 'document_version_id');
+    }
+
+    /**
+     * The known fact this one duplicates or contradicts, found while its
+     * document waited for review.
+     *
+     * @return BelongsTo<KnowledgeFact, $this>
+     */
+    public function relatedFact(): BelongsTo
+    {
+        return $this->belongsTo(KnowledgeFact::class, 'related_fact_id');
     }
 
     /**

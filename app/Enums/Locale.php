@@ -39,6 +39,20 @@ enum Locale: string
     }
 
     /**
+     * The language a full-text configuration is for.
+     */
+    public static function forSearchConfiguration(string $configuration): ?self
+    {
+        foreach (self::cases() as $locale) {
+            if ($locale->searchConfiguration() === $configuration) {
+                return $locale;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @return list<string>
      */
     public static function values(): array

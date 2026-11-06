@@ -15,6 +15,16 @@ use Illuminate\Support\Carbon;
 /**
  * One message, stored as it arrived from the mailbox provider.
  *
+ * A quote is one earlier message the mail carries along: quoted under a reply,
+ * or forwarded (inline, or attached as a message of its own).
+ *
+ * @phpstan-type Quote array{name: string|null, email: string|null, date: string|null, date_text: string|null, text: string, message_id?: string|null, forwarded?: bool}
+ *
+ * An attachment as the mail carried it, and what Howy decided about it: new
+ * to the knowledge base (and which version it became), known already (and
+ * which version it is), ignored, or not readable.
+ * @phpstan-type Attachment array{filename: string, mime_type: string, size: int, attachment_id: string|null, part_id?: string|null, content_id?: string|null, is_inline?: bool, sha256?: string|null, decision?: string|null, reason?: string|null, document_version_id?: int|null}
+ *
  * @property int $id
  * @property int $account_id
  * @property int|null $mailbox_id
@@ -35,9 +45,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $body_html
  * @property string|null $content_html
  * @property string|null $content_text
- * @property list<array{name: string|null, email: string|null, date: string|null, date_text: string|null, text: string}>|null $quotes
+ * @property list<Quote>|null $quotes
+ * @property string|null $content_hash
  * @property list<string>|null $label_ids
- * @property list<array{filename: string, mime_type: string, size: int, attachment_id: string|null}>|null $attachments
+ * @property list<Attachment>|null $attachments
  * @property bool $has_attachments
  * @property EmailSource $source
  * @property int|null $imported_by_user_id
@@ -50,7 +61,7 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'mailbox_id', 'provider_message_id', 'provider_thread_id', 'message_id_header',
     'in_reply_to', 'headers', 'subject', 'from_name', 'from_email', 'to', 'cc', 'sent_at',
-    'received_at', 'snippet', 'body_text', 'body_html', 'content_html', 'content_text', 'quotes', 'label_ids', 'attachments',
+    'received_at', 'snippet', 'body_text', 'body_html', 'content_html', 'content_text', 'quotes', 'content_hash', 'label_ids', 'attachments',
     'has_attachments', 'source', 'imported_by_user_id',
 ])]
 class Email extends Model

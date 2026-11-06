@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
-import { ChevronLeft, FileText, Paperclip, Quote } from 'lucide-react';
+import { ChevronLeft, Paperclip, Quote } from 'lucide-react';
 import { Fragment, useState } from 'react';
+import { AttachmentChip } from '@/components/mail/attachment-chip';
 import { CcReply, hasCcReply } from '@/components/mail/cc-reply';
 import { InterpretationPanel } from '@/components/mail/interpretation-panel';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
@@ -9,7 +10,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { inbox } from '@/routes';
-import type { Interpretation } from '@/types';
+import type { Interpretation, MailAttachment } from '@/types';
 
 type Address = { name: string | null; email: string };
 
@@ -31,7 +32,7 @@ type Message = {
     contentHtml: string | null;
     contentText: string | null;
     excerpt: string;
-    attachments: { filename: string; size: number }[];
+    attachments: MailAttachment[];
     quotes: QuotedMessage[];
     interpretation: Interpretation | null;
 };
@@ -44,11 +45,6 @@ type Props = {
     participants: string[];
     messages: Message[];
 };
-
-const kilobytes = (bytes: number) =>
-    bytes >= 1024 * 1024
-        ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
-        : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 const anchor = (id: number) => `message-${id}`;
 
@@ -82,8 +78,8 @@ export default function EmailShow({
     );
     const [quotesOpen, setQuotesOpen] = useState<Set<number>>(new Set());
 
-    // The panel shows one message's interpretation: the opened one, else one
-    // waiting for review, else the newest. Each message can switch it.
+    // The panel shows one message's interpretation: the opened one, else the
+    // newest. Each message can switch it.
     const interpretedMessages = messages.filter(
         (message) => message.interpretation,
     );
@@ -92,11 +88,7 @@ export default function EmailShow({
             (
                 interpretedMessages.find(
                     (message) => message.id === currentId,
-                ) ??
-                interpretedMessages.find(
-                    (message) => message.interpretation?.needsReview,
-                ) ??
-                interpretedMessages[0]
+                ) ?? interpretedMessages[0]
             )?.id ?? null,
     );
     const interpreted = interpretedMessages.find(
@@ -199,6 +191,7 @@ export default function EmailShow({
                                             onSelect={() =>
                                                 setSelectedId(message.id)
                                             }
+                                            canReview={canReview}
                                         />
                                     ) : (
                                         <ClosedMessage
@@ -222,7 +215,6 @@ export default function EmailShow({
 
                     <InterpretationPanel
                         interpretation={interpreted?.interpretation ?? null}
-                        emailId={interpreted?.id ?? null}
                         canReview={canReview}
                         about={
                             interpreted && messages.length > 1
@@ -265,6 +257,7 @@ function OpenMessage({
     selectable,
     selected,
     onSelect,
+    canReview,
 }: {
     message: Message;
     quotesOpen: boolean;
@@ -275,6 +268,7 @@ function OpenMessage({
     selectable: boolean;
     selected: boolean;
     onSelect: () => void;
+    canReview: boolean;
 }) {
     const t = useTranslations();
     const formatDate = useFormatDate();
@@ -367,18 +361,12 @@ function OpenMessage({
                 {message.attachments.length > 0 && (
                     <ul className="flex flex-wrap gap-2 pt-1">
                         {message.attachments.map((attachment) => (
-                            <li
-                                key={attachment.filename}
-                                className="flex items-center gap-2.5 rounded-[10px] border-[1.5px] border-cc-border px-3.5 py-2 text-[13px]"
-                            >
-                                <FileText className="size-4 text-cc-subtle" />
-                                <span className="font-semibold">
-                                    {attachment.filename}
-                                </span>
-                                <span className="text-cc-faint">
-                                    {kilobytes(attachment.size)}
-                                </span>
-                            </li>
+                            <AttachmentChip
+                                key={attachment.index}
+                                emailId={message.id}
+                                attachment={attachment}
+                                canAdd={canReview}
+                            />
                         ))}
                     </ul>
                 )}

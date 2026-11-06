@@ -52,8 +52,10 @@ class GmailMessageParserTest extends TestCase
             'parts' => [
                 $message['payload'],
                 [
+                    'partId' => '1',
                     'mimeType' => 'application/pdf',
                     'filename' => 'situatietekening.pdf',
+                    'headers' => [['name' => 'Content-Disposition', 'value' => 'attachment; filename="situatietekening.pdf"']],
                     'body' => ['size' => 84000, 'attachmentId' => 'att-1'],
                 ],
             ],
@@ -67,8 +69,36 @@ class GmailMessageParserTest extends TestCase
             'mime_type' => 'application/pdf',
             'size' => 84000,
             'attachment_id' => 'att-1',
+            'part_id' => '1',
+            'content_id' => null,
+            'is_inline' => false,
         ]], $parsed['attachments']);
         $this->assertSame('Body of m1', $parsed['body_text']);
+    }
+
+    public function test_an_image_in_the_body_is_an_inline_attachment_even_without_a_name(): void
+    {
+        $message = GmailFixtures::message('m1');
+        $message['payload'] = [
+            'mimeType' => 'multipart/related',
+            'headers' => $message['payload']['headers'],
+            'parts' => [
+                $message['payload'],
+                [
+                    'partId' => '2',
+                    'mimeType' => 'image/png',
+                    'filename' => '',
+                    'headers' => [['name' => 'Content-ID', 'value' => '<ii_m1@mail>'], ['name' => 'Content-Disposition', 'value' => 'inline']],
+                    'body' => ['size' => 240000, 'attachmentId' => 'att-2'],
+                ],
+            ],
+        ];
+
+        $attachment = (new GmailMessageParser)->parse($message)['attachments'][0];
+
+        $this->assertSame('inline-2.png', $attachment['filename']);
+        $this->assertSame('ii_m1@mail', $attachment['content_id']);
+        $this->assertTrue($attachment['is_inline']);
     }
 
     public function test_it_converts_a_latin1_body_to_utf8(): void
