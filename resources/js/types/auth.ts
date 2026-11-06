@@ -3,8 +3,12 @@ export type Account = {
     name: string;
 };
 
-export type AccountMembership = Account & {
-    is_admin: boolean;
+/** What the account switcher gets back for a search. */
+export type AccountSwitcherResponse = {
+    /** At most five of the user's other accounts, best match first. */
+    accounts: Account[];
+    /** How many of the other accounts match, shown or not. */
+    total: number;
 };
 
 export type User = {
@@ -27,8 +31,8 @@ export type Auth = {
     user: User;
     /** The account currently being worked in, or null when the user has none. */
     account: Account | null;
-    /** Every account the user can switch to. */
-    accounts: AccountMembership[];
+    /** How many accounts the user belongs to, the current one included. */
+    accountCount: number;
 };
 
 export type Passkey = {

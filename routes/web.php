@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountSwitcherController;
 use App\Http\Controllers\Auth\RegistrationCodeController;
 use App\Http\Controllers\BetaAccessRequestController;
 use App\Http\Controllers\CurrentAccountController;
@@ -123,6 +124,8 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
 // Not tenant-gated: someone healing out of a bad account state still needs to
 // be able to switch, and switching must work before email verification.
 Route::middleware(['auth'])->group(function () {
+    Route::get('account-switcher', AccountSwitcherController::class)
+        ->name('account-switcher');
     Route::put('current-account', [CurrentAccountController::class, 'update'])
         ->name('current-account.update');
 });

@@ -311,6 +311,7 @@
     "Switch account": "Wisselen van account",
     "Current account": "Huidig account",
     ":count more, search to narrow down": "Nog :count, zoek om te verfijnen",
+    "Loading accounts failed. Please try again.": "Accounts laden is mislukt. Probeer het opnieuw.",
     "Switching Protocols": "Protocolwissel",
     "Tag": "Label",
     "Tags": "Labels",

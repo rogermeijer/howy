@@ -1,49 +1,25 @@
 import { router, usePage } from '@inertiajs/react';
 import { ArrowRightLeft, Search } from 'lucide-react';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { Spinner } from '@/components/ui/spinner';
 import { useInitials } from '@/hooks/use-initials';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
+import { accountSwitcher } from '@/routes';
 import { update as updateCurrentAccount } from '@/routes/current-account';
-import type { Account, Auth } from '@/types';
+import type { Account, AccountSwitcherResponse, Auth } from '@/types';
 
-/** How many accounts the list shows; search reaches the rest. */
-const VISIBLE = 5;
+/** How long typing has to pause before the search goes out, in ms. */
+const DEBOUNCE = 200;
 
-/** Lowercased and stripped of accents, so "cafe" finds "Café". */
-function fold(value: string): string {
-    return value
-        .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '')
-        .toLowerCase();
-}
-
-/**
- * The accounts matching the query, names starting with it first. The rest keep
- * the server's order, which is by name.
- */
-function matching(accounts: Account[], query: string): Account[] {
-    const needle = fold(query.trim());
-
-    if (needle === '') {
-        return accounts;
-    }
-
-    const found = accounts.filter((account) =>
-        fold(account.name).includes(needle),
-    );
-
-    return [
-        ...found.filter((account) => fold(account.name).startsWith(needle)),
-        ...found.filter((account) => !fold(account.name).startsWith(needle)),
-    ];
-}
+/** A server answer, with the search it answers. */
+type Result = AccountSwitcherResponse & { query: string };
 
 function AccountInitials({
     name,
@@ -73,6 +49,8 @@ function AccountInitials({
  *
  * The current account heads the panel; below it a search and at most five of
  * the other accounts, so it stays the same size with five accounts or fifty.
+ * The page only knows how many accounts there are: the list is searched on the
+ * server when the panel opens and as the user types.
  */
 export function AccountSwitcher() {
     const { auth } = usePage<{ auth: Auth }>().props;
@@ -81,20 +59,73 @@ export function AccountSwitcher() {
     const inputRef = useRef<HTMLInputElement>(null);
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
+    const [result, setResult] = useState<Result | null>(null);
+    const [failed, setFailed] = useState(false);
     // Nothing is highlighted until the pointer or an arrow key picks a row, so
     // the list never looks as if something is already hovered.
     const [active, setActive] = useState(-1);
 
-    if (auth.accounts.length < 2) {
+    const term = query.trim();
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        // Aborting on every change means a slow answer to an older search can
+        // never overwrite the answer to the newer one.
+        const controller = new AbortController();
+        const timer = window.setTimeout(
+            async () => {
+                try {
+                    const response = await fetch(
+                        accountSwitcher.url({
+                            query: { q: term || undefined },
+                        }),
+                        {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            signal: controller.signal,
+                        },
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(String(response.status));
+                    }
+
+                    const data =
+                        (await response.json()) as AccountSwitcherResponse;
+
+                    setResult({ ...data, query: term });
+                    setFailed(false);
+                    setActive(-1);
+                } catch {
+                    if (!controller.signal.aborted) {
+                        setFailed(true);
+                    }
+                }
+            },
+            // Opening asks straight away; typing waits for a pause.
+            term === '' ? 0 : DEBOUNCE,
+        );
+
+        return () => {
+            window.clearTimeout(timer);
+            controller.abort();
+        };
+    }, [open, term]);
+
+    if (auth.accountCount < 2) {
         return null;
     }
 
-    const others = auth.accounts.filter(
-        (account) => account.id !== auth.account?.id,
-    );
-    const matches = matching(others, query);
-    const visible = matches.slice(0, VISIBLE);
-    const hidden = matches.length - visible.length;
+    const accounts = result?.accounts ?? [];
+    const hidden = result === null ? 0 : result.total - accounts.length;
+    // Rows answering an older search stay visible while the new one is out,
+    // but Enter waits for the answer to what is actually typed.
+    const fresh = result !== null && result.query === term;
 
     const changeOpen = (next: boolean) => {
         setOpen(next);
@@ -102,6 +133,10 @@ export function AccountSwitcher() {
         if (!next) {
             setQuery('');
             setActive(-1);
+            setFailed(false);
+            // The unfiltered list is what the next open starts with; keep it to
+            // show while it refreshes, but never a filtered one.
+            setResult((current) => (current?.query === '' ? current : null));
         }
     };
 
@@ -120,20 +155,23 @@ export function AccountSwitcher() {
     };
 
     const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-        if (visible.length === 0) {
+        if (accounts.length === 0) {
             return;
         }
 
         if (event.key === 'ArrowDown') {
             event.preventDefault();
-            setActive((active + 1) % visible.length);
+            setActive((active + 1) % accounts.length);
         } else if (event.key === 'ArrowUp') {
             event.preventDefault();
-            setActive(active <= 0 ? visible.length - 1 : active - 1);
+            setActive(active <= 0 ? accounts.length - 1 : active - 1);
         } else if (event.key === 'Enter') {
             // With nothing highlighted, Enter takes the top match.
             event.preventDefault();
-            switchAccount(visible[Math.max(active, 0)]);
+
+            if (fresh) {
+                switchAccount(accounts[Math.max(active, 0)]);
+            }
         }
     };
 
@@ -187,10 +225,11 @@ export function AccountSwitcher() {
                             aria-expanded={true}
                             aria-controls={listId}
                             aria-activedescendant={
-                                active >= 0
-                                    ? `${listId}-${visible[active].id}`
+                                active >= 0 && accounts[active]
+                                    ? `${listId}-${accounts[active].id}`
                                     : undefined
                             }
+                            maxLength={100}
                             placeholder={t('Search accounts')}
                             value={query}
                             onChange={(event) => {
@@ -207,9 +246,10 @@ export function AccountSwitcher() {
                     id={listId}
                     role="listbox"
                     aria-label={t('Accounts')}
+                    aria-busy={!fresh}
                     onMouseLeave={() => setActive(-1)}
                 >
-                    {visible.map((account, index) => (
+                    {accounts.map((account, index) => (
                         <div
                             key={account.id}
                             id={`${listId}-${account.id}`}
@@ -232,13 +272,24 @@ export function AccountSwitcher() {
                     ))}
                 </div>
 
-                {visible.length === 0 && (
+                {failed ? (
                     <p className="px-2 py-1.5 text-sm text-cc-subtle">
-                        {t('No accounts found.')}
+                        {t('Loading accounts failed. Please try again.')}
                     </p>
+                ) : result === null ? (
+                    <div className="flex justify-center py-3 text-cc-subtle">
+                        <Spinner className="size-4" />
+                    </div>
+                ) : (
+                    fresh &&
+                    accounts.length === 0 && (
+                        <p className="px-2 py-1.5 text-sm text-cc-subtle">
+                            {t('No accounts found.')}
+                        </p>
+                    )
                 )}
 
-                {hidden > 0 && (
+                {!failed && hidden > 0 && (
                     <p className="px-2 pt-1 pb-1.5 text-xs text-cc-subtle">
                         {t(':count more, search to narrow down', {
                             count: hidden,
