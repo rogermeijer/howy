@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { Bell, Search } from 'lucide-react';
 import { useTranslations } from '@/hooks/use-translations';
 import type { PropsWithChildren } from 'react';
+import { AccountSwitcher } from '@/components/account-switcher';
 import { HowyLogo } from '@/components/brand/howy-logo';
 import {
     DropdownMenu,
@@ -126,6 +127,8 @@ function TopBar() {
                 >
                     <Bell className="size-[18px]" />
                 </button>
+
+                <AccountSwitcher />
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

@@ -1,5 +1,5 @@
-import { Link, router, usePage } from '@inertiajs/react';
-import { Check, LogOut, Settings, ShieldCheck, UserRound } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { LogOut, Settings, ShieldCheck, UserRound } from 'lucide-react';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -8,14 +8,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
-import { cn } from '@/lib/utils';
 import { logout } from '@/routes';
 import { settings } from '@/routes';
 import { index as admin } from '@/routes/admin';
-import { update as updateCurrentAccount } from '@/routes/current-account';
 import { edit as editProfile } from '@/routes/profile';
 import { useTranslations } from '@/hooks/use-translations';
-import type { Auth, User } from '@/types';
+import type { User } from '@/types';
 
 type Props = {
     user: User;
@@ -23,30 +21,11 @@ type Props = {
 
 export function UserMenuContent({ user }: Props) {
     const cleanup = useMobileNavigation();
-    const { auth } = usePage<{ auth: Auth }>().props;
     const t = useTranslations();
 
     const handleLogout = () => {
         cleanup();
         router.flushAll();
-    };
-
-    const switchAccount = (accountId: number) => {
-        if (accountId === auth.account?.id) {
-            return;
-        }
-
-        cleanup();
-
-        router.put(
-            updateCurrentAccount().url,
-            { account_id: accountId },
-            {
-                // Inertia caches prefetched pages, so without this a page fetched
-                // for the previous account can be served from the client cache.
-                onSuccess: () => router.flushAll(),
-            },
-        );
     };
 
     return (
@@ -57,34 +36,6 @@ export function UserMenuContent({ user }: Props) {
                 </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-
-            {auth.accounts.length > 1 && (
-                <>
-                    <DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-cc-subtle">
-                        {t('Switch account')}
-                    </DropdownMenuLabel>
-                    <DropdownMenuGroup>
-                        {auth.accounts.map((account) => (
-                            <DropdownMenuItem
-                                key={account.id}
-                                className="cursor-pointer"
-                                onSelect={() => switchAccount(account.id)}
-                            >
-                                <Check
-                                    className={cn(
-                                        'mr-2 size-4 shrink-0',
-                                        account.id === auth.account?.id
-                                            ? 'text-cc-accent-deep'
-                                            : 'invisible',
-                                    )}
-                                />
-                                <span className="truncate">{account.name}</span>
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                </>
-            )}
 
             <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
