@@ -1411,5 +1411,11 @@
     "howy@yourcompany.com": "howy@jouwbedrijf.nl",
     "An example mailbox. Once a mailbox is connected, this follows its own rules.": "Een voorbeeldmailbox. Zodra er een mailbox gekoppeld is, volgt dit de eigen regels daarvan.",
     "See exactly what Howy does with these rules": "Bekijk precies wat Howy doet met deze regels",
-    "This follows the rules as they are set now in the dialog, saved or not.": "Dit volgt de regels zoals ze nu in het venster staan, opgeslagen of niet."
+    "This follows the rules as they are set now in the dialog, saved or not.": "Dit volgt de regels zoals ze nu in het venster staan, opgeslagen of niet.",
+    ":address is no longer connected to Howy": ":address is niet meer gekoppeld aan Howy",
+    ":address is no longer connected": ":address is niet meer gekoppeld",
+    "Google no longer gives Howy access to :address, so new emails there are not coming into :account.": "Google geeft Howy geen toegang meer tot :address, dus nieuwe mails daar komen niet meer binnen in :account.",
+    "This happens when access was removed in the Google account, its password was changed, or the mailbox was disconnected from Howy elsewhere.": "Dat gebeurt als de toegang in het Google-account is ingetrokken, het wachtwoord is gewijzigd, of de mailbox elders in Howy is ontkoppeld.",
+    "Connect it again": "Opnieuw koppelen",
+    "The emails Howy already stored stay where they are. Once the mailbox is connected again, Howy catches up on recent mail; older emails can be imported.": "De mails die Howy al heeft blijven bewaard. Zodra de mailbox weer gekoppeld is, haalt Howy recente mail in; oudere mails kun je importeren."
 }

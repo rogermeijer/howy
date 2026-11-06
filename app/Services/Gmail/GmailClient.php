@@ -4,12 +4,14 @@ namespace App\Services\Gmail;
 
 use App\Enums\MailboxStatus;
 use App\Exceptions\MailboxNeedsReauthException;
+use App\Mail\MailboxNeedsReconnecting;
 use App\Models\Mailbox;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * A thin wrapper over the Gmail REST API for one mailbox.
@@ -17,8 +19,9 @@ use Illuminate\Support\Facades\Http;
  * Laravel's Http client rather than google/apiclient: the surface we need is a
  * handful of endpoints, and Http::fake() keeps the tests honest and simple.
  *
- * The access token is refreshed on demand. A refused refresh flags the mailbox
- * NeedsReauth and throws, so callers never loop on a dead grant.
+ * The access token is refreshed on demand. A grant Google calls dead flags the
+ * mailbox NeedsReauth, mails the account's admins once and throws, so callers
+ * never loop on it.
  */
 class GmailClient
 {
@@ -252,8 +255,12 @@ class GmailClient
             'client_secret' => config('services.google.client_secret'),
         ]);
 
-        if ($response->status() === 400 || $response->status() === 401) {
-            $this->flagNeedsReauth((string) $response->json('error', 'invalid_grant'));
+        // Only invalid_grant means the grant itself is dead. Anything else, such
+        // as invalid_client after a rotated secret, is ours to fix and must not
+        // unlink every mailbox at once: it throws, the mailbox stays active and
+        // the job is retried.
+        if ($response->json('error') === 'invalid_grant') {
+            $this->flagNeedsReauth('invalid_grant');
         }
 
         $response->throw();
@@ -266,13 +273,36 @@ class GmailClient
         return (string) $this->mailbox->access_token;
     }
 
+    /**
+     * Only the call that takes the mailbox out of Active mails the admins, so a
+     * burst of jobs hitting the same dead grant sends them one mail.
+     */
     private function flagNeedsReauth(string $reason): never
     {
-        $this->mailbox->forceFill([
-            'status' => MailboxStatus::NeedsReauth,
-            'last_error' => $reason,
-        ])->save();
+        $attributes = ['status' => MailboxStatus::NeedsReauth, 'last_error' => $reason];
+
+        $flagged = Mailbox::query()
+            ->whereKey($this->mailbox->id)
+            ->where('status', MailboxStatus::Active)
+            ->update($attributes);
+
+        $this->mailbox->forceFill($attributes)->syncOriginalAttributes(array_keys($attributes));
+
+        if ($flagged > 0) {
+            $this->mailAdmins();
+        }
 
         throw MailboxNeedsReauthException::for($this->mailbox);
+    }
+
+    private function mailAdmins(): void
+    {
+        $account = $this->mailbox->account;
+
+        foreach ($account->admins as $admin) {
+            Mail::to($admin)
+                ->locale($admin->resolvedLocale())
+                ->send(new MailboxNeedsReconnecting($this->mailbox->email_address, $account->name));
+        }
     }
 }

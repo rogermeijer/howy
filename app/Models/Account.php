@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, User> $users
+ * @property-read Collection<int, User> $admins
  */
 #[Fillable(['name', 'locale', 'timezone'])]
 class Account extends Model
@@ -53,6 +54,17 @@ class Account extends Model
             ->using(AccountUser::class)
             ->withPivot(['role', 'is_admin'])
             ->withTimestamps();
+    }
+
+    /**
+     * The members who administer this account (account_user.is_admin). A
+     * platform super-admin is not one unless made admin here.
+     *
+     * @return BelongsToMany<User, $this, AccountUser>
+     */
+    public function admins(): BelongsToMany
+    {
+        return $this->users()->wherePivot('is_admin', true);
     }
 
     /**
