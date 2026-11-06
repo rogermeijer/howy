@@ -246,6 +246,12 @@ export function InterpretationPanel({
                         </details>
                     )}
 
+                    {interpretation.note && (
+                        <Note>
+                            <WithHowy text={interpretation.note} />
+                        </Note>
+                    )}
+
                     {interpretation.error && (
                         <p className="rounded-[10px] bg-cc-dark-1 px-3.5 py-3 text-[13px] text-cc-dark-text">
                             {interpretation.error}

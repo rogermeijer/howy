@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Mailboxes;
 use App\Exceptions\MailboxConnectedElsewhereException;
 use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
-use App\Jobs\ImportGmailQuery;
 use App\Services\Gmail\MailboxConnector;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,10 +35,7 @@ class GmailOAuthController extends Controller
 
     public function redirect(Request $request): SymfonyRedirect
     {
-        $request->session()->put('mailbox_connect', [
-            'account_id' => Tenancy::id(),
-            'backfill' => $request->query('backfill') === '30d',
-        ]);
+        $request->session()->put('mailbox_connect', ['account_id' => Tenancy::id()]);
 
         return $this->google()
             ->setScopes(self::SCOPES)
@@ -55,7 +51,7 @@ class GmailOAuthController extends Controller
 
     public function callback(Request $request, MailboxConnector $connector): RedirectResponse
     {
-        /** @var array{account_id: int, backfill: bool}|null $pending */
+        /** @var array{account_id: int}|null $pending */
         $pending = $request->session()->pull('mailbox_connect');
 
         // The account could have been switched in another tab between leaving for
@@ -82,10 +78,6 @@ class GmailOAuthController extends Controller
             $mailbox = $connector->connect($google, $request->user());
         } catch (MailboxConnectedElsewhereException) {
             return $this->fail(__('This mailbox is already connected to another Howy account. Disconnect it there first.'));
-        }
-
-        if ($pending['backfill']) {
-            ImportGmailQuery::dispatch($mailbox->id, 'in:inbox newer_than:30d', $request->user()->id);
         }
 
         Inertia::flash('toast', [

@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Settings;
 
 use App\Enums\Locale;
 use App\Enums\MailboxStatus;
-use App\Enums\SendPolicy;
 use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\AccountUpdateRequest;
 use App\Http\Requests\Settings\KnowledgeLanguageUpdateRequest;
 use App\Jobs\Knowledge\TranslateKnowledge;
 use App\Models\Mailbox;
+use App\Models\MailboxSender;
 use App\Services\Gmail\MailboxImporter;
 use DateTimeZone;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +31,7 @@ class AccountController extends Controller
         $mailboxes = Mailbox::query()
             ->where('status', '!=', MailboxStatus::Disconnected)
             ->withCount('emails')
+            ->with(['senders' => fn ($query) => $query->oldest('id')])
             ->oldest()
             ->get()
             ->map(fn (Mailbox $mailbox): array => [
@@ -43,10 +44,12 @@ class AccountController extends Controller
                 'import' => $importer->progress($mailbox),
                 'domain' => $mailbox->domain(),
                 'publicDomain' => $mailbox->isOnPublicDomain(),
-                'sendPolicy' => $mailbox->send_policy->value,
-                'repliesEnabled' => $mailbox->replies_enabled,
-                'sendWhitelist' => $mailbox->send_whitelist ?? [],
-                'sendBlacklist' => $mailbox->send_blacklist ?? [],
+                'domainAccess' => $mailbox->domain_access->value,
+                'senderRules' => $mailbox->senders->map(fn (MailboxSender $sender): array => [
+                    'entry' => $sender->entry,
+                    'access' => $sender->access->value,
+                ])->all(),
+                'importOffered' => $isAdmin && $mailbox->offersImport(),
             ]);
 
         return Inertia::render('settings', [
@@ -68,10 +71,8 @@ class AccountController extends Controller
                 Locale::cases(),
             ),
             'timezones' => DateTimeZone::listIdentifiers(),
-            'sendPolicies' => array_map(
-                fn (SendPolicy $policy): array => ['value' => $policy->value, 'label' => $policy->label()],
-                SendPolicy::cases(),
-            ),
+            // A rule for one of these would let in everyone on it.
+            'publicDomains' => config('mailboxes.public_domains'),
             // The numbers the explanation of a mailbox quotes, from where they are set.
             'mailFacts' => [
                 'answerConfidence' => (int) round((float) config('knowledge.mail.answer_min_confidence') * 100),

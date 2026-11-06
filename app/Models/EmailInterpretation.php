@@ -8,6 +8,7 @@ use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
 use App\Enums\ReplyStatus;
+use App\Enums\SenderAccess;
 use Database\Factories\EmailInterpretationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,6 +31,7 @@ use Illuminate\Support\Carbon;
  * @property int $email_id
  * @property InterpretationStatus $status
  * @property InterpretationMode $mode
+ * @property SenderAccess $sender_access
  * @property EmailIntent|null $intent
  * @property float|null $intent_confidence
  * @property InterpretationOutcome|null $outcome
@@ -55,7 +57,7 @@ use Illuminate\Support\Carbon;
  * @property-read Email $email
  */
 #[Fillable([
-    'email_id', 'status', 'mode', 'intent', 'intent_confidence', 'outcome', 'needs_review', 'summary', 'language',
+    'email_id', 'status', 'mode', 'sender_access', 'intent', 'intent_confidence', 'outcome', 'needs_review', 'summary', 'language',
     'question', 'answer', 'answer_confidence', 'answer_gaps', 'citations', 'statements', 'reply_status', 'reply_text',
     'reply_recipients',
     'reply_provider_message_id', 'replied_at', 'error', 'processed_at',
@@ -75,6 +77,7 @@ class EmailInterpretation extends Model
     protected $attributes = [
         'status' => 'queued',
         'mode' => 'addressed',
+        'sender_access' => 'learn_answer',
         'reply_status' => 'none',
         'needs_review' => false,
     ];
@@ -95,6 +98,7 @@ class EmailInterpretation extends Model
         return [
             'status' => InterpretationStatus::class,
             'mode' => InterpretationMode::class,
+            'sender_access' => SenderAccess::class,
             'intent' => EmailIntent::class,
             'intent_confidence' => 'float',
             'outcome' => InterpretationOutcome::class,

@@ -4,8 +4,10 @@ namespace Database\Factories;
 
 use App\Enums\MailboxProvider;
 use App\Enums\MailboxStatus;
-use App\Enums\SendPolicy;
+use App\Enums\SenderAccess;
 use App\Models\Mailbox;
+use App\Models\MailboxSender;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -30,21 +32,30 @@ class MailboxFactory extends Factory
             'status' => MailboxStatus::Active,
             'history_id' => '1000',
             'watch_expires_at' => now()->addDays(7),
-            'send_policy' => SendPolicy::Always,
+            'domain_access' => SenderAccess::LearnAndAnswer,
         ];
     }
 
     /**
-     * @param  list<string>  $whitelist
-     * @param  list<string>  $blacklist
+     * Made, the mailbox knows its senders without storing them; created, they
+     * are stored with it.
+     *
+     * @param  array<string, SenderAccess>  $senders  address or domain => access
      */
-    public function sendPolicy(SendPolicy $policy, array $whitelist = [], array $blacklist = []): static
+    public function rules(SenderAccess $domain = SenderAccess::LearnAndAnswer, array $senders = []): static
     {
-        return $this->state(fn (array $attributes) => [
-            'send_policy' => $policy,
-            'send_whitelist' => $whitelist,
-            'send_blacklist' => $blacklist,
-        ]);
+        $senders = array_map(
+            fn (string $entry, SenderAccess $access): array => ['entry' => ltrim(strtolower($entry), '@'), 'access' => $access],
+            array_keys($senders),
+            array_values($senders),
+        );
+
+        return $this->state(['domain_access' => $domain])
+            ->afterMaking(fn (Mailbox $mailbox) => $mailbox->setRelation(
+                'senders',
+                new Collection(array_map(fn (array $sender): MailboxSender => new MailboxSender($sender), $senders)),
+            ))
+            ->afterCreating(fn (Mailbox $mailbox) => $mailbox->syncSenders($senders));
     }
 
     public function needsReauth(): static

@@ -1,6 +1,10 @@
 export type MailboxStatus = 'active' | 'needs_reauth' | 'disconnected';
 
-export type SendPolicy = 'domain' | 'whitelist' | 'always';
+/** What Howy may do with a sender's mail. Mirrors App\Enums\SenderAccess. */
+export type SenderAccess = 'learn_answer' | 'learn' | 'answer' | 'ignore';
+
+/** One address (jan@x.nl) or domain (x.nl, stored without the @) on a mailbox. */
+export type SenderRule = { entry: string; access: SenderAccess };
 
 export type Mailbox = {
     id: number;
@@ -11,12 +15,13 @@ export type Mailbox = {
     emailsCount: number;
     import: { processed: number; total: number } | null;
     domain: string;
-    /** Anyone can have an address there (gmail.com…), so no "same domain". */
+    /** Anyone can have an address there (gmail.com…), so no colleagues. */
     publicDomain: boolean;
-    sendPolicy: SendPolicy;
-    repliesEnabled: boolean;
-    sendWhitelist: string[];
-    sendBlacklist: string[];
+    /** For senders at the mailbox's own domain; everyone else not listed is ignored. */
+    domainAccess: SenderAccess;
+    senderRules: SenderRule[];
+    /** Never imported: offer its last 30 days, once (administrators only). */
+    importOffered: boolean;
 };
 
 /** The numbers the explanation of a mailbox quotes, as configured. */

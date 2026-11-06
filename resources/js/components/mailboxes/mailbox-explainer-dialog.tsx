@@ -22,6 +22,12 @@ import {
 import type { ReactNode } from 'react';
 import { WithHowy } from '@/components/brand/howy-name';
 import {
+    AccessMeaning,
+    AccessTag,
+    useAccessLooks,
+} from '@/components/mailboxes/sender-access';
+import { SenderBadge } from '@/components/mailboxes/sender-badge';
+import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -30,7 +36,11 @@ import {
 import { useTranslations } from '@/hooks/use-translations';
 import {
     accepts,
+    accessOf,
     addressFor,
+    answers,
+    domainOf,
+    learns,
     maySendTo,
     type MailboxRules,
 } from '@/lib/mailbox-rules';
@@ -56,7 +66,7 @@ type Translate = ReturnType<typeof useTranslations>;
  * Everything a mailbox does with mail, for the people whose mail it is: whose
  * mail Howy reads, what it does in To and in CC, who gets a reply, and what
  * happens under the hood. Every example is worked out from the mailbox's own
- * rules (lib/mailbox-rules mirrors Mailbox::accepts), so what it shows is
+ * rules (lib/mailbox-rules mirrors Mailbox::access), so what it shows is
  * what this mailbox would do.
  */
 export function MailboxExplainerDialog({
@@ -69,6 +79,7 @@ export function MailboxExplainerDialog({
     note,
 }: Props) {
     const t = useTranslations();
+    const looks = useAccessLooks();
     const people = examplePeople(rules, t);
     const percent = facts.answerConfidence;
 
@@ -95,33 +106,26 @@ export function MailboxExplainerDialog({
                     {picker}
                     <div className="flex flex-wrap items-center gap-2">
                         <Address address={rules.address} tone="mailbox" />
+                        {!rules.publicDomain && (
+                            <span
+                                className={`cc-tag ${looks[rules.domainAccess].tag}`}
+                            >
+                                {t('Colleagues: :access', {
+                                    access: looks[rules.domainAccess].label,
+                                })}
+                            </span>
+                        )}
                         <span className="cc-tag cc-tag-noise">
-                            {t('Reads: :rule', {
-                                rule: {
-                                    domain: `@${rules.domain}`,
-                                    whitelist: t('the whitelist'),
-                                    always: t('everyone'),
-                                }[rules.policy],
+                            {t('Exceptions: :count', {
+                                count: rules.senders.length,
                             })}
-                        </span>
-                        <span
-                            className={cn(
-                                'cc-tag',
-                                rules.repliesEnabled
-                                    ? 'cc-tag-decision'
-                                    : 'cc-tag-pending',
-                            )}
-                        >
-                            {rules.repliesEnabled
-                                ? t('Replies: on')
-                                : t('Replies: off')}
                         </span>
                     </div>
                     {note && <p className="cc-caption italic">{note}</p>}
                 </div>
 
                 <div className="flex min-h-0 flex-col gap-10 overflow-y-auto px-6 py-7 sm:px-8">
-                    <InShort rules={rules} t={t} />
+                    <InShort t={t} />
                     <Steps company={company} t={t} />
                     <ToOrCc
                         rules={rules}
@@ -145,38 +149,52 @@ export function MailboxExplainerDialog({
 }
 
 type People = {
-    /** Someone the rules most likely let in, who asks Howy things. */
+    /** Someone Howy most likely learns from and answers, who asks it things. */
     asker: string;
-    /** A second person on the mail, also likely let in. */
+    /** A second person on the mail. */
     colleague: string;
-    /** Someone from outside, usually kept out. */
+    /** Someone from outside, usually not on the list. */
     outsider: string;
-    /** Someone on the blacklist, when the blacklist counts and has entries. */
+    /** Someone listed to be ignored, when the list has one. */
     blocked: string | null;
+    /** Someone listed for only learning or only answering, when there is one. */
+    partial: string[];
     newsletter: string;
 };
 
 /**
- * Who the examples are about, made from the mailbox's own domain and lists.
- * Whether each is let in is worked out from the rules, never assumed.
+ * Who the examples are about, made from the mailbox's own domain and list.
+ * What Howy does with each is worked out from the rules, never assumed.
  */
 function examplePeople(rules: MailboxRules, t: Translate): People {
-    const [first, second] = rules.whitelist;
-    const whitelisted = rules.policy === 'whitelist' && first !== undefined;
-    const domainOf = (entry: string) =>
-        addressFor(entry, 'x').split('@')[1] ?? rules.domain;
+    const listed = (access: MailboxRules['domainAccess'], name: string) => {
+        const rule = rules.senders.find((sender) => sender.access === access);
+
+        return rule ? addressFor(rule.entry, name) : null;
+    };
+    const colleague = rules.publicDomain ? null : `anna@${rules.domain}`;
+    const candidates = [
+        ...(colleague !== null ? [colleague] : []),
+        ...rules.senders.map((sender) => addressFor(sender.entry, 'anna')),
+    ];
+    const asker =
+        candidates.find(
+            (address) => accessOf(rules, address).access === 'learn_answer',
+        ) ??
+        candidates.find((address) => accepts(rules, address)) ??
+        `anna@${rules.domain}`;
+    const second = rules.senders
+        .map((sender) => addressFor(sender.entry, 'piet'))
+        .find((address) => address !== asker && accepts(rules, address));
 
     return {
-        asker: whitelisted ? addressFor(first, 'anna') : `anna@${rules.domain}`,
-        colleague:
-            whitelisted && second !== undefined
-                ? addressFor(second, 'piet')
-                : `piet@${whitelisted ? domainOf(first) : rules.domain}`,
+        asker,
+        colleague: second ?? `piet@${domainOf(asker)}`,
         outsider: t('customer@example.com'),
-        blocked:
-            rules.policy !== 'whitelist' && rules.blacklist[0] !== undefined
-                ? addressFor(rules.blacklist[0], 'info')
-                : null,
+        blocked: listed('ignore', 'info'),
+        partial: [listed('learn', 'lisa'), listed('answer', 'sam')].filter(
+            (address): address is string => address !== null,
+        ),
         newsletter: t('newsletter@shop.example'),
     };
 }
@@ -312,23 +330,20 @@ function Point({
     );
 }
 
-function InShort({ rules, t }: { rules: MailboxRules; t: Translate }) {
+function InShort({ t }: { t: Translate }) {
     const tiles: { icon: LucideIcon; text: string }[] = [
         {
             icon: Eye,
-            text: t('Reads only mail from senders the rules let in.'),
+            text: t(
+                'Per sender, the rules say whether Howy learns from their mail, answers it, both or neither.',
+            ),
         },
-        rules.repliesEnabled
-            ? {
-                  icon: MessageSquareReply,
-                  text: t(
-                      'Replies only when it is in To, and only when it is sure enough.',
-                  ),
-              }
-            : {
-                  icon: Ban,
-                  text: t('Never sends anything: replies are off.'),
-              },
+        {
+            icon: MessageSquareReply,
+            text: t(
+                'Replies only when it is in To, and only when it is sure enough.',
+            ),
+        },
         {
             icon: Ear,
             text: t('In CC or BCC it only listens: it never writes to anyone.'),
@@ -531,30 +546,18 @@ function ToOrCc({
                     <ul className="flex flex-col gap-3">
                         <Outcome tag={t('Question')} tone="question">
                             <WithHowy
-                                text={
-                                    rules.repliesEnabled
-                                        ? t(
-                                              'Howy looks it up in the approved knowledge. At least :percent% sure: it replies to the sender. Less sure: no reply, the answer waits in Howy for a colleague. Nothing found: it replies that it does not know.',
-                                              { percent },
-                                          )
-                                        : t(
-                                              'Howy looks it up in the approved knowledge and keeps the answer in Howy. Replies are off, so nothing is sent.',
-                                          )
-                                }
+                                text={t(
+                                    'Howy looks it up in the approved knowledge. At least :percent% sure: it replies to the sender. Less sure: no reply, the answer waits in Howy for a colleague. Nothing found: it replies that it does not know.',
+                                    { percent },
+                                )}
                             />
                         </Outcome>
                         <Outcome tag={t('Information')} tone="knowledge">
                             {proposed}{' '}
                             <WithHowy
-                                text={
-                                    rules.repliesEnabled
-                                        ? t(
-                                              'If it contradicts the knowledge base, Howy replies to say so.',
-                                          )
-                                        : t(
-                                              'If it contradicts the knowledge base, that is flagged in Howy.',
-                                          )
-                                }
+                                text={t(
+                                    'If it contradicts the knowledge base, Howy replies to say so.',
+                                )}
                             />
                         </Outcome>
                         <Outcome tag={t('Only Howy in To')} tone="action">
@@ -614,37 +617,12 @@ function ToOrCc({
                 <span>
                     <WithHowy
                         text={t(
-                            'Attachments, in both cases: a new file is proposed for the knowledge base as a document and waits for approval, like an upload. A file Howy already has gets this mail as one more source.',
+                            'Attachments from senders Howy learns from, in both cases: a new file is proposed for the knowledge base as a document and waits for approval, like an upload. A file Howy already has gets this mail as one more source.',
                         )}
                     />
                 </span>
             </p>
         </section>
-    );
-}
-
-function Verdict({ read, reason }: { read: boolean; reason?: string }) {
-    const t = useTranslations();
-
-    return (
-        <span className="flex shrink-0 items-center gap-2">
-            {reason && <span className="cc-caption">{reason}</span>}
-            <span
-                className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold',
-                    read
-                        ? 'bg-cc-decision-bg text-cc-decision-fg'
-                        : 'bg-cc-noise-bg text-cc-noise-fg',
-                )}
-            >
-                {read ? (
-                    <Check className="size-3.5" />
-                ) : (
-                    <X className="size-3.5" />
-                )}
-                {read ? t('Read') : t('Ignored')}
-            </span>
-        </span>
     );
 }
 
@@ -657,77 +635,90 @@ function WhoIsRead({
     people: People;
     t: Translate;
 }) {
-    const intro = {
-        domain: t(
-            'Howy reads mail from addresses at @:domain only, except those on the blacklist.',
-            { domain: rules.domain },
+    const looks = useAccessLooks();
+    const intro = [
+        ...(rules.publicDomain
+            ? []
+            : [
+                  t('Colleagues at @:domain: :access.', {
+                      domain: rules.domain,
+                      access: looks[rules.domainAccess].label.toLowerCase(),
+                  }),
+              ]),
+        t('Everyone else is ignored.'),
+        t(
+            'An address or domain on the list comes first, and an address before its domain.',
         ),
-        whitelist:
-            rules.whitelist.length > 0
-                ? t(
-                      'Howy reads mail only from the addresses and domains on the whitelist.',
-                  )
-                : t('The whitelist is empty, so Howy reads no mail at all.'),
-        always: t(
-            'Howy reads mail from everyone, except those on the blacklist.',
-        ),
-    }[rules.policy];
-
-    const list = (label: string, entries: string[]) =>
-        entries.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5">
-                <span className="cc-label mr-1">{label}</span>
-                {entries.map((entry) => (
-                    <Address key={entry} address={entry} />
-                ))}
-            </div>
-        );
+    ].join(' ');
 
     const reasonFor = (address: string) =>
-        accepts(rules, address)
-            ? undefined
-            : address === people.blocked
-              ? t('on the blacklist')
-              : t('outside the rules');
+        ({
+            address: t('on the list'),
+            domain: t('domain on the list'),
+            colleagues: t('colleague'),
+            others: t('not on the list'),
+            invalid: '',
+        })[accessOf(rules, address).because];
 
-    const senders = [people.asker, people.colleague, people.outsider];
-
-    if (people.blocked !== null) {
-        senders.push(people.blocked);
-    }
+    const senders = [
+        people.asker,
+        people.colleague,
+        ...people.partial,
+        people.outsider,
+        ...(people.blocked !== null ? [people.blocked] : []),
+    ];
 
     return (
         <section className="flex flex-col gap-4">
             <SectionTitle
                 number={4}
-                title={t('Whose mail Howy reads')}
+                title={t('Whose mail Howy reads, and what it does with it')}
                 intro={<WithHowy text={intro} />}
             />
-            {rules.policy === 'whitelist'
-                ? list(t('Whitelist'), rules.whitelist)
-                : list(t('Blacklist'), rules.blacklist)}
+            {rules.senders.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="cc-label mr-1">{t('Senders')}</span>
+                    {rules.senders.map((rule) => (
+                        <SenderBadge key={rule.entry} rule={rule} />
+                    ))}
+                </div>
+            )}
             <ul className="flex flex-col divide-y divide-cc-border rounded-xl border border-cc-border">
-                {[...new Set(senders)].map((address) => (
-                    <li
-                        key={address}
-                        className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5"
-                    >
-                        <Address address={address} />
-                        <Verdict
-                            read={accepts(rules, address)}
-                            reason={reasonFor(address)}
-                        />
-                    </li>
-                ))}
+                {[...new Set(senders)].map((address) => {
+                    const { access } = accessOf(rules, address);
+
+                    return (
+                        <li
+                            key={address}
+                            className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5"
+                        >
+                            <span className="flex min-w-0 flex-wrap items-center gap-2">
+                                <Address address={address} />
+                                <span className="cc-caption">
+                                    {reasonFor(address)}
+                                </span>
+                            </span>
+                            <span className="flex flex-wrap items-center gap-2.5">
+                                <AccessMeaning access={access} />
+                                <AccessTag access={access} />
+                            </span>
+                        </li>
+                    );
+                })}
                 <li className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
-                    <Address address={people.newsletter} />
-                    <Verdict read={false} reason={t('automatic mail')} />
+                    <span className="flex min-w-0 flex-wrap items-center gap-2">
+                        <Address address={people.newsletter} />
+                        <span className="cc-caption">
+                            {t('automatic mail')}
+                        </span>
+                    </span>
+                    <AccessTag access="ignore" />
                 </li>
             </ul>
             <p className="cc-caption">
                 <WithHowy
                     text={t(
-                        'Mail from outside the rules is still stored in Howy and marked as ignored, so you can see it arrived and why nothing followed.',
+                        'Mail Howy ignores is still stored in Howy and marked as ignored, so you can see it arrived and why nothing followed. A sender Howy only answers gets nothing done when the mailbox is only in CC.',
                     )}
                 />
             </p>
@@ -761,7 +752,7 @@ function WhoGetsReply({
                 intro={
                     <WithHowy
                         text={t(
-                            'Howy only replies when it is in To. The reply goes to the sender, or to the Reply-To address if the sender set one. Everyone else on the mail is copied in, but only those the rules let in.',
+                            'Howy only replies when it is in To. The reply goes to the sender, or to the Reply-To address if the sender set one. Everyone else on the mail is copied in, but only those Howy may answer.',
                         )}
                     />
                 }
@@ -816,7 +807,7 @@ function WhoGetsReply({
                                 <p className="cc-caption mt-1">
                                     <WithHowy
                                         text={t(
-                                            'Struck through: left off, because the rules do not let them in.',
+                                            'Struck through: left off, because Howy may not answer them.',
                                         )}
                                     />
                                 </p>
@@ -828,13 +819,14 @@ function WhoGetsReply({
                             <span>
                                 <WithHowy
                                     text={
-                                        rules.repliesEnabled
+                                        accepts(rules, people.asker)
                                             ? t(
-                                                  'No reply: :sender is outside the rules, so Howy does not read the mail at all, and nobody else gets anything either.',
+                                                  'No reply: Howy only learns from :sender, so it writes to no one, not even to those copied in.',
                                                   { sender: people.asker },
                                               )
                                             : t(
-                                                  'Replies are off: Howy sends nothing, to anyone. The answer is kept in Howy.',
+                                                  'No reply: :sender is outside the rules, so Howy does not read the mail at all, and nobody else gets anything either.',
+                                                  { sender: people.asker },
                                               )
                                     }
                                 />
@@ -916,19 +908,19 @@ function Examples({
     const answered = (sender: string): Pick<Scenario, 'tone' | 'outcome'> =>
         !accepts(rules, sender)
             ? ignored(sender)
-            : rules.repliesEnabled
+            : !answers(accessOf(rules, sender).access)
               ? {
+                    tone: 'silent',
+                    outcome: t(
+                        'Howy only learns from :sender: it does not answer the question, and sends nothing.',
+                        { sender },
+                    ),
+                }
+              : {
                     tone: 'sent',
                     outcome: t(
                         'Howy replies to :sender in the same thread, with the answer and its sources, if it is at least :percent% sure. Otherwise the answer waits in Howy for a colleague.',
                         { sender, percent },
-                    ),
-                }
-              : {
-                    tone: 'silent',
-                    outcome: t(
-                        'Howy finds the answer and keeps it in Howy. Replies are off, so :sender gets nothing.',
-                        { sender },
                     ),
                 };
 
@@ -950,14 +942,22 @@ function Examples({
             cc: [rules.address],
             subject: t('New rates'),
             body: t('From 1 January our hourly rate is €95.'),
-            ...(accepts(rules, people.asker)
+            ...(learns(accessOf(rules, people.asker).access)
                 ? {
                       tone: 'silent',
                       outcome: t(
                           'Howy says nothing and writes to no one. The new rate is proposed for the knowledge base, and only counts once someone approves it.',
                       ),
                   }
-                : ignored(people.asker)),
+                : accepts(rules, people.asker)
+                  ? {
+                        tone: 'ignored',
+                        outcome: t(
+                            'Howy only answers :sender, and is only in CC: the mail is stored in Howy, but nothing is learned from it.',
+                            { sender: people.asker },
+                        ),
+                    }
+                  : ignored(people.asker)),
         },
         {
             title: t('Someone from outside asks Howy'),
@@ -975,7 +975,7 @@ function Examples({
             body: t(
                 'Write a short paragraph about how we handle personal data.',
             ),
-            ...(accepts(rules, people.asker) && rules.repliesEnabled
+            ...(maySendTo(rules, people.asker)
                 ? {
                       tone: 'sent',
                       outcome: t(

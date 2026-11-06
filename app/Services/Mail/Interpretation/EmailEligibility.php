@@ -4,20 +4,22 @@ namespace App\Services\Mail\Interpretation;
 
 use App\Enums\EmailSource;
 use App\Enums\InterpretationMode;
+use App\Enums\SenderAccess;
 use App\Models\Email;
 use App\Models\Mailbox;
 
 /**
  * Whether Howy should interpret a mail, and in which role: one that arrived
  * live, written by a person rather than a machine, not by the mailbox (its
- * own replies must never loop), and by someone the mailbox's rules let in.
- * Written to the mailbox, Howy answers; only copied on it, Howy listens.
+ * own replies must never loop), and by someone the mailbox's rules let Howy
+ * do something with. Written to the mailbox, Howy may answer; only copied on
+ * it, Howy only listens, so a sender it may only answer gets nothing there.
  */
 class EmailEligibility
 {
     public function mode(Email $email, Mailbox $mailbox): ?InterpretationMode
     {
-        if (! $this->considered($email, $mailbox) || ! $mailbox->accepts((string) $email->from_email)) {
+        if (! $this->considered($email, $mailbox) || $this->refusal($email, $mailbox) !== null) {
             return null;
         }
 
@@ -25,12 +27,31 @@ class EmailEligibility
     }
 
     /**
-     * Mail Howy would read, but from a sender the mailbox's rules keep out:
-     * stored, and marked as ignored so it is clear why nothing followed.
+     * What the mailbox's rules let Howy do with the sender's mail.
      */
-    public function refused(Email $email, Mailbox $mailbox): bool
+    public function access(Email $email, Mailbox $mailbox): SenderAccess
     {
-        return $this->considered($email, $mailbox) && ! $mailbox->accepts((string) $email->from_email);
+        return $mailbox->access((string) $email->from_email);
+    }
+
+    /**
+     * Why Howy leaves a mail it would read alone: stored, and marked as
+     * ignored so it is clear why nothing followed. Null when it is read, or
+     * when it is not Howy's to read at all (imported, automated, its own).
+     */
+    public function refusal(Email $email, Mailbox $mailbox): ?string
+    {
+        if (! $this->considered($email, $mailbox)) {
+            return null;
+        }
+
+        $access = $this->access($email, $mailbox);
+
+        return match (true) {
+            $access === SenderAccess::Ignore => (string) __('The sender is outside the rules of this mailbox.'),
+            ! $access->learns() && $this->role($email, $mailbox) === InterpretationMode::Copied => (string) __('Howy only answers this sender, and was only copied on this mail.'),
+            default => null,
+        };
     }
 
     /**

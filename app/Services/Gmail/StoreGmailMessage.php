@@ -73,16 +73,23 @@ class StoreGmailMessage
 
         // New mail gets read and acted on, once: answered when written to the
         // mailbox, listened to when the mailbox is only copied.
+        // What Howy may do with the sender is kept with the mail, as it was
+        // when the mail arrived.
         $mode = $email->wasRecentlyCreated ? $this->eligibility->mode($email, $mailbox) : null;
+        $refusal = $email->wasRecentlyCreated ? $this->eligibility->refusal($email, $mailbox) : null;
 
         if ($mode !== null) {
-            EmailInterpretation::query()->firstOrCreate(['email_id' => $email->id], ['mode' => $mode]);
+            EmailInterpretation::query()->firstOrCreate(['email_id' => $email->id], [
+                'mode' => $mode,
+                'sender_access' => $this->eligibility->access($email, $mailbox),
+            ]);
             InterpretEmail::dispatch($email->id);
-        } elseif ($email->wasRecentlyCreated && $this->eligibility->refused($email, $mailbox)) {
+        } elseif ($refusal !== null) {
             EmailInterpretation::query()->firstOrCreate(['email_id' => $email->id], [
                 'mode' => $this->eligibility->role($email, $mailbox),
+                'sender_access' => $this->eligibility->access($email, $mailbox),
                 'status' => InterpretationStatus::Skipped,
-                'error' => __('The sender is outside the rules of this mailbox.'),
+                'error' => $refusal,
                 'processed_at' => now(),
             ]);
         }

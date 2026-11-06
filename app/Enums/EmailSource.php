@@ -13,6 +13,6 @@ enum EmailSource: string
     /** Picked up by the scheduled poll or a manual "sync now". */
     case Poll = 'poll';
 
-    /** Imported by hand from the import dialog, or the 30-day backfill. */
+    /** Imported by hand from the import dialog: stored, never interpreted. */
     case Import = 'import';
 }

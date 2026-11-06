@@ -201,8 +201,9 @@ user names, ids or addresses. `OPENAI_STORE=false` is the default.
 Every mail to a connected mailbox is stored; a new one is read and acted on, in one of two roles.
 `StoreGmailMessage` decides with `EmailEligibility`: push or poll only (never an import), not from the mailbox
 itself, not automated (`Auto-Submitted`, `Precedence: bulk|list|junk|auto_reply`, `List-Id`), and only from a
-sender the mailbox's rules accept (`Mailbox::accepts()`, see the policy table below). Mail from anyone else gets
-a `skipped` row saying so, and nothing more. The role follows where the mailbox is:
+sender the mailbox's rules let Howy do something with (`Mailbox::access()`, see "Sender rules" below). Mail from
+anyone else gets a `skipped` row saying so, and nothing more. What Howy may do with the sender is kept on the
+interpretation (`sender_access`), as it was when the mail arrived. The role follows where the mailbox is:
 
 - **addressed** — the mailbox is in `To` (with or without others): Howy is asked. It answers a question when the
   answering model is at least `knowledge.mail.answer_min_confidence` (0.75) sure, to the sender, copying in
@@ -270,19 +271,53 @@ page shows the whole interpretation.
 plain text, which is also what the thread page shows. The Howy wordmark is embedded as an inline image
 (`resources/images/mail/howy-logo@3x.png`, Plus Jakarta Sans 800 rendered at 3×, shown at 83×27), since mail clients load no web
 fonts; re-render it (ImageMagick with Plus Jakarta Sans 800 and the lime dot) if the wordmark changes. They go out in the Gmail thread (`GmailClient::sendMessage`, `In-Reply-To`/`References`,
-`Auto-Submitted: auto-replied`) from the mailbox, in the mail's language when we ship it. Each mailbox has
-rules, set under _Settings → Mailboxes → Mailbox rules_: a `send_policy` that says whose mail Howy reads (and
-so who can get a reply), and `replies_enabled`, whether it replies at all.
+`Auto-Submitted: auto-replied`) from the mailbox, in the mail's language when we ship it, and only to senders
+the mailbox's rules let Howy answer (see "Sender rules" below).
 
-| Policy      | Reads mail from (and replies to)                        |
-| ----------- | ------------------------------------------------------- |
-| `domain`    | the mailbox's own domain, minus the blacklist (default) |
-| `whitelist` | only addresses and domains on the whitelist             |
-| `always`    | everyone, minus the blacklist                           |
+### Sender rules
 
-On a public domain (`config/mailboxes.php`: gmail.com, outlook.com, …) the same domain would be everyone, so
-`domain` is refused there; a mailbox connected on one starts as `whitelist` with the address of whoever
-connected it.
+Set on the mailbox's card under _Settings → Mailboxes_ (click the card): one access for colleagues, and a list of
+exceptions; past three per access the card shows +N, which opens a side panel with all of them (search, filter,
+change several at once). Per sender, a `SenderAccess` says what Howy may do with their mail:
+
+| Access         | Learns | Answers | Meaning                                      |
+| -------------- | ------ | ------- | -------------------------------------------- |
+| `learn_answer` | ✓      | ✓       | everything below                             |
+| `learn`        | ✓      | –       | files their mail, never writes to them       |
+| `answer`       | –      | ✓       | answers their questions, files nothing       |
+| `ignore`       | –      | –       | stores their mail as `skipped`, nothing more |
+
+**Learning** is everything that adds to the knowledge base: proposing statements (`file()`), taking
+attachments, filing long history as a correspondence document, and fingerprinting what was read. Not learned,
+a mail leaves no fingerprints, so the same text forwarded later by a sender Howy learns from is still new.
+**Answering** is everything that writes: answering a question, the not-found reply, a conflict reply, and
+being copied in on a reply. `Mailbox::maySendTo()` is `answers()`, checked again when a reply is sent. There
+is no switch for replies apart from that: a mailbox that should answer no one has no sender on an access that
+answers. A sender Howy may only answer gets nothing done when the mailbox is only copied, so that mail is
+`skipped` at once, without a model call. The interpretation's `note` says why a question went unanswered or
+information was not learned.
+
+`Mailbox::access()` takes the first of these that matches (mirrored in `resources/js/lib/mailbox-rules.ts`):
+
+1. the sender's address among the mailbox's senders (`mailbox_senders`, `MailboxSender`);
+2. the sender's domain among them (exactly; subdomains do not match);
+3. `domain_access`, for the mailbox's own domain (default `learn_answer`).
+
+Anyone else is ignored; to read someone else, list them.
+
+An address beats its domain, so one address inside an organisation can be ignored while the rest is read
+(`klant.nl` → `learn_answer`, `noreply@klant.nl` → `ignore`). Each listed sender is a row of its own: `entry` is
+the address, or the domain without its `@`, lowercased and once per mailbox; at most 500. The settings form saves
+the whole list at once (`Mailbox::syncSenders()`): a sender that stays keeps its row and only its `access`
+changes, so whatever later hangs off a sender survives a change of mind. On a public domain (`config/mailboxes.php`: gmail.com, outlook.com, …) the own domain would be
+everyone, so `domain_access` does not count there and such a domain is never a rule of its own: its addresses are
+listed one by one. A mailbox connected on one starts with only the address of whoever connected it; with an empty
+list it reads no one.
+
+Older mail comes in only through the import dialog (its card's ⋯ menu), where you choose which emails; imported
+mail is kept, never interpreted. A mailbox that never imported anything offers this once, on its card: Import…
+opens the dialog, and the import ends the offer; No need sets `import_offer_answered_at`
+(`MailboxController::dismissImportOffer`).
 
 A blocked or failed reply is kept with its text (`reply_status` `blocked` / `failed`). A reply that went out
 is never sent again, also not when the mail is interpreted again.

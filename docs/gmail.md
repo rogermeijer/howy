@@ -45,9 +45,9 @@ There is no imports table.
 
 ## Sending
 
-Howy replies in the thread with `gmail.send`, and only to senders the mailbox's rules accept. Each mailbox
-has `send_policy` (`domain` | `whitelist` | `always`, default `domain`), `send_whitelist`, `send_blacklist`
-and `replies_enabled`; see "Mail to a mailbox" in [`knowledge-base.md`](knowledge-base.md).
+Howy replies in the thread with `gmail.send`, and only to senders the mailbox's rules let it answer. Each
+mailbox has `domain_access` for its own domain and its listed senders in `mailbox_senders` (per address or
+domain: learn, answer, both or ignore); everyone else is ignored. See "Sender rules" in [`knowledge-base.md`](knowledge-base.md).
 
 ## One-time Google Cloud setup
 

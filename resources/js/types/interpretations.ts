@@ -1,3 +1,5 @@
+import type { SenderAccess } from './mailboxes';
+
 export type InterpretationStatus =
     | 'queued'
     | 'processing'
@@ -60,6 +62,11 @@ export type InterpretedStatement = {
 export type Interpretation = InterpretationBrief & {
     mode: InterpretationMode;
     modeLabel: string;
+    /** What the mailbox's rules let Howy do with the sender when it arrived. */
+    senderAccess: SenderAccess;
+    senderAccessLabel: string;
+    /** Why nothing followed, when the rules for the sender are the reason. */
+    note: string | null;
     confidence: number | null;
     answerConfidence: number | null;
     answerGaps: string | null;

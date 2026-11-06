@@ -4,7 +4,7 @@ namespace App\Services\Gmail;
 
 use App\Enums\MailboxProvider;
 use App\Enums\MailboxStatus;
-use App\Enums\SendPolicy;
+use App\Enums\SenderAccess;
 use App\Exceptions\MailboxConnectedElsewhereException;
 use App\Jobs\StartGmailWatch;
 use App\Models\Mailbox;
@@ -46,15 +46,6 @@ class MailboxConnector
             'last_error' => null,
         ]);
 
-        // On gmail.com "the same domain" is everyone: a new mailbox there
-        // reads only from a whitelist, starting with whoever connected it.
-        if (! $mailbox->exists && $mailbox->isOnPublicDomain()) {
-            $mailbox->fill([
-                'send_policy' => SendPolicy::Whitelist,
-                'send_whitelist' => [mb_strtolower($by->email)],
-            ]);
-        }
-
         // The database decides, so two accounts connecting at once cannot both
         // win. In its own transaction, so a refused write cannot poison an outer
         // one. Nothing is revoked on refusal: the grant Google just handed out is
@@ -67,6 +58,13 @@ class MailboxConnector
             }
 
             throw $e;
+        }
+
+        // On gmail.com "the same domain" is everyone: a new mailbox there
+        // reads only the senders listed, starting with whoever connected it.
+        // Connected again, a mailbox keeps the senders it has.
+        if ($mailbox->wasRecentlyCreated && $mailbox->isOnPublicDomain()) {
+            $mailbox->senders()->create(['entry' => mb_strtolower($by->email), 'access' => SenderAccess::LearnAndAnswer]);
         }
 
         StartGmailWatch::dispatch($mailbox->id);

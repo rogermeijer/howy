@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\SendPolicy;
 use App\Facades\Tenancy;
 use App\Models\Mailbox;
 use Illuminate\Database\Migrations\Migration;
@@ -31,12 +30,14 @@ return new class extends Migration
 
             Mailbox::query()->with('connectedBy')->where('send_policy', 'domain')->get()
                 ->filter(fn (Mailbox $mailbox): bool => $mailbox->isOnPublicDomain())
+                // Raw, not through the model's casts: these columns have since been
+                // replaced (2026_11_06_130000_create_mailbox_senders_table).
                 ->each(fn (Mailbox $mailbox) => $mailbox->forceFill([
-                    'send_policy' => SendPolicy::Whitelist,
-                    'send_whitelist' => array_values(array_unique(array_filter([
-                        ...($mailbox->send_whitelist ?? []),
+                    'send_policy' => 'whitelist',
+                    'send_whitelist' => json_encode(array_values(array_unique(array_filter([
+                        ...(array) json_decode((string) $mailbox->getRawOriginal('send_whitelist'), true),
                         $mailbox->connectedBy !== null ? strtolower($mailbox->connectedBy->email) : null,
-                    ]))),
+                    ])))),
                 ])->save());
         });
     }

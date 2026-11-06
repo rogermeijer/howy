@@ -2,6 +2,8 @@
 
 namespace App\Services\Mail\Interpretation;
 
+use App\Enums\EmailIntent;
+use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
@@ -42,6 +44,9 @@ class InterpretationPresenter
             ...$this->brief($interpretation),
             'mode' => $interpretation->mode->value,
             'modeLabel' => $interpretation->mode->label(),
+            'senderAccess' => $interpretation->sender_access->value,
+            'senderAccessLabel' => $interpretation->sender_access->label(),
+            'note' => $this->note($interpretation),
             'confidence' => $interpretation->intent_confidence,
             'answerConfidence' => $interpretation->answer_confidence,
             'answerGaps' => $interpretation->answer_gaps,
@@ -60,6 +65,22 @@ class InterpretationPresenter
             'error' => $interpretation->error,
             'processedAt' => $interpretation->processed_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Why nothing followed a mail Howy read, when the mailbox's rules for its
+     * sender are the reason.
+     */
+    private function note(EmailInterpretation $interpretation): ?string
+    {
+        return match (true) {
+            $interpretation->intent === EmailIntent::Question
+                && $interpretation->mode === InterpretationMode::Addressed
+                && ! $interpretation->sender_access->answers() => (string) __('Not answered: Howy only learns from this sender.'),
+            $interpretation->intent === EmailIntent::Information
+                && ! $interpretation->sender_access->learns() => (string) __('Not learned: Howy only answers this sender.'),
+            default => null,
+        };
     }
 
     /**

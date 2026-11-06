@@ -6,6 +6,7 @@ use App\Enums\DocumentType;
 use App\Enums\FingerprintUse;
 use App\Enums\InterpretationOutcome;
 use App\Enums\ProcessingStatus;
+use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
 use App\Jobs\Mail\InterpretEmail;
 use App\Models\Account;
@@ -106,6 +107,19 @@ class LongThreadTest extends TestCase
         });
 
         $this->assertNotNull($interpretation->outcome);
+    }
+
+    public function test_long_history_from_a_sender_howy_may_only_answer_is_not_filed(): void
+    {
+        $email = $this->email('long', 'Re: Servicebus', 'Wanneer rijdt de servicebus?', $this->longHistory());
+        Tenancy::for($this->account, fn () => EmailInterpretation::query()->create(['email_id' => $email->id, 'sender_access' => SenderAccess::Answer]));
+
+        $this->interpret($email);
+
+        EmailClassifier::assertPrompted(fn (AgentPrompt $prompt) => ! str_contains($prompt->prompt, '<history')
+            && ! str_contains($prompt->prompt, 'Bericht 3 over de servicebus'));
+        $this->assertSame(0, Tenancy::for($this->account, fn () => Document::query()->count()));
+        $this->assertSame(0, Tenancy::for($this->account, fn () => EmailFingerprint::query()->count()));
     }
 
     public function test_the_next_reply_quoting_the_same_history_adds_nothing(): void

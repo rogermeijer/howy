@@ -6,6 +6,7 @@ use App\Enums\EmailSource;
 use App\Enums\FingerprintUse;
 use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
+use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
 use App\Jobs\Mail\InterpretEmail;
 use App\Models\Account;
@@ -48,7 +49,7 @@ class MailNoveltyTest extends TestCase
         parent::setUp();
 
         $this->account = Account::factory()->create(['locale' => 'nl']);
-        $this->mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->create(['email_address' => 'kennis@noordkade.nl']));
+        $this->mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->rules(senders: ['haarlem.nl' => SenderAccess::LearnAndAnswer])->create(['email_address' => 'kennis@noordkade.nl']));
 
         Http::fake([GmailClient::BASE_URL.'/messages/send' => Http::response(['id' => 'reply-1', 'threadId' => 'thread-1'])]);
         $this->fakeKnowledgeAi();
@@ -149,6 +150,20 @@ class MailNoveltyTest extends TestCase
         $this->assertSame(__('This mail was already read through :mailbox.', ['mailbox' => 'kennis@noordkade.nl']), $interpretation->error);
         EmailClassifier::assertPromptedTimes(1);
         $this->assertSame(0, Tenancy::for($this->account, fn () => KnowledgeFact::query()->count()));
+    }
+
+    public function test_a_mail_only_answered_through_one_mailbox_is_still_learned_from_through_another(): void
+    {
+        $first = $this->email(['content_text' => self::POLICY]);
+        Tenancy::for($this->account, fn () => EmailInterpretation::query()->create(['email_id' => $first->id, 'sender_access' => SenderAccess::Answer]));
+        $this->interpret($first);
+
+        $second = Tenancy::for($this->account, fn () => Mailbox::factory()->create(['email_address' => 'hr@noordkade.nl']));
+        $copy = $this->email(['mailbox_id' => $second->id, 'provider_message_id' => 'copy', 'content_text' => self::POLICY]);
+        $interpretation = $this->interpret($copy);
+
+        $this->assertSame(InterpretationStatus::Done, $interpretation->status);
+        EmailClassifier::assertPromptedTimes(2);
     }
 
     public function test_howys_own_reply_quoted_back_is_not_read_as_information(): void

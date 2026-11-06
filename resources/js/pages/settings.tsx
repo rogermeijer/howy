@@ -26,7 +26,7 @@ type Props = {
     openConnect: boolean;
     locales: LocaleOption[];
     timezones: string[];
-    sendPolicies: LocaleOption[];
+    publicDomains: string[];
     mailFacts: MailFacts;
 };
 
@@ -38,7 +38,7 @@ export default function Settings({
     openConnect,
     locales,
     timezones,
-    sendPolicies,
+    publicDomains,
     mailFacts,
 }: Props) {
     const t = useTranslations();
@@ -57,7 +57,7 @@ export default function Settings({
                     mailboxes={mailboxes}
                     canManage={canManageMailboxes}
                     openConnect={openConnect}
-                    sendPolicies={sendPolicies}
+                    publicDomains={publicDomains}
                     company={account.name}
                     facts={mailFacts}
                 />

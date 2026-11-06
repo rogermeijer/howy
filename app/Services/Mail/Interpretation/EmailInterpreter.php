@@ -10,6 +10,7 @@ use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
 use App\Enums\Locale;
+use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
 use App\Models\DocumentVersion;
 use App\Models\Email;
@@ -45,6 +46,9 @@ use Illuminate\Support\Str;
  * Written to the mailbox, Howy answers the sender when it is sure enough,
  * and explains a conflict. Only copied, it writes to no one and answers
  * nothing: it files what the people in the conversation say.
+ * The mailbox's rules can narrow that per sender (SenderAccess, kept on the
+ * interpretation): a sender Howy may not learn from has nothing filed, no
+ * attachments taken and no history kept; one it may not answer gets no mail.
  * Every step is written to the interpretation, so the mail always shows how
  * it was read and what followed.
  *
@@ -87,6 +91,13 @@ class EmailInterpreter
             ['email_id' => $email->id],
             ['mode' => $this->eligibility->role($email, $email->mailbox)],
         );
+
+        // Only a forced reading gets here for a mail Howy ignored on arrival:
+        // it is read like an imported one. Who may get a reply is still
+        // decided by the mailbox when it is sent.
+        if ($interpretation->sender_access === SenderAccess::Ignore) {
+            $interpretation->sender_access = SenderAccess::LearnAndAnswer;
+        }
 
         $twin = $this->readElsewhere($email, $interpretation);
 
@@ -165,9 +176,12 @@ class EmailInterpreter
             'error' => null,
         ]);
 
+        $learns = $interpretation->sender_access->learns();
+        $answers = $interpretation->sender_access->answers();
+
         // History Howy has not read is a source: short, it is read with the
         // mail; long, it is filed as a document of its own.
-        [$inline, $filed] = $this->history($email, $novelty);
+        [$inline, $filed] = $this->history($email, $novelty, $learns);
 
         $reading = $this->ai->structured(new EmailClassifier, $this->mailPrompt($email, $novelty, $prepared, $this->historyPrompt($email, $inline, $filed), $this->earlier($email, $novelty)), 'mail_classify', $email);
 
@@ -184,16 +198,22 @@ class EmailInterpreter
         $locale = $this->composer->locale($language, Tenancy::account()->locale);
 
         match ($intent) {
-            // Copied, a question is for the people it was put to, not for Howy.
-            EmailIntent::Question => $interpretation->mode === InterpretationMode::Copied
+            // Copied, a question is for the people it was put to, not for Howy;
+            // nor is one from a sender Howy may not answer.
+            EmailIntent::Question => $interpretation->mode === InterpretationMode::Copied || ! $answers
                 ? $interpretation->outcome = InterpretationOutcome::NoAction
                 : $this->answer($interpretation, $email, $reading, $locale),
-            EmailIntent::Information => $this->file($interpretation, $email, $reading, $locale),
+            EmailIntent::Information => $learns
+                ? $this->file($interpretation, $email, $reading, $locale)
+                : $interpretation->outcome = InterpretationOutcome::NoAction,
             EmailIntent::Other => $interpretation->outcome = InterpretationOutcome::NoAction,
         };
 
-        // Whatever the mail is about, its attachments can be knowledge.
-        $this->attachments->apply($email, $prepared, (array) ($reading['attachments'] ?? []), $interpretation->summary, $interpretation->language);
+        // Whatever the mail is about, its attachments can be knowledge, when
+        // Howy may learn from its sender.
+        if ($learns) {
+            $this->attachments->apply($email, $prepared, (array) ($reading['attachments'] ?? []), $interpretation->summary, $interpretation->language);
+        }
 
         // A mail that only sends a file still proposed something, or knew it.
         if ($interpretation->outcome === InterpretationOutcome::NoAction) {
@@ -208,11 +228,15 @@ class EmailInterpreter
 
         $interpretation->fill(['status' => InterpretationStatus::Done, 'processed_at' => now()])->save();
 
-        // Read: from now on this text is recognised wherever it turns up.
-        $this->fingerprints->record($email, (string) ($email->content_text ?? $email->body_text ?? ''), FingerprintUse::Read);
+        // Read: from now on this text is recognised wherever it turns up. Not
+        // from a sender Howy may not learn from: forwarded later by someone it
+        // may, the text is still new and can be learned then.
+        if ($learns) {
+            $this->fingerprints->record($email, (string) ($email->content_text ?? $email->body_text ?? ''), FingerprintUse::Read);
 
-        foreach ($filed !== null ? $novelty->unseen : $inline as $quote) {
-            $this->fingerprints->record($email, $quote['text'], $filed !== null ? FingerprintUse::Document : FingerprintUse::Statements, $filed?->id);
+            foreach ($filed !== null ? $novelty->unseen : $inline as $quote) {
+                $this->fingerprints->record($email, $quote['text'], $filed !== null ? FingerprintUse::Document : FingerprintUse::Statements, $filed?->id);
+            }
         }
 
         return $interpretation;
@@ -221,17 +245,18 @@ class EmailInterpreter
     /**
      * What to do with history Howy has not read: read it with the mail when
      * it is short, file it as a document when it (or the mail itself) is too
-     * long to read as a mail.
+     * long to read as a mail. From a sender Howy may not learn from nothing is
+     * filed: short history is only context, long history is left out.
      *
      * @return array{0: list<Quote>, 1: DocumentVersion|null}
      */
-    private function history(Email $email, MailReading $novelty): array
+    private function history(Email $email, MailReading $novelty, bool $learns): array
     {
         $length = array_sum(array_map(fn (array $quote): int => mb_strlen($quote['text']), $novelty->unseen));
         $longBody = mb_strlen((string) ($email->content_text ?? $email->body_text ?? '')) > (int) config('knowledge.mail.document_min_chars');
 
         if ($length > (int) config('knowledge.mail.history_inline_chars') || $longBody) {
-            return [[], $this->threads->write($email, $novelty->unseen, $longBody, null)];
+            return $learns ? [[], $this->threads->write($email, $novelty->unseen, $longBody, null)] : [[], null];
         }
 
         return [$novelty->unseen, null];
@@ -263,8 +288,10 @@ class EmailInterpreter
 
     /**
      * The same message (by its Message-ID), already read through another of
-     * the account's mailboxes in at least the role it has here: copied twice
-     * is read once, but a question addressed here is still answered.
+     * the account's mailboxes in at least the role it has here, and with at
+     * least what Howy may do with its sender here: copied twice is read once,
+     * but a question addressed here is still answered, and what may be
+     * learned here is not lost to a mailbox that could only answer it.
      */
     private function readElsewhere(Email $email, EmailInterpretation $interpretation): ?Email
     {
@@ -278,6 +305,7 @@ class EmailInterpreter
             ->where('mailbox_id', '!=', $email->mailbox_id)
             ->whereHas('interpretation', fn (Builder $query) => $query
                 ->where('status', InterpretationStatus::Done)
+                ->whereIn('sender_access', array_map(fn (SenderAccess $access): string => $access->value, $interpretation->sender_access->coveredBy()))
                 ->when($interpretation->mode === InterpretationMode::Addressed, fn (Builder $query) => $query->where('mode', InterpretationMode::Addressed)))
             ->first();
     }
@@ -433,8 +461,11 @@ class EmailInterpreter
         };
         $interpretation->save();
 
-        // Copied, Howy never writes: the conflict is only flagged.
-        if ($interpretation->outcome === InterpretationOutcome::Conflict && $interpretation->mode === InterpretationMode::Addressed) {
+        // Copied, or to a sender Howy may not answer, Howy never writes: the
+        // conflict is only flagged.
+        if ($interpretation->outcome === InterpretationOutcome::Conflict
+            && $interpretation->mode === InterpretationMode::Addressed
+            && $interpretation->sender_access->answers()) {
             $this->replier->reply($interpretation, $email, $this->composer->conflict($judged, $this->conflictSources($judged), $locale));
         }
     }

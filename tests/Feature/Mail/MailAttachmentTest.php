@@ -4,6 +4,7 @@ namespace Tests\Feature\Mail;
 
 use App\Enums\InterpretationOutcome;
 use App\Enums\ProcessingStatus;
+use App\Enums\SenderAccess;
 use App\Enums\SourceKind;
 use App\Facades\Tenancy;
 use App\Jobs\Mail\InterpretEmail;
@@ -125,6 +126,22 @@ class MailAttachmentTest extends TestCase
             $attachment = $email->fresh()?->attachments[0];
             $this->assertSame('ignored', $attachment['decision'] ?? null);
             $this->assertSame('Een factuur.', $attachment['reason'] ?? null);
+            $this->assertSame(InterpretationOutcome::NoAction, EmailInterpretation::query()->where('email_id', $email->id)->value('outcome'));
+        });
+    }
+
+    public function test_attachments_from_a_sender_howy_may_only_answer_stay_out(): void
+    {
+        $this->classifierSays([['id' => 'A1', 'use' => 'knowledge', 'reason' => 'De nieuwe verlofregeling.']]);
+
+        $email = $this->email('m1', [$this->pdf()]);
+        Tenancy::for($this->account, fn () => EmailInterpretation::query()->create(['email_id' => $email->id, 'sender_access' => SenderAccess::Answer]));
+        $this->interpret($email);
+
+        Tenancy::for($this->account, function () use ($email) {
+            $this->assertSame(0, Document::query()->count());
+            // Undecided, so an administrator can still add it by hand.
+            $this->assertNull($email->fresh()?->attachments[0]['decision'] ?? null);
             $this->assertSame(InterpretationOutcome::NoAction, EmailInterpretation::query()->where('email_id', $email->id)->value('outcome'));
         });
     }
