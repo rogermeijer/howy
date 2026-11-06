@@ -139,6 +139,21 @@ The bypass is kept as small as possible:
 `tests/Feature/Tenancy/WithoutTenancyGuardTest.php` pins the exception to that single file, so any other
 call under `app/` fails CI. Adding a second exception needs a written reason in that test and in CLAUDE.md.
 
+### The one cross-account unique index: an active Gmail address
+
+A Gmail address is active in one account at most. Revoking a grant at Google, which disconnecting does,
+revokes it for every account holding that address, so a second active copy would be unlinked without its
+admins doing anything. `mailboxes_one_active_per_address` enforces this as a partial unique index on
+`(provider, email_address) WHERE status = 'active'`:
+
+- Partial, because disconnected and needs-reauth mailboxes keep their row and their emails. They never
+  block connecting the address elsewhere.
+- In the database rather than a lookup, so the check needs no `withoutTenancy()` in a request path, and
+  two accounts connecting at the same moment cannot both win.
+- `MailboxConnector::connect()` saves in its own transaction and turns the violation into
+  `MailboxConnectedElsewhereException`. The OAuth callback shows a toast. Nothing is revoked on refusal:
+  the grant Google just handed out is the one the other account is using.
+
 A queued job:
 
 ```php

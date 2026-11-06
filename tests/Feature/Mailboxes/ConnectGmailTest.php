@@ -135,6 +135,64 @@ class ConnectGmailTest extends TestCase
         $this->assertSame('old-refresh-token', $mailbox->refresh_token);
     }
 
+    public function test_an_address_active_in_another_account_is_not_connected_here(): void
+    {
+        Queue::fake();
+
+        $other = Account::factory()->create();
+        $theirs = Tenancy::for($other, fn () => Mailbox::factory()->create([
+            'email_address' => 'support@noordkade.nl',
+            'refresh_token' => 'their-refresh-token',
+        ]));
+
+        $this->fakeGoogleUser();
+
+        $this->actingAs($this->admin)
+            ->withSession(['mailbox_connect' => ['account_id' => $this->account->id, 'backfill' => true]])
+            ->get(route('mailboxes.gmail.callback', ['code' => 'abc']))
+            ->assertRedirect(route('settings'))
+            ->assertInertiaFlash('toast.type', 'error');
+
+        $this->assertSame(0, Tenancy::for($this->account, fn () => Mailbox::query()->count()));
+        $this->assertSame(MailboxStatus::Active, $theirs->refresh()->status);
+        $this->assertSame('their-refresh-token', $theirs->refresh_token);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_an_address_that_needs_reconnecting_here_is_refused_while_active_elsewhere(): void
+    {
+        Queue::fake();
+
+        $ours = Tenancy::for($this->account, fn () => Mailbox::factory()->needsReauth()->create(['email_address' => 'support@noordkade.nl']));
+        Tenancy::for(Account::factory()->create(), fn () => Mailbox::factory()->create(['email_address' => 'support@noordkade.nl']));
+
+        $this->fakeGoogleUser();
+
+        $this->actingAs($this->admin)
+            ->withSession(['mailbox_connect' => ['account_id' => $this->account->id, 'backfill' => false]])
+            ->get(route('mailboxes.gmail.callback', ['code' => 'abc']))
+            ->assertInertiaFlash('toast.type', 'error');
+
+        $this->assertSame(MailboxStatus::NeedsReauth, $ours->refresh()->status);
+    }
+
+    public function test_an_address_no_longer_active_elsewhere_can_be_connected_here(): void
+    {
+        Queue::fake();
+
+        Tenancy::for(Account::factory()->create(), fn () => Mailbox::factory()->disconnected()->create(['email_address' => 'support@noordkade.nl']));
+        Tenancy::for(Account::factory()->create(), fn () => Mailbox::factory()->needsReauth()->create(['email_address' => 'support@noordkade.nl']));
+
+        $this->fakeGoogleUser();
+
+        $this->actingAs($this->admin)
+            ->withSession(['mailbox_connect' => ['account_id' => $this->account->id, 'backfill' => false]])
+            ->get(route('mailboxes.gmail.callback', ['code' => 'abc']))
+            ->assertInertiaFlash('toast.type', 'success');
+
+        $this->assertSame(MailboxStatus::Active, Tenancy::for($this->account, fn () => Mailbox::query()->sole())->status);
+    }
+
     public function test_a_grant_without_read_access_does_not_connect(): void
     {
         Queue::fake();

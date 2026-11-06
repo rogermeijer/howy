@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Mailboxes;
 
+use App\Exceptions\MailboxConnectedElsewhereException;
 use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
 use App\Jobs\ImportGmailQuery;
@@ -77,7 +78,11 @@ class GmailOAuthController extends Controller
             return $this->fail(__('Howy needs permission to read mail. Connect again and allow it.'));
         }
 
-        $mailbox = $connector->connect($google, $request->user());
+        try {
+            $mailbox = $connector->connect($google, $request->user());
+        } catch (MailboxConnectedElsewhereException) {
+            return $this->fail(__('This mailbox is already connected to another Howy account. Disconnect it there first.'));
+        }
 
         if ($pending['backfill']) {
             ImportGmailQuery::dispatch($mailbox->id, 'in:inbox newer_than:30d', $request->user()->id);
