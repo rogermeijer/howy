@@ -28,12 +28,12 @@ export type LegalSection = {
 
 /**
  * Who offers Howy, swapped in for `:company`, `:kvk` and `:address`.
- * Placeholders until the company details are final; names, not copy.
+ * Names and numbers, not copy: the same in every language.
  */
 const LEGAL_ENTITY = {
-    company: '[Company name]',
-    kvk: '[KvK number]',
-    address: '[Address]',
+    company: 'DevKids',
+    kvk: '17138523',
+    address: 'Huijgenslaan 13, 5615 LL Eindhoven',
 };
 
 const legalLinks = [
