@@ -1,21 +1,22 @@
 import { Form, Head } from '@inertiajs/react';
 import AccountController from '@/actions/App/Http/Controllers/Settings/AccountController';
+import { AccountFields } from '@/components/account-fields';
 import { PageHeader } from '@/components/cc/page-header';
 import { Section } from '@/components/cc/section';
-import InputError from '@/components/input-error';
 import { LocaleFields } from '@/components/locale-fields';
 import { MailboxesSection } from '@/components/mailboxes/mailboxes-section';
+import { KnowledgeLanguageSection } from '@/components/settings/knowledge-language-section';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useTranslations } from '@/hooks/use-translations';
-import type { LocaleOption, Mailbox } from '@/types';
+import type { LocaleOption, Mailbox, MailFacts } from '@/types';
 
 type Props = {
     account: {
         id: number;
         name: string;
+        domain: string | null;
         locale: string;
+        knowledgeLocale: string;
         timezone: string;
     };
     canManageAccount: boolean;
@@ -24,7 +25,8 @@ type Props = {
     openConnect: boolean;
     locales: LocaleOption[];
     timezones: string[];
-    sendPolicies: LocaleOption[];
+    publicDomains: string[];
+    mailFacts: MailFacts;
 };
 
 export default function Settings({
@@ -35,7 +37,8 @@ export default function Settings({
     openConnect,
     locales,
     timezones,
-    sendPolicies,
+    publicDomains,
+    mailFacts,
 }: Props) {
     const t = useTranslations();
 
@@ -53,7 +56,9 @@ export default function Settings({
                     mailboxes={mailboxes}
                     canManage={canManageMailboxes}
                     openConnect={openConnect}
-                    sendPolicies={sendPolicies}
+                    publicDomains={publicDomains}
+                    company={account.name}
+                    facts={mailFacts}
                 />
 
                 <Section
@@ -70,19 +75,11 @@ export default function Settings({
                         >
                             {({ processing, errors }) => (
                                 <>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="name">
-                                            {t('Account name')}
-                                        </Label>
-                                        <Input
-                                            id="name"
-                                            name="name"
-                                            defaultValue={account.name}
-                                            required
-                                            className="h-11"
-                                        />
-                                        <InputError message={errors.name} />
-                                    </div>
+                                    <AccountFields
+                                        name={account.name}
+                                        domain={account.domain}
+                                        errors={errors}
+                                    />
 
                                     <LocaleFields
                                         locales={locales}
@@ -110,6 +107,14 @@ export default function Settings({
                         </p>
                     )}
                 </Section>
+
+                {/* Keyed on what is stored, so it starts over whenever that changes. */}
+                <KnowledgeLanguageSection
+                    key={`${account.id}:${account.knowledgeLocale}`}
+                    current={account.knowledgeLocale}
+                    locales={locales}
+                    canManage={canManageAccount}
+                />
             </div>
         </>
     );

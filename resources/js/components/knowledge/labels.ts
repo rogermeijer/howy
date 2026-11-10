@@ -8,6 +8,7 @@ export const documentTypeLabels: Record<DocumentType, string> = {
     policy: 'Policy',
     manual: 'Manual',
     documentation: 'Documentation',
+    correspondence: 'Correspondence',
     other: 'Other',
 };
 
@@ -19,8 +20,10 @@ export const statusLabels: Record<ProcessingStatus, string> = {
     embedding: 'Indexing',
     searchable: 'Searchable',
     enriching: 'Summarising',
+    review: 'Ready for approval',
     ready: 'Ready',
     failed: 'Failed',
+    rejected: 'Rejected',
 };
 
 /** The pipeline in order; the progress bar is drawn from this. */
@@ -35,8 +38,10 @@ export const pipeline: ProcessingStatus[] = [
     'ready',
 ];
 
+const settled: ProcessingStatus[] = ['review', 'ready', 'failed', 'rejected'];
+
 export function isProcessing(status: ProcessingStatus | undefined): boolean {
-    return status !== undefined && status !== 'ready' && status !== 'failed';
+    return status !== undefined && !settled.includes(status);
 }
 
 export function formatBytes(bytes: number): string {

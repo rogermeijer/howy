@@ -2,24 +2,36 @@
 
 namespace App\Services\Mail\Interpretation;
 
+use App\Enums\AttachmentDecision;
 use App\Enums\EmailIntent;
 use App\Enums\FactStatus;
+use App\Enums\FingerprintUse;
 use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
 use App\Enums\Locale;
+use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
+use App\Models\DocumentVersion;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
 use App\Models\KnowledgeFact;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
-use App\Services\Knowledge\Ai\Agents\FactConflictChecker;
 use App\Services\Knowledge\Ai\Agents\QuestionAnswerer;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\Facts\FactSources;
+use App\Services\Knowledge\KnowledgeLanguage;
+use App\Services\Knowledge\Review\FactReconciler;
 use App\Services\Knowledge\Search\FactHit;
 use App\Services\Knowledge\Search\KnowledgeSearch;
 use App\Services\Knowledge\Search\Passage;
 use App\Services\Knowledge\Search\SearchQuery;
+use App\Services\Mail\MailAttachments;
+use App\Services\Mail\MailFingerprints;
+use App\Services\Mail\MailNovelty;
+use App\Services\Mail\MailReading;
+use App\Services\Mail\PreparedAttachments;
+use App\Services\Mail\ThreadDocumentWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
@@ -31,14 +43,27 @@ use Illuminate\Support\Str;
  * against the facts already known: new ones are added as facts sourced from
  * the mail, known ones are skipped, and contradicting ones are held.
  *
- * Written to the mailbox, Howy answers the sender and explains a conflict.
- * Only copied, it never writes to the sender: it suggests an answer to the
- * people who were asked, when it is sure enough, and files what they answer.
+ * Written to the mailbox, Howy answers the sender when it is sure enough,
+ * and explains a conflict. Only copied, it writes to no one and answers
+ * nothing: it files what the people in the conversation say.
+ * The mailbox's rules can narrow that per sender (SenderAccess, kept on the
+ * interpretation): a sender Howy may not learn from has nothing filed, no
+ * attachments taken and no history kept; one it may not answer gets no mail.
  * Every step is written to the interpretation, so the mail always shows how
  * it was read and what followed.
  *
+ * Mail is read once. The same mail through a second mailbox is not read
+ * again, and of a forward or a reply only what Howy has not read before is a
+ * source; what it has read is context. A mail with nothing new is not sent
+ * to a model at all.
+ *
+ * Attachments are documents like uploads. One the knowledge base already
+ * holds gets this mail as one more source; a new one the classifier judges
+ * to be knowledge goes in and waits for approval.
+ *
  * @phpstan-import-type Citation from EmailInterpretation
  * @phpstan-import-type Statement from EmailInterpretation
+ * @phpstan-import-type Quote from Email
  */
 class EmailInterpreter
 {
@@ -52,6 +77,12 @@ class EmailInterpreter
         private readonly ThreadReplier $replier,
         private readonly EmailEligibility $eligibility,
         private readonly MailFactWriter $facts,
+        private readonly MailNovelty $novelty,
+        private readonly MailFingerprints $fingerprints,
+        private readonly MailAttachments $attachments,
+        private readonly FactReconciler $reconciler,
+        private readonly ThreadDocumentWriter $threads,
+        private readonly FactSources $sources,
     ) {}
 
     public function interpret(Email $email): EmailInterpretation
@@ -60,6 +91,58 @@ class EmailInterpreter
             ['email_id' => $email->id],
             ['mode' => $this->eligibility->role($email, $email->mailbox)],
         );
+
+        // Only a forced reading gets here for a mail Howy ignored on arrival:
+        // it is read like an imported one. Who may get a reply is still
+        // decided by the mailbox when it is sent.
+        if ($interpretation->sender_access === SenderAccess::Ignore) {
+            $interpretation->sender_access = SenderAccess::LearnAndAnswer;
+        }
+
+        $twin = $this->readElsewhere($email, $interpretation);
+
+        if ($twin !== null) {
+            $interpretation->update([
+                'status' => InterpretationStatus::Skipped,
+                'error' => __('This mail was already read through :mailbox.', ['mailbox' => $twin->mailbox->email_address ?? '']),
+                'processed_at' => now(),
+            ]);
+
+            return $interpretation;
+        }
+
+        $prepared = $this->attachments->prepare($email);
+
+        try {
+            return $this->read($email, $interpretation, $prepared);
+        } finally {
+            $prepared->cleanup();
+        }
+    }
+
+    private function read(Email $email, EmailInterpretation $interpretation, PreparedAttachments $prepared): EmailInterpretation
+    {
+        $novelty = $this->novelty->read($email);
+
+        if ($novelty->nothingNew() && ! $prepared->hasNew() && ! $this->isDirect($email, $interpretation)) {
+            $interpretation->update([
+                'status' => InterpretationStatus::Done,
+                'intent' => null,
+                // Said in the reader's language when shown (InterpretationPresenter).
+                'outcome' => InterpretationOutcome::Duplicate,
+                'summary' => null,
+                'statements' => null,
+                // Where it was read first, to look it up there.
+                'citations' => Email::query()->whereKey($novelty->knownFrom)->whereKeyNot($email->id)->get(['id', 'subject'])->map(fn (Email $known): array => [
+                    'type' => 'email', 'id' => $known->id, 'title' => (string) $known->subject, 'section_id' => null, 'heading_path' => null, 'page' => null,
+                ])->values()->all(),
+                'needs_review' => false,
+                'error' => null,
+                'processed_at' => now(),
+            ]);
+
+            return $interpretation;
+        }
 
         if (! $this->ai->enabled()) {
             $interpretation->update([
@@ -93,7 +176,14 @@ class EmailInterpreter
             'error' => null,
         ]);
 
-        $reading = $this->ai->structured(new EmailClassifier, $this->mailPrompt($email, $this->earlier($email)), 'mail_classify', $email);
+        $learns = $interpretation->sender_access->learns();
+        $answers = $interpretation->sender_access->answers();
+
+        // History Howy has not read is a source: short, it is read with the
+        // mail; long, it is filed as a document of its own.
+        [$inline, $filed] = $this->history($email, $novelty, $learns);
+
+        $reading = $this->ai->structured(new EmailClassifier, $this->mailPrompt($email, $novelty, $prepared, $this->historyPrompt($email, $inline, $filed), $this->earlier($email, $novelty)), 'mail_classify', $email);
 
         $intent = EmailIntent::tryFrom((string) ($reading['intent'] ?? '')) ?? EmailIntent::Other;
         $language = Str::limit(strtolower(trim((string) ($reading['language'] ?? ''))), 10, '');
@@ -108,14 +198,127 @@ class EmailInterpreter
         $locale = $this->composer->locale($language, Tenancy::account()->locale);
 
         match ($intent) {
-            EmailIntent::Question => $this->answer($interpretation, $email, $reading, $locale),
-            EmailIntent::Information => $this->file($interpretation, $email, $reading, $locale),
+            // Copied, a question is for the people it was put to, not for Howy;
+            // nor is one from a sender Howy may not answer.
+            EmailIntent::Question => $interpretation->mode === InterpretationMode::Copied || ! $answers
+                ? $interpretation->outcome = InterpretationOutcome::NoAction
+                : $this->answer($interpretation, $email, $reading, $locale),
+            EmailIntent::Information => $learns
+                ? $this->file($interpretation, $email, $reading, $locale)
+                : $interpretation->outcome = InterpretationOutcome::NoAction,
             EmailIntent::Other => $interpretation->outcome = InterpretationOutcome::NoAction,
         };
 
+        // Whatever the mail is about, its attachments can be knowledge, when
+        // Howy may learn from its sender.
+        if ($learns) {
+            $this->attachments->apply($email, $prepared, (array) ($reading['attachments'] ?? []), $interpretation->summary, $interpretation->language);
+        }
+
+        // A mail that only sends a file still proposed something, or knew it.
+        if ($interpretation->outcome === InterpretationOutcome::NoAction) {
+            $decisions = array_column($email->attachments ?? [], 'decision');
+
+            $interpretation->outcome = match (true) {
+                in_array(AttachmentDecision::New->value, $decisions, true) => InterpretationOutcome::Added,
+                in_array(AttachmentDecision::Known->value, $decisions, true) => InterpretationOutcome::Duplicate,
+                default => InterpretationOutcome::NoAction,
+            };
+        }
+
         $interpretation->fill(['status' => InterpretationStatus::Done, 'processed_at' => now()])->save();
 
+        // Read: from now on this text is recognised wherever it turns up. Not
+        // from a sender Howy may not learn from: forwarded later by someone it
+        // may, the text is still new and can be learned then.
+        if ($learns) {
+            $this->fingerprints->record($email, (string) ($email->content_text ?? $email->body_text ?? ''), FingerprintUse::Read);
+
+            foreach ($filed !== null ? $novelty->unseen : $inline as $quote) {
+                $this->fingerprints->record($email, $quote['text'], $filed !== null ? FingerprintUse::Document : FingerprintUse::Statements, $filed?->id);
+            }
+        }
+
         return $interpretation;
+    }
+
+    /**
+     * What to do with history Howy has not read: read it with the mail when
+     * it is short, file it as a document when it (or the mail itself) is too
+     * long to read as a mail. From a sender Howy may not learn from nothing is
+     * filed: short history is only context, long history is left out.
+     *
+     * @return array{0: list<Quote>, 1: DocumentVersion|null}
+     */
+    private function history(Email $email, MailReading $novelty, bool $learns): array
+    {
+        $length = array_sum(array_map(fn (array $quote): int => mb_strlen($quote['text']), $novelty->unseen));
+        $longBody = mb_strlen((string) ($email->content_text ?? $email->body_text ?? '')) > (int) config('knowledge.mail.document_min_chars');
+
+        if ($length > (int) config('knowledge.mail.history_inline_chars') || $longBody) {
+            return $learns ? [[], $this->threads->write($email, $novelty->unseen, $longBody, null)] : [[], null];
+        }
+
+        return [$novelty->unseen, null];
+    }
+
+    /**
+     * @param  list<Quote>  $inline
+     */
+    private function historyPrompt(Email $email, array $inline, ?DocumentVersion $filed): ?string
+    {
+        if ($filed !== null) {
+            return "<history filed=\"document\">\nThe earlier messages of this thread that you have not read are filed as a separate document.\n</history>";
+        }
+
+        if ($inline === []) {
+            return null;
+        }
+
+        $forward = preg_match('/^\s*(?:fwd?|fw|doorst|wg|tr|rv)\s*:/iu', (string) $email->subject) === 1
+            || collect($inline)->contains(fn (array $quote): bool => $quote['forwarded'] ?? false);
+        $tag = $forward ? 'forwarded' : 'history';
+
+        // Oldest first, with the sender's name and the date only.
+        $messages = array_map(fn (array $quote): string => '<message from="'.e($quote['name'] ?? '').'"'.($quote['date'] !== null ? ' date="'.substr($quote['date'], 0, 10).'"' : '').">\n"
+            .$this->mask(trim($quote['text']))."\n</message>", array_reverse($inline));
+
+        return "<{$tag}>\n".implode("\n", $messages)."\n</{$tag}>";
+    }
+
+    /**
+     * The same message (by its Message-ID), already read through another of
+     * the account's mailboxes in at least the role it has here, and with at
+     * least what Howy may do with its sender here: copied twice is read once,
+     * but a question addressed here is still answered, and what may be
+     * learned here is not lost to a mailbox that could only answer it.
+     */
+    private function readElsewhere(Email $email, EmailInterpretation $interpretation): ?Email
+    {
+        if ($email->message_id_header === null) {
+            return null;
+        }
+
+        return Email::query()
+            ->with('mailbox')
+            ->where('message_id_header', $email->message_id_header)
+            ->where('mailbox_id', '!=', $email->mailbox_id)
+            ->whereHas('interpretation', fn (Builder $query) => $query
+                ->where('status', InterpretationStatus::Done)
+                ->whereIn('sender_access', array_map(fn (SenderAccess $access): string => $access->value, $interpretation->sender_access->coveredBy()))
+                ->when($interpretation->mode === InterpretationMode::Addressed, fn (Builder $query) => $query->where('mode', InterpretationMode::Addressed)))
+            ->first();
+    }
+
+    /**
+     * A new mail written to Howy itself, not a reply or a forward: whoever
+     * asks again deserves an answer again.
+     */
+    private function isDirect(Email $email, EmailInterpretation $interpretation): bool
+    {
+        return $interpretation->mode === InterpretationMode::Addressed
+            && $email->in_reply_to === null
+            && ($email->quotes ?? []) === [];
     }
 
     /**
@@ -151,16 +354,11 @@ class EmailInterpreter
         );
 
         $answer = trim((string) ($response['answer'] ?? ''));
-        $copied = $interpretation->mode === InterpretationMode::Copied;
 
         if (($response['answered'] ?? false) !== true || $answer === '') {
             $interpretation->outcome = InterpretationOutcome::NotFound;
             $interpretation->save();
-
-            // Copied, Howy only speaks up when it has something to offer.
-            if (! $copied) {
-                $this->replier->reply($interpretation, $email, $this->composer->notFound($question, $locale));
-            }
+            $this->replier->reply($interpretation, $email, $this->composer->notFound($question, $locale));
 
             return;
         }
@@ -174,35 +372,20 @@ class EmailInterpreter
         $confidence = max(0, min(1, (float) ($response['confidence'] ?? 0)));
         $gaps = trim((string) ($response['missing'] ?? '')) ?: null;
 
+        // Only an answer Howy is sure enough of goes out; a less sure one is
+        // kept on the mail, for the people in the conversation to judge.
+        $sure = $confidence >= (float) config('knowledge.mail.answer_min_confidence');
+
         $interpretation->fill([
-            'outcome' => InterpretationOutcome::Answered,
+            'outcome' => $sure ? InterpretationOutcome::Answered : InterpretationOutcome::Unsure,
             'answer' => $answer,
             'answer_confidence' => $confidence,
             'answer_gaps' => $gaps,
             'citations' => $citations,
-        ]);
+        ])->save();
 
-        if (! $copied) {
-            $interpretation->save();
+        if ($sure) {
             $this->replier->reply($interpretation, $email, $this->composer->answer($question, $answer, $citations, $gaps, $locale));
-
-            return;
-        }
-
-        // A question to someone else: suggest the answer to them, and only
-        // when it is sure enough to be worth their attention.
-        $asked = $this->replier->askedOf($email);
-
-        $interpretation->outcome = match (true) {
-            $asked === [] => InterpretationOutcome::NoAction,
-            $confidence < (float) config('knowledge.mail.suggestion_min_confidence') => InterpretationOutcome::Unsure,
-            default => InterpretationOutcome::Suggested,
-        };
-        $interpretation->save();
-
-        if ($interpretation->outcome === InterpretationOutcome::Suggested) {
-            $asker = $email->from_name ?? $email->from_email ?? '';
-            $this->replier->suggest($interpretation, $email, $this->composer->suggestion($asker, $email->received_at, $question, $answer, $citations, $gaps, $confidence, $locale));
         }
     }
 
@@ -219,7 +402,7 @@ class EmailInterpreter
             return;
         }
 
-        /** @var array<string, array{statement: array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}, hash: string, candidates: list<KnowledgeFact>}> $open */
+        /** @var array<string, array{statement: array{statement: string, subject: string|null, valid_from: string|null, flag: string|null, from_history: bool}, hash: string, candidates: list<KnowledgeFact>}> $open */
         $open = [];
         /** @var list<Statement> $judged */
         $judged = [];
@@ -240,7 +423,7 @@ class EmailInterpreter
                 continue;
             }
 
-            $candidates = $this->candidates($statement['statement'], $locale);
+            $candidates = $this->candidates($statement['statement']);
 
             if ($candidates === []) {
                 $judged[$index] = $this->judged($statement, 'new');
@@ -252,33 +435,21 @@ class EmailInterpreter
         }
 
         if ($open !== []) {
-            $response = $this->ai->structured(new FactConflictChecker, $this->conflictPrompt($open, $locale), 'mail_conflicts', $email);
+            $claims = array_map(fn (array $item): array => [
+                'statement' => $item['statement']['statement'],
+                'valid_from' => $item['statement']['valid_from'],
+                'candidates' => $item['candidates'],
+            ], $open);
 
-            /** @var list<array{id?: string, verdict?: string, existing_fact_id?: int|null, explanation?: string}> $verdicts */
-            $verdicts = is_array($response['verdicts'] ?? null) ? $response['verdicts'] : [];
-            $byId = [];
-
-            foreach ($verdicts as $verdict) {
-                $byId[(string) ($verdict['id'] ?? '')] = $verdict;
-            }
-
-            foreach ($open as $id => $item) {
-                $index = (int) substr($id, 1) - 1;
-                $verdict = $byId[$id] ?? [];
-                $existing = collect($item['candidates'])->firstWhere('id', (int) ($verdict['existing_fact_id'] ?? 0));
-
-                // A verdict that points at no fact we offered cannot be acted on.
-                $judged[$index] = match ($existing === null ? 'new' : ($verdict['verdict'] ?? 'new')) {
-                    'duplicate' => $this->judged($item['statement'], 'duplicate', null, $existing),
-                    'contradicts' => $this->judged($item['statement'], 'conflict', null, $existing, trim((string) ($verdict['explanation'] ?? ''))),
-                    default => $this->judged($item['statement'], 'new'),
-                };
+            foreach ($this->reconciler->check($claims, $locale, $email, 'mail_conflicts') as $id => $judgement) {
+                $judged[(int) substr($id, 1) - 1] = $this->judged($open[$id]['statement'], $judgement['verdict'], null, $judgement['existing'], $judgement['explanation']);
             }
         }
 
         ksort($judged);
         $judged = array_values($judged);
-        $judged = $this->addNewFacts($judged, $email, $locale);
+        $judged = $this->addNewFacts($judged, $email);
+        $this->confirmKnown($judged, $email);
 
         $verdicts = array_column($judged, 'verdict');
         $interpretation->statements = $judged;
@@ -290,8 +461,11 @@ class EmailInterpreter
         };
         $interpretation->save();
 
-        // Copied, Howy never writes to the sender: the conflict is only flagged.
-        if ($interpretation->outcome === InterpretationOutcome::Conflict && $interpretation->mode === InterpretationMode::Addressed) {
+        // Copied, or to a sender Howy may not answer, Howy never writes: the
+        // conflict is only flagged.
+        if ($interpretation->outcome === InterpretationOutcome::Conflict
+            && $interpretation->mode === InterpretationMode::Addressed
+            && $interpretation->sender_access->answers()) {
             $this->replier->reply($interpretation, $email, $this->composer->conflict($judged, $this->conflictSources($judged), $locale));
         }
     }
@@ -303,10 +477,10 @@ class EmailInterpreter
      * @param  list<Statement>  $judged
      * @return list<Statement>
      */
-    private function addNewFacts(array $judged, Email $email, ?string $language): array
+    private function addNewFacts(array $judged, Email $email): array
     {
         $new = array_filter($judged, fn (array $statement): bool => $statement['verdict'] === 'new' && $statement['fact_id'] === null);
-        $facts = $this->facts->write($email, array_values($new), FactStatus::Proposed, $language);
+        $facts = $this->facts->write($email, array_values($new), FactStatus::Proposed);
 
         $ids = [];
 
@@ -322,14 +496,42 @@ class EmailInterpreter
     }
 
     /**
-     * The facts most like a statement, as the conflict check's comparison set.
+     * What the mail says that is known already: the mail is one more source
+     * of it. It changes nothing that is known, so it waits for nobody.
+     *
+     * @param  list<Statement>  $judged
+     */
+    private function confirmKnown(array $judged, Email $email): void
+    {
+        $ids = array_values(array_filter(array_map(
+            fn (array $statement): ?int => $statement['verdict'] === 'duplicate' ? $statement['existing_fact_id'] : null,
+            $judged,
+        )));
+
+        foreach (KnowledgeFact::query()->whereKey($ids)->get() as $known) {
+            if ($this->sources->canConfirm($known)) {
+                $this->sources->confirmByMail($known, $email);
+            }
+        }
+    }
+
+    /**
+     * The facts most like a statement, as the conflict check's comparison set:
+     * published, and pending in another mail or document, so the same claim
+     * is not proposed twice.
      *
      * @return list<KnowledgeFact>
      */
-    private function candidates(string $statement, string $locale): array
+    private function candidates(string $statement): array
     {
         $hits = array_slice(
-            $this->search->search(new SearchQuery($statement, maxTokens: 500, language: $this->searchLanguage($locale)))->facts,
+            $this->search->search(new SearchQuery(
+                $statement,
+                factStatuses: [FactStatus::Core, FactStatus::Supplementary, FactStatus::Proposed],
+                maxTokens: 500,
+                // Statements and facts are in the knowledge base's language.
+                language: KnowledgeLanguage::searchConfiguration(),
+            ))->facts,
             0,
             (int) config('knowledge.mail.conflict_candidates'),
         );
@@ -344,7 +546,7 @@ class EmailInterpreter
     }
 
     /**
-     * @param  array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}  $statement
+     * @param  array{statement: string, subject: string|null, valid_from: string|null, flag: string|null, from_history?: bool}  $statement
      * @param  'new'|'duplicate'|'conflict'  $verdict
      * @return Statement
      */
@@ -360,6 +562,7 @@ class EmailInterpreter
             'existing_statement' => $existing?->statement,
             'explanation' => filled($explanation) ? $explanation : null,
             'flag' => $statement['flag'],
+            'from_history' => $statement['from_history'] ?? false,
             // What would change the knowledge base waits for a person.
             'review' => in_array($verdict, ['new', 'conflict'], true) ? 'pending' : null,
             'reviewed_by' => null,
@@ -385,7 +588,7 @@ class EmailInterpreter
         foreach (KnowledgeFact::query()->with(['document', 'section'])->whereKey($ids)->get() as $fact) {
             $sources[$fact->id] = $fact->source_type === 'email'
                 ? ['type' => 'email', 'id' => $fact->source_id, 'title' => (string) Email::query()->whereKey($fact->source_id)->value('subject'), 'section_id' => null, 'heading_path' => null, 'page' => null]
-                : ['type' => 'document', 'id' => (int) $fact->document_id, 'title' => (string) $fact->document?->title, 'section_id' => $fact->section_id, 'heading_path' => $fact->section?->heading_path, 'page' => $fact->page_from];
+                : ['type' => 'document', 'id' => (int) $fact->document_id, 'title' => $fact->documentTitle(), 'section_id' => $fact->section_id, 'heading_path' => $fact->section?->heading_path, 'page' => $fact->page_from];
         }
 
         return $sources;
@@ -393,7 +596,7 @@ class EmailInterpreter
 
     /**
      * @param  array<string, mixed>  $reading
-     * @return list<array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}>
+     * @return list<array{statement: string, subject: string|null, valid_from: string|null, flag: string|null, from_history: bool}>
      */
     private function statements(array $reading): array
     {
@@ -418,6 +621,7 @@ class EmailInterpreter
                 'statement' => $text,
                 'subject' => $subject !== '' ? $subject : null,
                 'flag' => $flag !== '' ? $flag : null,
+                'from_history' => (bool) ($statement['from_history'] ?? false),
                 'valid_from' => is_string($validFrom) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $validFrom) === 1 && strtotime($validFrom) !== false ? $validFrom : null,
             ];
         }
@@ -431,7 +635,7 @@ class EmailInterpreter
      * the knowledge base does not know, that comes along: a reply that fills
      * the gap is exactly what should be learned.
      */
-    private function earlier(Email $email): ?string
+    private function earlier(Email $email, MailReading $novelty): ?string
     {
         $previous = $email->in_reply_to === null ? null : Email::query()
             ->with('interpretation')
@@ -439,9 +643,10 @@ class EmailInterpreter
             ->where('message_id_header', $email->in_reply_to)
             ->first();
 
+        // A quote not read before is history, given as a source instead.
         $text = trim((string) ($previous !== null
             ? ($previous->content_text ?? $previous->body_text)
-            : ($email->quotes[0]['text'] ?? null)));
+            : ($novelty->known[0]['text'] ?? null)));
 
         $gaps = $previous->interpretation->answer_gaps ?? $this->threadGaps($email);
         $context = trim(($text !== '' ? Str::limit($text, (int) config('knowledge.mail.context_max_chars')) : '')
@@ -452,7 +657,7 @@ class EmailInterpreter
 
     /**
      * What the knowledge base was last found to be missing in this thread,
-     * for a reply to a message that is not stored (Howy's own suggestion).
+     * for a reply to a message that is not stored (Howy's own reply).
      */
     private function threadGaps(Email $email): ?string
     {
@@ -468,13 +673,20 @@ class EmailInterpreter
 
     /**
      * The mail as the model sees it: subject, new text and the message it
-     * replies to. No envelope, and addresses in the text are masked, as
-     * AiGateway promises.
+     * replies to. No envelope beyond whether it was written to the mailbox
+     * alone, and addresses in the text are masked, as AiGateway promises.
      */
-    private function mailPrompt(Email $email, ?string $earlier = null): string
+    private function mailPrompt(Email $email, MailReading $novelty, PreparedAttachments $prepared, ?string $history, ?string $earlier = null): string
     {
-        $text = $email->content_text ?? $email->body_text ?? $email->snippet ?? '';
-        $prompt = "<subject>\n".trim((string) $email->subject)."\n</subject>\n\n<mail>\n".Str::limit(trim($this->mask($text)), self::MAX_PROMPT_CHARS)."\n</mail>";
+        // What it says that was read before is left out, marked […].
+        $text = $novelty->remaining > 0 ? $novelty->text : ($email->content_text ?? $email->body_text ?? $email->snippet ?? '');
+        $prompt = 'Knowledge base language: '.KnowledgeLanguage::locale()->label().' ('.KnowledgeLanguage::locale()->value.")\n"
+            .($this->eligibility->writtenToAlone($email, $email->mailbox) ? "Written to: the knowledge mailbox alone\n" : '')
+            ."\n<subject>\n".trim((string) $email->subject)."\n</subject>\n\n<mail>\n".Str::limit(trim($this->mask($text)), self::MAX_PROMPT_CHARS)."\n</mail>";
+
+        $attachments = $this->attachments->prompt($email, $prepared);
+        $prompt .= $attachments === null ? '' : "\n\n{$attachments}";
+        $prompt .= $history === null ? '' : "\n\n{$history}";
 
         return $earlier === null ? $prompt : $prompt."\n\n<earlier>\n".$this->mask($earlier)."\n</earlier>";
     }
@@ -496,25 +708,6 @@ class EmailInterpreter
         }
 
         return 'Answer in: '.(Locale::tryFrom($locale)?->label() ?? $locale)."\n\n<question>\n{$question}\n</question>\n\n".implode("\n\n", $blocks);
-    }
-
-    /**
-     * @param  array<string, array{statement: array{statement: string, subject: string|null, valid_from: string|null, flag: string|null}, hash: string, candidates: list<KnowledgeFact>}>  $open
-     */
-    private function conflictPrompt(array $open, string $locale): string
-    {
-        $blocks = [];
-
-        foreach ($open as $id => $item) {
-            $facts = array_map(
-                fn (KnowledgeFact $fact): string => "  <fact id=\"{$fact->id}\"".($fact->valid_from ? " valid_from=\"{$fact->valid_from->toDateString()}\"" : '').">{$fact->statement}</fact>",
-                $item['candidates'],
-            );
-
-            $blocks[] = "<statement id=\"{$id}\"".($item['statement']['valid_from'] ? " valid_from=\"{$item['statement']['valid_from']}\"" : '').">\n  {$item['statement']['statement']}\n".implode("\n", $facts)."\n</statement>";
-        }
-
-        return 'Explain in: '.(Locale::tryFrom($locale)?->label() ?? $locale)."\n\n".implode("\n\n", $blocks);
     }
 
     /**

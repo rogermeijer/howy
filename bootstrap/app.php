@@ -3,6 +3,7 @@
 use App\Http\Middleware\ForwardTunnelledOAuthCallback;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireAccountAdmin;
+use App\Http\Middleware\RequireSetUpAccount;
 use App\Http\Middleware\RequireSuperAdmin;
 use App\Http\Middleware\RequireTenantContext;
 use App\Http\Middleware\SetLocale;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => RequireTenantContext::class,
             'account.admin' => RequireAccountAdmin::class,
+            'set-up' => RequireSetUpAccount::class,
             'super-admin' => RequireSuperAdmin::class,
         ]);
 

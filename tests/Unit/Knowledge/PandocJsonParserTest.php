@@ -37,4 +37,31 @@ class PandocJsonParserTest extends TestCase
         $this->assertSame(Block::LIST, $blocks[0]->type);
         $this->assertSame("- Eerste\n- Tweede punt", $blocks[0]->text);
     }
+
+    public function test_slides_become_one_section_per_slide(): void
+    {
+        $blocks = (new PandocJsonParser)->parse((string) file_get_contents(__DIR__.'/../../Fixtures/Knowledge/verlofregeling.pptx.json'));
+
+        $headings = array_map(fn (Block $block): string => $block->text, array_values(array_filter($blocks, fn (Block $block): bool => $block->isHeading())));
+        $this->assertSame(['Verlofregeling 2027', 'Vakantiedagen', 'Ziekmelding'], $headings);
+        $this->assertContains('Medewerkers krijgen 26 vakantiedagen.', array_map(fn (Block $block): string => $block->text, $blocks));
+    }
+
+    public function test_a_spreadsheet_becomes_a_heading_and_a_table_per_sheet(): void
+    {
+        $blocks = (new PandocJsonParser)->parse((string) file_get_contents(__DIR__.'/../../Fixtures/Knowledge/tarieven.xlsx.json'));
+
+        $this->assertSame([Block::HEADING, 'Tarieven'], [$blocks[0]->type, $blocks[0]->text]);
+        $this->assertSame(Block::TABLE, $blocks[1]->type);
+        $this->assertSame(['Functie', 'Uurloon', 'Reiskosten'], $blocks[1]->rows[0]);
+        $this->assertSame('Monteur', $blocks[1]->rows[1][0]);
+    }
+
+    public function test_csv_becomes_a_table(): void
+    {
+        $blocks = (new PandocJsonParser)->parse((string) file_get_contents(__DIR__.'/../../Fixtures/Knowledge/tarieven.csv.json'));
+
+        $this->assertSame(Block::TABLE, $blocks[0]->type);
+        $this->assertSame(['Planner', '26.00', '0.23'], $blocks[0]->rows[2]);
+    }
 }

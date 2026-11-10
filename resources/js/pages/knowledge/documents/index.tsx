@@ -33,9 +33,12 @@ import type { KnowledgeDocument, Option } from '@/types';
 type Props = {
     documents: KnowledgeDocument[];
     types: Option[];
+    filter: 'review' | null;
     defaultLanguage: string;
     maxUploadMegabytes: number;
+    uploadAccept: string;
     canManage: boolean;
+    openUpload: boolean;
 };
 
 const rowGrid =
@@ -44,17 +47,38 @@ const rowGrid =
 export default function Documents({
     documents,
     types,
+    filter: initialFilter,
     defaultLanguage,
     maxUploadMegabytes,
+    uploadAccept,
     canManage,
+    openUpload,
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
-    const [uploading, setUploading] = useState(false);
+    const [uploading, setUploading] = useState(openUpload);
+
+    // Opened from setup via ?upload=1: drop the query so a reload or a later
+    // visit does not reopen it.
+    useEffect(() => {
+        if (openUpload) {
+            router.replace({
+                url: documentRoutes.index.url(),
+                preserveState: true,
+                preserveScroll: true,
+            });
+        }
+    }, [openUpload]);
     const [versioning, setVersioning] = useState<KnowledgeDocument | null>(
         null,
     );
     const [deleting, setDeleting] = useState<KnowledgeDocument | null>(null);
+    const [filter, setFilter] = useState<'review' | null>(initialFilter);
+
+    const waiting = documents.filter(
+        (document) => document.version?.status === 'review',
+    );
+    const shown = filter === 'review' ? waiting : documents;
 
     const processing = documents.some((document) =>
         isProcessing(document.version?.status),
@@ -112,6 +136,38 @@ export default function Documents({
                     }
                 />
 
+                {(waiting.length > 0 || filter !== null) && (
+                    <div className="flex gap-2" role="tablist">
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={filter === null}
+                            onClick={() => setFilter(null)}
+                            className={cn(
+                                'cc-pill',
+                                filter === null && 'cc-pill-active',
+                            )}
+                        >
+                            {t('All documents')}
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={filter === 'review'}
+                            onClick={() => setFilter('review')}
+                            className={cn(
+                                'cc-pill',
+                                filter === 'review' && 'cc-pill-active',
+                            )}
+                        >
+                            {t('Ready for approval')}
+                            <span className="ml-1.5 text-cc-subtle">
+                                {waiting.length}
+                            </span>
+                        </button>
+                    </div>
+                )}
+
                 {documents.length === 0 ? (
                     <div className="cc-panel flex flex-col items-center gap-3 px-6 py-14 text-center">
                         <div className="flex size-14 items-center justify-center rounded-2xl bg-cc-accent-tint text-cc-accent-deep">
@@ -122,7 +178,7 @@ export default function Documents({
                         </p>
                         <p className="cc-caption max-w-[420px]">
                             {t(
-                                'Upload a staff handbook or manual as PDF or Word. It becomes searchable, and its rules can later be checked against incoming emails.',
+                                'Upload a staff handbook, manual, presentation, spreadsheet or image. Once you approve it, it becomes searchable and its rules are checked against incoming emails.',
                             )}
                         </p>
                         {canManage ? (
@@ -157,7 +213,7 @@ export default function Documents({
                             <div />
                         </div>
 
-                        {documents.map((document) => (
+                        {shown.map((document) => (
                             <div
                                 key={document.id}
                                 className={cn(
@@ -193,6 +249,18 @@ export default function Documents({
                                                               .version
                                                               .pageCount,
                                                       })
+                                                    : null,
+                                                document.publishedVersion &&
+                                                document.publishedVersion.id !==
+                                                    document.version.id
+                                                    ? t(
+                                                          'version :number is live',
+                                                          {
+                                                              number: document
+                                                                  .publishedVersion
+                                                                  .number,
+                                                          },
+                                                      )
                                                     : null,
                                             ]
                                                 .filter(Boolean)
@@ -288,11 +356,13 @@ export default function Documents({
                         types={types}
                         defaultLanguage={defaultLanguage}
                         maxUploadMegabytes={maxUploadMegabytes}
+                        accept={uploadAccept}
                     />
                     <NewVersionDialog
                         document={versioning}
                         onOpenChange={(open) => !open && setVersioning(null)}
                         maxUploadMegabytes={maxUploadMegabytes}
+                        accept={uploadAccept}
                     />
                     <DeleteDocumentDialog
                         document={deleting}

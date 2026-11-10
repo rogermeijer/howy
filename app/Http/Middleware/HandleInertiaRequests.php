@@ -4,9 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\Locale;
 use App\Facades\Tenancy;
-use App\Models\Account;
-use App\Models\EmailInterpretation;
-use App\Models\User;
+use App\Services\Knowledge\Review\ApprovalQueue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Lang;
 use Inertia\Middleware;
@@ -57,13 +55,15 @@ class HandleInertiaRequests extends Middleware
                 'account' => Tenancy::check()
                     ? ['id' => Tenancy::account()->id, 'name' => Tenancy::account()->name]
                     : null,
-                'accounts' => $this->accountsFor($request->user()),
+                // A count, not the list: the switcher only needs to know there is
+                // something to switch to, and searches the accounts itself.
+                'accountCount' => $request->user()?->accounts()->count() ?? 0,
             ],
-            // How many mails wait for someone to review what they would add:
-            // the inbox's count in the top bar, for those who can act on it.
-            'inbox' => fn (): array => [
-                'needsReview' => Tenancy::check() && $request->user()?->isAdminOf(Tenancy::account())
-                    ? EmailInterpretation::query()->where('needs_review', true)->count()
+            // How much waits for approval, documents and mail alike: the
+            // knowledge base's count in the top bar, for those who can act on it.
+            'knowledge' => fn (): array => [
+                'awaitingApproval' => Tenancy::check() && $request->user()?->isAdminOf(Tenancy::account())
+                    ? app(ApprovalQueue::class)->count()
                     : 0,
             ],
             'locale' => app()->getLocale(),
@@ -91,31 +91,5 @@ class HandleInertiaRequests extends Middleware
         $locale = app()->getLocale();
 
         return static::$translationCache[$locale] ??= Lang::getLoader()->load($locale, '*', '*');
-    }
-
-    /**
-     * The accounts the user can switch between.
-     *
-     * Only the columns the switcher needs: sharing whole models would ship
-     * timestamps for nothing and grow silently as the table does.
-     *
-     * @return list<array{id: int, name: string, is_admin: bool}>
-     */
-    protected function accountsFor(?User $user): array
-    {
-        if ($user === null) {
-            return [];
-        }
-
-        return array_values($user->accounts()
-            ->select(['accounts.id', 'accounts.name'])
-            ->orderBy('accounts.name')
-            ->get()
-            ->map(fn (Account $account): array => [
-                'id' => $account->id,
-                'name' => $account->name,
-                'is_admin' => (bool) $account->getAttribute('pivot')->is_admin,
-            ])
-            ->all());
     }
 }

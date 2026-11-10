@@ -1,18 +1,24 @@
 <?php
 
+use App\Http\Controllers\AccountSwitcherController;
 use App\Http\Controllers\Auth\RegistrationCodeController;
 use App\Http\Controllers\BetaAccessRequestController;
 use App\Http\Controllers\CurrentAccountController;
+use App\Http\Controllers\EmailAttachmentController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\EmailStatementController;
 use App\Http\Controllers\InboxController;
+use App\Http\Controllers\Knowledge\ApprovalController;
 use App\Http\Controllers\Knowledge\DocumentController;
+use App\Http\Controllers\Knowledge\DocumentFactSourceController;
 use App\Http\Controllers\Knowledge\DocumentInspectorController;
+use App\Http\Controllers\Knowledge\DocumentReviewController;
 use App\Http\Controllers\Knowledge\DocumentVersionController;
 use App\Http\Controllers\Knowledge\KnowledgeController;
 use App\Http\Controllers\Knowledge\KnowledgeSearchController;
 use App\Http\Controllers\Knowledge\KnowledgeTopicController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\SetupController;
 use App\Http\Controllers\Webhooks\GmailWebhookController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\File;
@@ -27,6 +33,9 @@ Route::get('site.webmanifest', function () {
 })->name('site.webmanifest');
 
 Route::inertia('/', 'welcome')->name('home');
+
+Route::inertia('privacy-policy', 'legal/privacy-policy')->name('privacy-policy');
+Route::inertia('terms-of-service', 'legal/terms-of-service')->name('terms-of-service');
 
 // Deliberately public: the language switcher has to work on the marketing and
 // auth screens, before there is an account to store the choice against.
@@ -49,13 +58,30 @@ Route::middleware('guest')->group(function () {
         ->name('register.invite');
 });
 
-Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
+// Setup, once email is verified. Only for administrators: they are the ones
+// sent here, and the only ones who can save what it asks.
+Route::middleware(['auth', 'verified', 'tenant', 'account.admin'])->prefix('setup')->name('setup.')->group(function () {
+    Route::get('/', [SetupController::class, 'start'])->name('start');
+    Route::get('workspace', [SetupController::class, 'workspace'])->name('workspace');
+    Route::patch('workspace', [SetupController::class, 'updateWorkspace'])->name('workspace.update');
+    Route::get('knowledge', [SetupController::class, 'knowledge'])->name('knowledge');
+    Route::patch('knowledge', [SetupController::class, 'updateKnowledge'])->name('knowledge.update');
+    Route::get('mailbox', [SetupController::class, 'mailbox'])->name('mailbox');
+    Route::post('finish', [SetupController::class, 'finish'])->name('finish');
+    Route::get('done', [SetupController::class, 'done'])->name('done');
+});
+
+// set-up sends the administrators of an account that is not set up yet to
+// setup first. Settings stay reachable without it: connecting Gmail comes
+// back there.
+Route::middleware(['auth', 'verified', 'tenant', 'set-up'])->group(function () {
     Route::get('dashboard', [InboxController::class, 'index'])->name('dashboard');
     Route::get('inbox', [InboxController::class, 'index'])->name('inbox');
 
     Route::get('emails/{email}', [EmailController::class, 'show'])->name('emails.show');
 
-    // What a mail would add to the knowledge base: its admins decide, as they curate it.
+    // What a mail would add to the knowledge base: its admins decide, as they
+    // curate it, from the knowledge base's approvals (knowledge.approvals).
     Route::middleware('account.admin')->group(function () {
         Route::post('emails/{email}/statements/{statement}/approve', [EmailStatementController::class, 'approve'])
             ->whereNumber('statement')
@@ -63,6 +89,9 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
         Route::post('emails/{email}/statements/{statement}/reject', [EmailStatementController::class, 'reject'])
             ->whereNumber('statement')
             ->name('emails.statements.reject');
+        Route::post('emails/{email}/attachments/{attachment}', [EmailAttachmentController::class, 'store'])
+            ->whereNumber('attachment')
+            ->name('emails.attachments.store');
     });
 
     Route::get('knowledge', [KnowledgeController::class, 'index'])->name('knowledge');
@@ -73,17 +102,31 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
         Route::get('folders/{topic}', [KnowledgeTopicController::class, 'show'])->name('topics.show');
         Route::get('documents', [DocumentController::class, 'index'])->name('documents.index');
         Route::get('documents/{document}', [DocumentInspectorController::class, 'show'])->name('documents.show');
+        Route::get('documents/{document}/facts/{fact}/source', DocumentFactSourceController::class)->name('documents.facts.source');
         Route::get('documents/{document}/versions/{version}/file', [DocumentVersionController::class, 'file'])
             ->scopeBindings()
             ->name('documents.versions.file');
 
         // Everyone in the account reads the knowledge base; its admins curate it.
         Route::middleware('account.admin')->group(function () {
+            // Everything that waits for approval, documents and mail alike.
+            Route::get('approvals', [ApprovalController::class, 'index'])->name('approvals');
+
             Route::post('documents', [DocumentController::class, 'store'])->name('documents.store');
             Route::patch('documents/{document}', [DocumentController::class, 'update'])->name('documents.update');
+            Route::get('documents/{document}/removal', [DocumentController::class, 'removal'])->name('documents.removal');
             Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
             Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('documents.reprocess');
             Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store'])->name('documents.versions.store');
+            Route::post('documents/{document}/versions/{version}/approve', [DocumentReviewController::class, 'approve'])
+                ->scopeBindings()
+                ->name('documents.versions.approve');
+            Route::post('documents/{document}/versions/{version}/reject', [DocumentReviewController::class, 'reject'])
+                ->scopeBindings()
+                ->name('documents.versions.reject');
+            Route::patch('documents/{document}/versions/{version}/facts/{fact}/choice', [DocumentReviewController::class, 'choose'])
+                ->scopeBindings()
+                ->name('documents.versions.facts.choice');
 
             Route::post('folders', [KnowledgeTopicController::class, 'store'])->name('topics.store');
             Route::post('folders/approve', [KnowledgeTopicController::class, 'approveAll'])->name('topics.approve-all');
@@ -101,6 +144,8 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
 // Not tenant-gated: someone healing out of a bad account state still needs to
 // be able to switch, and switching must work before email verification.
 Route::middleware(['auth'])->group(function () {
+    Route::get('account-switcher', AccountSwitcherController::class)
+        ->name('account-switcher');
     Route::put('current-account', [CurrentAccountController::class, 'update'])
         ->name('current-account.update');
 });

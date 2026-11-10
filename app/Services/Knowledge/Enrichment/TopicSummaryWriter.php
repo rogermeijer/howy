@@ -3,12 +3,14 @@
 namespace App\Services\Knowledge\Enrichment;
 
 use App\Enums\FactStatus;
+use App\Models\Document;
 use App\Models\DocumentSection;
 use App\Models\KnowledgeFact;
 use App\Models\KnowledgeTopic;
 use App\Models\KnowledgeTopicLink;
 use App\Services\Knowledge\Ai\Agents\TopicSummarizer;
 use App\Services\Knowledge\Ai\AiGateway;
+use App\Services\Knowledge\KnowledgeLanguage;
 
 /**
  * Rewrites the overviews of folders whose content changed, deepest first, so
@@ -35,7 +37,7 @@ class TopicSummaryWriter
             if ($material !== '') {
                 $summary = trim((string) ($this->ai->structured(
                     new TopicSummarizer,
-                    "Folder: {$topic->name}".($topic->description ? " — {$topic->description}" : '')."\n\n{$material}",
+                    KnowledgeLanguage::instruction()."\nFolder: {$topic->name}".($topic->description ? " — {$topic->description}" : '')."\n\n{$material}",
                     'topic_summary',
                     $topic,
                 )['summary'] ?? '')) ?: null;
@@ -61,7 +63,12 @@ class TopicSummaryWriter
             ->where('linkable_type', 'document_section')
             ->pluck('linkable_id');
 
-        $sections = DocumentSection::query()->with(['summary', 'document'])->whereKey($sectionIds)->get();
+        // Only what is live: a version waiting for review has no say yet.
+        $sections = DocumentSection::query()
+            ->with(['summary', 'document'])
+            ->whereKey($sectionIds)
+            ->whereIn('document_version_id', Document::query()->select('current_version_id'))
+            ->get();
 
         foreach ($sections as $section) {
             $facts = KnowledgeFact::query()

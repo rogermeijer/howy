@@ -1,3 +1,5 @@
+import type { SenderAccess } from './mailboxes';
+
 export type InterpretationStatus =
     | 'queued'
     | 'processing'
@@ -28,8 +30,6 @@ export type InterpretationBrief = {
     intentLabel: string | null;
     outcome: InterpretationOutcome | null;
     outcomeLabel: string | null;
-    /** Something it would add to the knowledge base waits for review. */
-    needsReview: boolean;
 };
 
 export type InterpretationSource = {
@@ -42,6 +42,8 @@ export type InterpretationSource = {
 };
 
 export type InterpretedStatement = {
+    /** Its position in the mail's statements: what a decision refers to. */
+    index: number;
     statement: string;
     verdict: 'new' | 'duplicate' | 'conflict';
     factId: number | null;
@@ -50,6 +52,8 @@ export type InterpretedStatement = {
     explanation: string | null;
     /** Why someone should look before it goes in, or null. */
     flag: string | null;
+    /** Taken from earlier messages of the thread that had not been read. */
+    fromHistory: boolean;
     review: 'pending' | 'approved' | 'rejected' | null;
     reviewedBy: string | null;
     reviewedAt: string | null;
@@ -58,6 +62,11 @@ export type InterpretedStatement = {
 export type Interpretation = InterpretationBrief & {
     mode: InterpretationMode;
     modeLabel: string;
+    /** What the mailbox's rules let Howy do with the sender when it arrived. */
+    senderAccess: SenderAccess;
+    senderAccessLabel: string;
+    /** Why nothing followed, when the rules for the sender are the reason. */
+    note: string | null;
     confidence: number | null;
     answerConfidence: number | null;
     answerGaps: string | null;
@@ -73,4 +82,20 @@ export type Interpretation = InterpretationBrief & {
     repliedAt: string | null;
     error: string | null;
     processedAt: string | null;
+};
+
+/** An attachment of a mail and what became of it. */
+export type MailAttachment = {
+    index: number;
+    filename: string;
+    size: number;
+    decision: string | null;
+    reason: string | null;
+    canAdd: boolean;
+    document: {
+        id: number;
+        title: string;
+        versionNumber: number;
+        status: string;
+    } | null;
 };

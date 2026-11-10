@@ -11,6 +11,7 @@ use App\Models\Account;
 use App\Models\Email;
 use App\Models\Mailbox;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Tests\Fixtures\GmailFixtures;
 use Tests\TestCase;
@@ -76,6 +77,19 @@ class SyncGmailMailboxTest extends TestCase
 
         $this->assertSame(MailboxStatus::NeedsReauth, $mailbox->refresh()->status);
         $this->assertSame('invalid_grant', $mailbox->last_error);
+    }
+
+    public function test_a_refresh_refused_for_any_other_reason_keeps_the_mailbox_active(): void
+    {
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response(['error' => 'invalid_client'], 401),
+        ]);
+
+        $mailbox = $this->mailbox(['token_expires_at' => now()->subMinute()]);
+
+        $this->assertThrows(fn () => $this->sync($mailbox), RequestException::class);
+
+        $this->assertSame(MailboxStatus::Active, $mailbox->refresh()->status);
     }
 
     public function test_an_expired_token_is_refreshed_before_calling_gmail(): void

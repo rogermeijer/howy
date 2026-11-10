@@ -54,7 +54,7 @@ class KnowledgeSnapshot
             }
 
             return [
-                ...$this->raw($version, ['account_id', 'disk', 'path', 'extracted_path', 'uploaded_by_user_id']),
+                ...$this->raw($version, ['account_id', 'disk', 'path', 'extracted_path', 'uploaded_by_user_id', 'approved_by_user_id']),
                 'uploaded_by' => $emails[$version->uploaded_by_user_id] ?? null,
                 'file' => "{$version->sha256}.{$extension}",
                 'extracted' => $version->extracted_path === null ? null : "{$version->sha256}.extracted.json",
@@ -136,6 +136,8 @@ class KnowledgeSnapshot
 
             $version = $this->insert(new DocumentVersion, [
                 ...array_diff_key($row, ['uploaded_by' => true, 'file' => true, 'extracted' => true]),
+                // Snapshots from before approval existed hold live knowledge.
+                'approved_at' => array_key_exists('approved_at', $row) ? $row['approved_at'] : ($row['processed_at'] ?? $row['created_at'] ?? null),
                 'document_id' => $documentId,
                 'disk' => $disk,
                 'path' => $path,

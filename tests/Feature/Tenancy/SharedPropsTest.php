@@ -12,7 +12,7 @@ class SharedPropsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_the_current_account_and_memberships_reach_the_frontend(): void
+    public function test_the_current_account_and_the_number_of_memberships_reach_the_frontend(): void
     {
         $first = Account::factory()->create(['name' => 'Acme', 'locale' => 'nl']);
         $second = Account::factory()->create(['name' => 'Globex']);
@@ -24,11 +24,9 @@ class SharedPropsTest extends TestCase
             ->get(route('dashboard'))
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('auth.account.name', 'Acme')
-                ->has('auth.accounts', 2)
-                ->where('auth.accounts.0.name', 'Acme')
-                ->where('auth.accounts.0.is_admin', true)
-                ->where('auth.accounts.1.name', 'Globex')
-                ->where('auth.accounts.1.is_admin', false)
+                // The list itself is searched by the switcher, never shared.
+                ->where('auth.accountCount', 2)
+                ->missing('auth.accounts')
                 ->where('locale', 'nl')
                 ->where('timezone', 'UTC')
                 ->has('translations')
@@ -40,7 +38,7 @@ class SharedPropsTest extends TestCase
         $this->get(route('home'))
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('auth.account', null)
-                ->where('auth.accounts', [])
+                ->where('auth.accountCount', 0)
             );
     }
 }

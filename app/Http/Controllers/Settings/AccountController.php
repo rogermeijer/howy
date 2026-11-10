@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Actions\Accounts\ChangeKnowledgeLanguage;
 use App\Enums\Locale;
 use App\Enums\MailboxStatus;
-use App\Enums\SendPolicy;
 use App\Facades\Tenancy;
+use App\Http\Controllers\Concerns\PresentsMailboxes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\AccountUpdateRequest;
+use App\Http\Requests\Settings\KnowledgeLanguageUpdateRequest;
 use App\Models\Mailbox;
 use App\Services\Gmail\MailboxImporter;
 use DateTimeZone;
@@ -18,6 +20,8 @@ use Inertia\Response;
 
 class AccountController extends Controller
 {
+    use PresentsMailboxes;
+
     /**
      * Show the settings for the account the user is currently working in.
      */
@@ -26,30 +30,19 @@ class AccountController extends Controller
         $account = Tenancy::account();
         $isAdmin = $request->user()->isAdminOf($account);
 
-        $mailboxes = Mailbox::query()
+        $mailboxes = $this->withMailboxDetails(Mailbox::query())
             ->where('status', '!=', MailboxStatus::Disconnected)
-            ->withCount('emails')
             ->oldest()
             ->get()
-            ->map(fn (Mailbox $mailbox): array => [
-                'id' => $mailbox->id,
-                'emailAddress' => $mailbox->email_address,
-                'provider' => $mailbox->provider->value,
-                'status' => $mailbox->status->value,
-                'lastMessageAt' => $mailbox->last_message_at?->toIso8601String(),
-                'emailsCount' => $mailbox->emails_count,
-                'import' => $importer->progress($mailbox),
-                'domain' => $mailbox->domain(),
-                'sendPolicy' => $mailbox->send_policy->value,
-                'sendWhitelist' => $mailbox->send_whitelist ?? [],
-                'sendBlacklist' => $mailbox->send_blacklist ?? [],
-            ]);
+            ->map(fn (Mailbox $mailbox): array => $this->presentMailbox($mailbox, $importer, $isAdmin));
 
         return Inertia::render('settings', [
             'account' => [
                 'id' => $account->id,
                 'name' => $account->name,
+                'domain' => $account->domain,
                 'locale' => $account->locale->value,
+                'knowledgeLocale' => $account->knowledge_locale->value,
                 'timezone' => $account->timezone,
             ],
             'canManageAccount' => $isAdmin,
@@ -63,21 +56,35 @@ class AccountController extends Controller
                 Locale::cases(),
             ),
             'timezones' => DateTimeZone::listIdentifiers(),
-            'sendPolicies' => array_map(
-                fn (SendPolicy $policy): array => ['value' => $policy->value, 'label' => $policy->label()],
-                SendPolicy::cases(),
-            ),
+            // A rule for one of these would let in everyone on it.
+            'publicDomains' => config('mailboxes.public_domains'),
+            'mailFacts' => $this->mailFacts(),
         ]);
     }
 
     /**
-     * Update the current account's name, language and timezone.
+     * Update the current account's name, domain, language and timezone.
      */
     public function update(AccountUpdateRequest $request): RedirectResponse
     {
         Tenancy::account()->fill($request->validated())->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Account updated.')]);
+
+        return to_route('settings');
+    }
+
+    /**
+     * The language the knowledge base is built in.
+     */
+    public function updateKnowledgeLanguage(KnowledgeLanguageUpdateRequest $request, ChangeKnowledgeLanguage $change): RedirectResponse
+    {
+        $account = Tenancy::account();
+        $changed = $change->handle($account, $request->validated('knowledge_locale'));
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $changed
+            ? __('The knowledge base is now built in :language. Howy is translating what it already holds.', ['language' => $account->knowledge_locale->label()])
+            : __('Account updated.')]);
 
         return to_route('settings');
     }

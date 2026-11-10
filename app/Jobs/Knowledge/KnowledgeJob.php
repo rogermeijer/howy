@@ -58,10 +58,13 @@ abstract class KnowledgeJob implements ShouldQueue, TenantAware
                 return;
             }
 
-            // Once searchable, a later step failing (summaries, folders) leaves
-            // the document usable: it keeps its status and shows the error.
+            // Once embedded, a later step failing (summaries, folders) leaves
+            // the document usable: searchable when published, reviewable when
+            // not. It keeps that status and shows the error.
+            $embedded = $version->status->isSearchable() || in_array($version->status, [ProcessingStatus::Enriching, ProcessingStatus::Review], true);
+
             $version->update([
-                'status' => $version->status->isSearchable() ? ProcessingStatus::Searchable : ProcessingStatus::Failed,
+                'status' => $embedded ? $version->settledStatus() : ProcessingStatus::Failed,
                 'error' => $exception?->getMessage() ?? __('Processing failed.'),
             ]);
         });

@@ -11,17 +11,22 @@ use App\Models\KnowledgeSummary;
 use App\Services\Knowledge\Ai\Agents\DocumentSummarizer;
 use App\Services\Knowledge\Ai\AiGateway;
 use App\Services\Knowledge\Enrichment\TopicOrganizer;
+use App\Services\Knowledge\KnowledgeLanguage;
+use App\Services\Knowledge\Review\FactReconciler;
 use App\Services\Knowledge\StepRecorder;
 use App\Services\Knowledge\TokenEstimator;
+use Throwable;
 
 /**
  * Step 6: the document summary (from the section summaries), filing the
- * sections into folders, and embedding the new facts. Then the version is
- * ready, and the overviews of the folders it touched are refreshed.
+ * sections into folders, and embedding the new facts. Then a published
+ * version is ready and the overviews of the folders it touched are refreshed;
+ * a new one has its facts held against what is known and is ready for
+ * approval, and the folders wait for that.
  */
 class FinishEnrichment extends KnowledgeJob
 {
-    public function handle(AiGateway $ai, TopicOrganizer $topics, StepRecorder $steps, TokenEstimator $tokens): void
+    public function handle(AiGateway $ai, TopicOrganizer $topics, StepRecorder $steps, TokenEstimator $tokens, FactReconciler $reconciler): void
     {
         $version = DocumentVersion::query()->with('document')->findOrFail($this->versionId);
 
@@ -44,6 +49,25 @@ class FinishEnrichment extends KnowledgeJob
 
             return ['embedded' => count($vectors)];
         });
+
+        if (! $version->isApproved()) {
+            // What it would add, held against what is known, for the reviewer.
+            try {
+                $steps->run($version, ProcessingStep::Reconcile, fn (): array => $reconciler->reconcile($version));
+            } catch (Throwable $e) {
+                if (! $this->isLastAttempt()) {
+                    throw $e;
+                }
+
+                // Reviewable without it: the facts are shown as not checked.
+                report($e);
+            }
+
+            $version->update(['status' => ProcessingStatus::Review, 'error' => null]);
+            $version->document->touch();
+
+            return;
+        }
 
         $version->update(['status' => ProcessingStatus::Ready, 'error' => null]);
         $version->document->touch();
@@ -74,7 +98,7 @@ class FinishEnrichment extends KnowledgeJob
             return;
         }
 
-        $summary = trim((string) ($ai->structured(new DocumentSummarizer, "Document: {$version->document->title}\n\n{$outline}", 'summary', $version)['summary'] ?? ''));
+        $summary = trim((string) ($ai->structured(new DocumentSummarizer, KnowledgeLanguage::instruction()."\nDocument: {$version->document->title}\n\n{$outline}", 'summary', $version)['summary'] ?? ''));
 
         if ($summary !== '') {
             KnowledgeSummary::query()->updateOrCreate(

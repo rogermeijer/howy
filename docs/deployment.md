@@ -9,7 +9,7 @@ PostgreSQL; the items below are what Howy adds on top. Commands run over SSH as 
 | Topic folder tree                       | PostgreSQL extension `ltree` (contrib)               | Package yes, extension no |
 | PDF extraction                          | `pdftohtml`, `pdfinfo`, `pdftoppm` (`poppler-utils`) | No                        |
 | Scanned-PDF fallback                    | `qpdf`                                               | No                        |
-| DOCX extraction                         | `pandoc`                                             | No                        |
+| Office, text and CSV extraction         | `pandoc` (with the pptx and xlsx readers)            | No                        |
 | Queues (`default`, `knowledge`)         | Redis + Horizon daemon                               | Redis yes, daemon no      |
 | Gmail watch renewal, polling, Batch API | Scheduler (`schedule:run` every minute)              | No (toggle)               |
 | Frontend build                          | Node 24 (major from `.node-version`)                 | Check version             |
@@ -58,6 +58,14 @@ which pdftohtml pdfinfo pdftoppm qpdf pandoc  # all under /usr/bin
 
 On Ubuntu they land in `/usr/bin`, which php-fpm and the Horizon daemon see, so the `KNOWLEDGE_PDFTOHTML`
 etc. overrides in `.env` are not needed. Set them only if `which` shows another path.
+
+pandoc reads every office and text format the knowledge base accepts (docx, pptx, xlsx, odt, rtf, csv, tsv,
+html, markdown), but the pptx and xlsx readers only exist in recent releases; the apt package can be older.
+Check, and if either is missing install the `.deb` from pandoc's GitHub releases (3.x) instead:
+
+```bash
+pandoc --list-input-formats | grep -E '^(pptx|xlsx)$'   # both must be listed
+```
 
 ## 3. PHP extensions
 
@@ -193,4 +201,19 @@ php artisan horizon:status                      # running
 php artisan schedule:list                       # four commands
 ```
 
-Then upload a PDF and a DOCX in the knowledge base and check that both are processed.
+Then upload a PDF and a DOCX in the knowledge base and check that both are processed and wait for approval.
+
+Once, after deploying the read-once release on a server that already interpreted mail, remember what was read
+before it, so forwards of older mail are recognised too:
+
+```bash
+php artisan emails:fingerprint
+```
+
+Once, after deploying the release with one knowledge base language: an account whose knowledge was built from
+documents in several languages gets it into its own language (facts and summaries; `--folders` for folder names
+too). It uses the AI provider, roughly one light-model call per 25 facts:
+
+```bash
+php artisan knowledge:translate {account} --queue
+```

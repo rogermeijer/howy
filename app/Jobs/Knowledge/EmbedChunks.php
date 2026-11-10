@@ -13,9 +13,10 @@ use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
- * Step 4: embed the chunks that have no embedding yet, then make this version
- * the searchable one. Without an AI provider the chunks still become current,
- * so the document is at least findable by full-text search.
+ * Step 4: embed the chunks that have no embedding yet, then, for a published
+ * version, make it the searchable one. Without an AI provider the chunks
+ * still become current, so the document is at least findable by full-text
+ * search. A version waiting for review stays out of search until approved.
  */
 class EmbedChunks extends KnowledgeJob
 {
@@ -67,13 +68,15 @@ class EmbedChunks extends KnowledgeJob
         }
 
         DB::transaction(function () use ($version, $error): void {
-            // Swap in one go: this version becomes the one that answers.
-            $chunks = KnowledgeChunk::query()->where('document_id', $version->document_id)->where('source_type', 'document_version');
+            if ($version->isApproved()) {
+                $version->makeCurrent();
+            }
 
-            (clone $chunks)->where('source_id', '!=', $version->id)->update(['is_current' => false]);
-            (clone $chunks)->where('source_id', $version->id)->update(['is_current' => true]);
-
-            $version->update(['status' => ProcessingStatus::Searchable, 'processed_at' => now(), 'error' => $error]);
+            $version->update([
+                'status' => $version->isApproved() ? ProcessingStatus::Searchable : ProcessingStatus::Embedding,
+                'processed_at' => now(),
+                'error' => $error,
+            ]);
             $version->document->touch();
         });
     }

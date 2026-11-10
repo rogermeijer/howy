@@ -45,9 +45,9 @@ There is no imports table.
 
 ## Sending
 
-`gmail.send` is requested now, so mailboxes will not have to reconnect when sending ships. Each mailbox
-has `send_policy` (`off` | `domain` | `allowlist`, default `off`) and `send_allowlist`. **Nothing sends
-yet.**
+Howy replies in the thread with `gmail.send`, and only to senders the mailbox's rules let it answer. Each
+mailbox has `domain_access` for its own domain and its listed senders in `mailbox_senders` (per address or
+domain: learn, answer, both or ignore); everyone else is ignored. See "Sender rules" in [`knowledge-base.md`](knowledge-base.md).
 
 ## One-time Google Cloud setup
 
@@ -60,17 +60,36 @@ yet.**
 3. **Credentials → OAuth client ID** (web application):
     - Authorised redirect URI: `${APP_URL}/settings/mailboxes/gmail/callback`.
     - Put the id and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
-4. **Pub/Sub:**
+4. **Pub/Sub topic:**
     - Create a topic, for example `projects/<project>/topics/cc-gmail`, and set it as
       `GOOGLE_PUBSUB_TOPIC`.
     - Grant `gmail-api-push@system.gserviceaccount.com` the **Pub/Sub Publisher** role on the topic.
-5. **Push subscription** on that topic:
-    - Endpoint: `${APP_URL}/webhooks/gmail`.
-    - Enable authentication with a service account of your own. Set `GOOGLE_PUBSUB_SERVICE_ACCOUNT` to its
-      email and `GOOGLE_PUBSUB_AUDIENCE` to the endpoint URL (the default audience).
-6. Run a queue worker and the scheduler (`php artisan schedule:work` locally).
+      That is Google's Gmail push account, not the one you create in the next step.
+5. **Service account for the push** (IAM & Admin → Service accounts → Create service account), in the
+   same project:
+    - Name it something like `Gmail Pub/Sub push`; the id becomes the email, for example
+      `gmail-pubsub-push@<project>.iam.gserviceaccount.com`.
+    - Grant it **no project roles**, and do **not** create a key. The app never holds this account's
+      credentials; Pub/Sub only mints an OIDC token as this identity.
+    - Set `GOOGLE_PUBSUB_SERVICE_ACCOUNT` to that email.
+6. **Push subscription** on the topic (Pub/Sub → Subscriptions → Create subscription):
+    - Delivery type: **Push**. Endpoint: `${APP_URL}/webhooks/gmail`.
+    - Tick **Enable authentication**, pick the service account from step 5, and leave the audience at
+      the default, which is the endpoint URL itself.
+    - Pub/Sub signs that token as a Google-managed agent,
+      `service-<project-number>@gcp-sa-pubsub.iam.gserviceaccount.com`. The project number is on the
+      dashboard under **Project info**; the agent itself only shows on **IAM & Admin → IAM** after you
+      tick **Include Google-provided role grants**. It needs permission to mint tokens
+      (`iam.serviceAccounts.getOpenIdToken`). On a project created after 8 April 2021 that already comes
+      with the **Pub/Sub Service Agent** role, so you add nothing. The create-subscription screen says
+      so and offers **Grant** for **Service Account Token Creator** when the role is missing — only
+      then do you grant it.
+    - Set `GOOGLE_PUBSUB_AUDIENCE` to that same URL. The webhook rejects the push unless the token is
+      signed by Google, its `aud` equals this value exactly, and its `email` is the service account
+      with `email_verified`.
+7. Run a queue worker and the scheduler (`php artisan schedule:work` locally).
 
-Local development without a public URL works without steps 4 and 5. Leave `GOOGLE_PUBSUB_TOPIC` empty and
+Local development without a public URL works without steps 4 to 6. Leave `GOOGLE_PUBSUB_TOPIC` empty and
 new mail comes in through `mailboxes:poll`. To test real pushes, set `NGROK_DOMAIN` to your reserved
 ngrok hostname and run `composer dev` — ngrok starts alongside `php artisan serve` automatically.
 

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Facades\Tenancy;
 use App\Models\BetaAccessRequest;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -64,8 +65,14 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
+        // Setup follows verification for whoever will be sent there, so the
+        // page says what comes next.
         Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/verify-email', [
             'status' => $request->session()->get('status'),
+            'email' => $request->user()?->email,
+            'setupAhead' => Tenancy::check()
+                && ! Tenancy::account()->isSetUp()
+                && $request->user()?->isAdminOf(Tenancy::account()) === true,
         ]));
 
         // Private beta: without a checked invite code the page asks for one first.

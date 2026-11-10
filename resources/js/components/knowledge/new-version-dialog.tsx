@@ -18,12 +18,14 @@ type Props = {
     document: KnowledgeDocument | null;
     onOpenChange: (open: boolean) => void;
     maxUploadMegabytes: number;
+    accept: string;
 };
 
 export function NewVersionDialog({
     document,
     onOpenChange,
     maxUploadMegabytes,
+    accept,
 }: Props) {
     const t = useTranslations();
     const form = useForm<{ file: File | null }>({ file: null });
@@ -71,6 +73,7 @@ export function NewVersionDialog({
                             file={form.data.file}
                             onChange={(file) => form.setData('file', file)}
                             maxMegabytes={maxUploadMegabytes}
+                            accept={accept}
                             invalid={Boolean(form.errors.file)}
                         />
                         <InputError message={form.errors.file} />

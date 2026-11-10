@@ -175,7 +175,7 @@ export function ImportMailboxDialog({
                             <DialogDescription className="cc-caption">
                                 <WithHowy
                                     text={t(
-                                        'Search the mailbox and choose which emails Howy should process.',
+                                        'Search the mailbox and choose which emails to add to Howy. Imported emails are kept, not processed.',
                                     )}
                                 />
                             </DialogDescription>

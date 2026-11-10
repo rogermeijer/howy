@@ -12,11 +12,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\ApprovesDocuments;
 use Tests\TestCase;
 
 class KnowledgeEvaluationTest extends TestCase
 {
-    use RefreshDatabase;
+    use ApprovesDocuments, RefreshDatabase;
 
     public function test_the_evaluation_set_runs_and_stores_a_report(): void
     {
@@ -36,6 +37,7 @@ class KnowledgeEvaluationTest extends TestCase
                 ['title' => 'Personeelshandboek', 'type' => 'handbook', 'is_core' => true, 'language' => 'nl'],
                 $user,
             );
+            $this->approvePending($account, $user);
         });
 
         $this->artisan('knowledge:eval', ['account' => $account->id, '--label' => 'test'])->assertSuccessful();

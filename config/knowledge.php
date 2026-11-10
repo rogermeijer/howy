@@ -21,10 +21,7 @@ return [
     'upload' => [
         'max_kilobytes' => (int) env('KNOWLEDGE_MAX_UPLOAD_KB', 51200),
         'max_pages' => (int) env('KNOWLEDGE_MAX_PAGES', 500),
-        'mime_types' => [
-            'application/pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ],
+        // The formats accepted are those of App\Enums\DocumentFormat.
     ],
 
     /*
@@ -73,6 +70,8 @@ return [
         'provider' => env('KNOWLEDGE_LLM_PROVIDER', 'openai'),
         'models' => [
             'extraction_fallback' => env('KNOWLEDGE_MODEL_EXTRACTION', 'gpt-6-luna'),
+            // Images shared as documents: what they show and the text on them.
+            'image_read' => env('KNOWLEDGE_MODEL_IMAGE_READ', 'gpt-6-luna'),
             'context' => env('KNOWLEDGE_MODEL_CONTEXT', 'gpt-6-luna'),
             'summary' => env('KNOWLEDGE_MODEL_SUMMARY', 'gpt-6-luna'),
             'facts' => env('KNOWLEDGE_MODEL_FACTS', 'gpt-6-luna'),
@@ -82,6 +81,10 @@ return [
             'mail_classify' => env('KNOWLEDGE_MODEL_MAIL_CLASSIFY', 'gpt-6-luna'),
             'mail_answer' => env('KNOWLEDGE_MODEL_MAIL_ANSWER', 'gpt-6-luna'),
             'mail_conflicts' => env('KNOWLEDGE_MODEL_MAIL_CONFLICTS', 'gpt-6-luna'),
+            // A new document's facts held against the facts already known.
+            'fact_conflicts' => env('KNOWLEDGE_MODEL_FACT_CONFLICTS', 'gpt-6-luna'),
+            // What was written in another language, into the knowledge base's.
+            'translate' => env('KNOWLEDGE_MODEL_TRANSLATE', 'gpt-6-luna'),
         ],
     ],
 
@@ -116,11 +119,51 @@ return [
         'answer_max_tokens' => 3000,
         // Existing facts a new statement is compared with.
         'conflict_candidates' => 5,
-        // When the mailbox is only copied, an answer is suggested to whoever
-        // was asked only when the answering model is at least this sure.
-        'suggestion_min_confidence' => (float) env('KNOWLEDGE_MAIL_SUGGESTION_MIN_CONFIDENCE', 0.75),
+        // A question written to the mailbox is answered only when the
+        // answering model is at least this sure; below it the answer is kept.
+        'answer_min_confidence' => (float) env('KNOWLEDGE_MAIL_ANSWER_MIN_CONFIDENCE', 0.75),
         // Characters of the message a reply answers, given as context.
         'context_max_chars' => 3000,
+        // Read once: a paragraph needs this many letters and digits to be
+        // recognised again (shorter ones are greetings and sign-offs), and a
+        // quoted message counts as read when this share of it was.
+        'min_paragraph_chars' => 40,
+        'quote_known_ratio' => 0.8,
+        // History not read before is read with the mail up to this many
+        // characters; longer, or a mail longer than document_min_chars, is
+        // filed as a correspondence document of its own.
+        'history_inline_chars' => 8000,
+        'document_min_chars' => 12000,
+    ],
+
+    'attachments' => [
+        // Attachments of mail to a mailbox are read like uploads.
+        'enabled' => (bool) env('KNOWLEDGE_MAIL_ATTACHMENTS', true),
+        // Gmail's own limit is 25 MB.
+        'max_kilobytes' => (int) env('KNOWLEDGE_MAIL_ATTACHMENT_MAX_KB', 25600),
+        // Smaller images are logos, icons and signature banners.
+        'min_image_bytes' => 15360,
+    ],
+
+    'placement' => [
+        // A file sharing this share of its sections with a live document is
+        // taken to be a new version of it.
+        'min_section_overlap' => 0.3,
+    ],
+
+    'review' => [
+        // New facts of a version held against what is known (a ceiling against
+        // runaway cost, not a sample: every fact of a real document fits), and
+        // how many go to the conflict check per request.
+        'max_facts' => 20000,
+        'conflict_group_size' => 20,
+        'conflict_candidates' => 5,
+        'min_similarity' => 0.5,
+    ],
+
+    'translation' => [
+        // Entries put into the knowledge base's language per request.
+        'group_size' => 25,
     ],
 
     'topics' => [

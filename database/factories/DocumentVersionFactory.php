@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\DocumentFormat;
 use App\Enums\ProcessingStatus;
 use App\Models\Document;
 use App\Models\DocumentVersion;
@@ -25,14 +26,23 @@ class DocumentVersionFactory extends Factory
             'document_id' => Document::factory(),
             'version_number' => 1,
             'original_filename' => 'handboek.pdf',
-            'mime_type' => DocumentVersion::PDF,
+            'mime_type' => DocumentFormat::Pdf->mimeType(),
             'size_bytes' => 120_000,
             'disk' => 'knowledge',
             'path' => "test/{$hash}.pdf",
             'sha256' => $hash,
             'page_count' => 12,
             'status' => ProcessingStatus::Queued,
+            'approved_at' => now(),
         ];
+    }
+
+    /**
+     * Processed and waiting for an administrator to approve it.
+     */
+    public function awaitingReview(): static
+    {
+        return $this->state(fn (array $attributes) => ['status' => ProcessingStatus::Review, 'approved_at' => null]);
     }
 
     public function status(ProcessingStatus $status): static

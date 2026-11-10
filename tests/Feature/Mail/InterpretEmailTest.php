@@ -9,12 +9,13 @@ use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
 use App\Enums\ReplyStatus;
-use App\Enums\SendPolicy;
+use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
 use App\Jobs\Mail\InterpretEmail;
 use App\Models\Account;
 use App\Models\AiUsageRecord;
 use App\Models\Email;
+use App\Models\EmailFingerprint;
 use App\Models\EmailInterpretation;
 use App\Models\KnowledgeFact;
 use App\Models\Mailbox;
@@ -26,6 +27,8 @@ use App\Services\Knowledge\Ai\Agents\FactConflictChecker;
 use App\Services\Knowledge\Ai\Agents\QuestionAnswerer;
 use App\Services\Knowledge\Search\KnowledgeSearch;
 use App\Services\Knowledge\Search\SearchQuery;
+use App\Services\Mail\Interpretation\EmailEligibility;
+use App\Services\Mail\Interpretation\InterpretationPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -51,7 +54,11 @@ class InterpretEmailTest extends TestCase
         parent::setUp();
 
         $this->account = Account::factory()->create(['locale' => 'nl']);
-        $this->mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->create(['email_address' => 'kennis@noordkade.nl']));
+        // Colleagues at noordkade.nl, and the outside domains the tests write from.
+        $this->mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->rules(senders: [
+            'haarlem.nl' => SenderAccess::LearnAndAnswer,
+            'extern.nl' => SenderAccess::LearnAndAnswer,
+        ])->create(['email_address' => 'kennis@noordkade.nl']));
 
         Http::fake([GmailClient::BASE_URL.'/messages/send' => Http::response(['id' => 'reply-1', 'threadId' => 'thread-1'])]);
     }
@@ -59,7 +66,7 @@ class InterpretEmailTest extends TestCase
     public function test_new_mail_addressed_to_the_mailbox_is_queued_for_interpretation(): void
     {
         Queue::fake();
-        $mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->create(['email_address' => 'support@noordkade.nl']));
+        $mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->rules(senders: ['haarlem.nl' => SenderAccess::LearnAndAnswer])->create(['email_address' => 'support@noordkade.nl']));
 
         $email = Tenancy::for($this->account, fn () => app(StoreGmailMessage::class)->store($mailbox, GmailFixtures::message('m1'), EmailSource::Push));
 
@@ -114,6 +121,88 @@ class InterpretEmailTest extends TestCase
         Queue::assertNotPushed(InterpretEmail::class);
     }
 
+    public function test_mail_from_a_sender_outside_the_rules_is_stored_but_ignored(): void
+    {
+        Queue::fake();
+        $store = app(StoreGmailMessage::class);
+
+        [$outside, $ignored, $inside] = Tenancy::for($this->account, function () use ($store): array {
+            $support = Mailbox::factory()->rules(senders: ['piet@noordkade.nl' => SenderAccess::Ignore])->create(['email_address' => 'support@noordkade.nl']);
+
+            return [
+                $store->store($support, GmailFixtures::message('outside'), EmailSource::Push),
+                $store->store($support, GmailFixtures::message('ignored', ['from' => 'Piet <piet@noordkade.nl>']), EmailSource::Push),
+                $store->store($support, GmailFixtures::message('inside', ['from' => 'Anna <anna@noordkade.nl>']), EmailSource::Push),
+            ];
+        });
+
+        Queue::assertPushed(InterpretEmail::class, 1);
+        Queue::assertPushed(InterpretEmail::class, fn (InterpretEmail $job) => $job->emailId === $inside->id);
+
+        foreach ([$outside, $ignored] as $email) {
+            $interpretation = Tenancy::for($this->account, fn () => $email->interpretation()->sole());
+
+            $this->assertSame(InterpretationStatus::Skipped, $interpretation->status);
+            $this->assertSame(SenderAccess::Ignore, $interpretation->sender_access);
+            $this->assertSame(__('The sender is outside the rules of this mailbox.'), $interpretation->error);
+        }
+    }
+
+    public function test_what_howy_may_do_with_the_sender_is_kept_with_the_mail(): void
+    {
+        Queue::fake();
+        $store = app(StoreGmailMessage::class);
+
+        [$anna, $piet] = Tenancy::for($this->account, function () use ($store): array {
+            $support = Mailbox::factory()->rules(senders: ['anna@noordkade.nl' => SenderAccess::Learn])->create(['email_address' => 'support@noordkade.nl']);
+
+            return [
+                $store->store($support, GmailFixtures::message('anna', ['from' => 'Anna <anna@noordkade.nl>']), EmailSource::Push),
+                $store->store($support, GmailFixtures::message('piet', ['from' => 'Piet <piet@noordkade.nl>']), EmailSource::Push),
+            ];
+        });
+
+        Queue::assertPushed(InterpretEmail::class, 2);
+        $this->assertSame(SenderAccess::Learn, Tenancy::for($this->account, fn () => $anna->interpretation()->sole()->sender_access));
+        $this->assertSame(SenderAccess::LearnAndAnswer, Tenancy::for($this->account, fn () => $piet->interpretation()->sole()->sender_access));
+    }
+
+    public function test_a_sender_howy_may_only_answer_is_left_alone_when_the_mailbox_is_only_copied(): void
+    {
+        Queue::fake();
+
+        // Addressed to support@, so the mailbox under test is only copied.
+        $this->listSenders(['tom@haarlem.nl' => SenderAccess::Answer]);
+        $email = Tenancy::for($this->account, fn () => app(StoreGmailMessage::class)->store($this->mailbox, GmailFixtures::message('cc'), EmailSource::Push));
+
+        Queue::assertNotPushed(InterpretEmail::class);
+
+        $interpretation = Tenancy::for($this->account, fn () => $email->interpretation()->sole());
+        $this->assertSame(InterpretationStatus::Skipped, $interpretation->status);
+        $this->assertSame(InterpretationMode::Copied, $interpretation->mode);
+        $this->assertSame(__('Howy only answers this sender, and was only copied on this mail.'), $interpretation->error);
+    }
+
+    public function test_a_mailbox_on_a_public_domain_reads_only_the_senders_listed(): void
+    {
+        Queue::fake();
+        $store = app(StoreGmailMessage::class);
+
+        [$stranger, $listed] = Tenancy::for($this->account, function () use ($store): array {
+            // Its own domain would be everyone on gmail.com, so it counts for nothing.
+            $mailbox = Mailbox::factory()->rules(SenderAccess::LearnAndAnswer, ['roger@gmail.com' => SenderAccess::LearnAndAnswer])->create(['email_address' => 'howy@gmail.com']);
+
+            return [
+                $store->store($mailbox, GmailFixtures::message('stranger', ['from' => 'Tom <tom@gmail.com>']), EmailSource::Push),
+                $store->store($mailbox, GmailFixtures::message('listed', ['from' => 'Roger <roger@gmail.com>']), EmailSource::Push),
+            ];
+        });
+
+        Queue::assertPushed(InterpretEmail::class, 1);
+        Queue::assertPushed(InterpretEmail::class, fn (InterpretEmail $job) => $job->emailId === $listed->id);
+        $this->assertSame(InterpretationStatus::Skipped, Tenancy::for($this->account, fn () => $stranger->interpretation()->sole()->status));
+    }
+
     public function test_a_question_is_answered_from_the_knowledge_base_in_its_thread(): void
     {
         $this->fakeKnowledgeAi();
@@ -122,7 +211,7 @@ class InterpretEmailTest extends TestCase
             $this->assertStringContainsString(self::LEAVE, $prompt);
             $this->assertStringNotContainsString('tom@haarlem.nl', $prompt);
 
-            return ['answered' => true, 'answer' => 'Je hebt recht op 25 vakantiedagen per jaar.', 'sources' => ['F1']];
+            return ['answered' => true, 'answer' => 'Je hebt recht op 25 vakantiedagen per jaar.', 'sources' => ['F1'], 'confidence' => 0.9];
         });
 
         $email = $this->email(['content_text' => "Hoeveel vakantiedagen heb ik?\n\nTom (tom@haarlem.nl)"]);
@@ -204,25 +293,75 @@ class InterpretEmailTest extends TestCase
         });
     }
 
-    public function test_only_the_people_the_send_policy_allows_are_copied_in(): void
+    public function test_only_the_people_howy_may_answer_are_copied_in(): void
     {
         $this->fakeKnowledgeAi();
         $this->fakeMailAi();
-        $this->mailbox->update(['send_policy' => SendPolicy::Always, 'send_blacklist' => ['extern.nl']]);
+        $this->listSenders([
+            'haarlem.nl' => SenderAccess::LearnAndAnswer,
+            'extern.nl' => SenderAccess::Ignore,
+            'lisa@klant.nl' => SenderAccess::Learn,
+        ]);
 
         $interpretation = $this->interpret($this->email([
-            'cc' => [['name' => null, 'email' => 'anna@noordkade.nl'], ['name' => null, 'email' => 'piet@extern.nl']],
+            'cc' => [['name' => null, 'email' => 'anna@noordkade.nl'], ['name' => null, 'email' => 'piet@extern.nl'], ['name' => null, 'email' => 'lisa@klant.nl']],
         ]));
 
+        // Howy learns from Lisa, but never writes to her.
         $this->assertSame(['tom@haarlem.nl', 'anna@noordkade.nl'], $interpretation->reply_recipients);
-        Http::assertSent(fn (Request $request): bool => ! str_contains($this->decodedRaw($request), 'piet@extern.nl'));
+        Http::assertSent(fn (Request $request): bool => ! str_contains($this->decodedRaw($request), 'piet@extern.nl')
+            && ! str_contains($this->decodedRaw($request), 'lisa@klant.nl'));
 
-        // The sender blocked: nothing goes out, not even to those copied in.
-        $this->mailbox->update(['send_blacklist' => ['haarlem.nl']]);
+        // The sender ignored: nothing goes out, not even to those copied in.
+        $this->listSenders(['haarlem.nl' => SenderAccess::Ignore]);
         $blocked = $this->interpret($this->email(['cc' => [['name' => null, 'email' => 'anna@noordkade.nl']]]));
 
         $this->assertSame(ReplyStatus::Blocked, $blocked->reply_status);
         Http::assertSentCount(1);
+    }
+
+    public function test_a_request_to_the_mailbox_alone_is_answered_like_a_question(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fact(self::LEAVE);
+        $this->fakeMailAi(['question' => 'Schrijf een alinea over hoeveel vakantiedagen medewerkers per jaar hebben.'], answer: fn (): array => [
+            'answered' => true, 'answer' => 'Medewerkers hebben recht op 25 vakantiedagen per jaar.', 'sources' => ['F1'], 'confidence' => 0.9,
+        ]);
+
+        $interpretation = $this->interpret($this->email(['content_text' => 'Kan je een alinea schrijven over onze vakantiedagen?']));
+
+        // The classifier is told the mail was written to the mailbox alone.
+        EmailClassifier::assertPrompted(fn (AgentPrompt $prompt): bool => str_contains($prompt->prompt, 'Written to: the knowledge mailbox alone'));
+        $this->assertSame(InterpretationOutcome::Answered, $interpretation->outcome);
+        $this->assertSame(ReplyStatus::Sent, $interpretation->reply_status);
+    }
+
+    public function test_a_mail_to_the_mailbox_and_others_is_not_said_to_be_for_it_alone(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fakeMailAi(['intent' => 'other', 'question' => '']);
+
+        $this->interpret($this->email([
+            'to' => [['name' => null, 'email' => 'kennis@noordkade.nl'], ['name' => 'Anna', 'email' => 'anna@noordkade.nl']],
+            'content_text' => 'Kan je een alinea schrijven over onze verlofregeling?',
+        ]));
+
+        EmailClassifier::assertNotPrompted(fn (AgentPrompt $prompt): bool => str_contains($prompt->prompt, 'Written to:'));
+        Http::assertNothingSent();
+    }
+
+    public function test_an_answer_that_is_not_sure_enough_is_kept_but_not_sent(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fact(self::LEAVE);
+        $this->fakeMailAi(answer: fn (): array => ['answered' => true, 'answer' => 'Waarschijnlijk 25 dagen.', 'sources' => ['F1'], 'confidence' => 0.5]);
+
+        $interpretation = $this->interpret($this->email());
+
+        $this->assertSame(InterpretationOutcome::Unsure, $interpretation->outcome);
+        $this->assertSame('Waarschijnlijk 25 dagen.', $interpretation->answer);
+        $this->assertSame(ReplyStatus::None, $interpretation->reply_status);
+        Http::assertNothingSent();
     }
 
     public function test_a_question_without_an_answer_gets_a_not_found_reply(): void
@@ -348,19 +487,19 @@ class InterpretEmailTest extends TestCase
         $this->assertStringContainsString('Toegevoegd: Het kantoor is op 5 december gesloten.', $reply);
     }
 
-    public function test_a_reply_the_send_policy_does_not_allow_is_kept_but_not_sent(): void
+    public function test_a_reply_the_rules_do_not_allow_is_kept_but_not_sent(): void
     {
         $this->fakeKnowledgeAi();
         $this->fakeMailAi();
 
+        // Read as it would have been, but the rules changed before the reply.
         foreach ([
-            'off' => [SendPolicy::Off, [], []],
-            'blacklisted domain' => [SendPolicy::Always, [], ['haarlem.nl']],
-            'blacklisted address' => [SendPolicy::Always, [], ['TOM@haarlem.nl']],
-            'other domain' => [SendPolicy::Domain, [], []],
-            'not whitelisted' => [SendPolicy::Whitelist, ['jan@haarlem.nl'], []],
-        ] as $case => [$policy, $whitelist, $blacklist]) {
-            $this->mailbox->update(['send_policy' => $policy, 'send_whitelist' => $whitelist, 'send_blacklist' => $blacklist]);
+            'ignored domain' => ['haarlem.nl' => SenderAccess::Ignore],
+            'ignored address' => ['haarlem.nl' => SenderAccess::LearnAndAnswer, 'tom@haarlem.nl' => SenderAccess::Ignore],
+            'learned from only' => ['haarlem.nl' => SenderAccess::Learn],
+            'not listed' => ['jan@haarlem.nl' => SenderAccess::LearnAndAnswer],
+        ] as $case => $senders) {
+            $this->listSenders($senders);
 
             $interpretation = $this->interpret($this->email());
 
@@ -369,6 +508,95 @@ class InterpretEmailTest extends TestCase
         }
 
         Http::assertNothingSent();
+    }
+
+    public function test_a_question_from_a_sender_howy_may_only_learn_from_is_not_answered(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fact(self::LEAVE);
+        $this->fakeMailAi();
+        $this->listSenders(['tom@haarlem.nl' => SenderAccess::Learn]);
+
+        $interpretation = $this->interpret($this->arrived($this->email()));
+
+        $this->assertSame(EmailIntent::Question, $interpretation->intent);
+        $this->assertSame(InterpretationOutcome::NoAction, $interpretation->outcome);
+        $this->assertSame(ReplyStatus::None, $interpretation->reply_status);
+        $this->assertSame(__('Not answered: Howy only learns from this sender.'), app(InterpretationPresenter::class)->full($interpretation)['note']);
+        QuestionAnswerer::assertNeverPrompted();
+        Http::assertNothingSent();
+    }
+
+    public function test_a_question_from_a_sender_howy_may_only_answer_is_answered(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fact(self::LEAVE);
+        $this->fakeMailAi(answer: fn (): array => ['answered' => true, 'answer' => 'Je hebt recht op 25 vakantiedagen per jaar.', 'sources' => ['F1'], 'confidence' => 0.9]);
+        $this->listSenders(['haarlem.nl' => SenderAccess::Answer]);
+
+        $interpretation = $this->interpret($this->arrived($this->email()));
+
+        $this->assertSame(SenderAccess::Answer, $interpretation->sender_access);
+        $this->assertSame(InterpretationOutcome::Answered, $interpretation->outcome);
+        $this->assertSame(ReplyStatus::Sent, $interpretation->reply_status);
+        $this->assertNull(app(InterpretationPresenter::class)->full($interpretation)['note']);
+    }
+
+    public function test_information_from_a_sender_howy_may_only_answer_is_not_learned(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fakeMailAi(['intent' => 'information', 'question' => '', 'statements' => [
+            ['statement' => 'De thuiswerkvergoeding is vanaf 1 januari 2027 3 euro per dag.', 'subject' => 'Thuiswerken', 'valid_from' => '2027-01-01', 'flag' => ''],
+        ]]);
+        $this->listSenders(['tom@haarlem.nl' => SenderAccess::Answer]);
+
+        $interpretation = $this->interpret($this->arrived($this->email(['content_text' => 'De thuiswerkvergoeding wordt 3 euro per dag.'])));
+
+        $this->assertSame(EmailIntent::Information, $interpretation->intent);
+        $this->assertSame(InterpretationOutcome::NoAction, $interpretation->outcome);
+        $this->assertNull($interpretation->statements);
+        $this->assertSame(__('Not learned: Howy only answers this sender.'), app(InterpretationPresenter::class)->full($interpretation)['note']);
+        $this->assertSame(0, Tenancy::for($this->account, fn () => KnowledgeFact::query()->count()));
+        // Not marked as read: forwarded later by someone Howy learns from, it is still new.
+        $this->assertSame(0, Tenancy::for($this->account, fn () => EmailFingerprint::query()->count()));
+        Http::assertNothingSent();
+    }
+
+    public function test_a_conflict_from_a_sender_howy_may_only_learn_from_is_flagged_without_a_reply(): void
+    {
+        $this->fakeKnowledgeAi();
+        $existing = $this->fact(self::LEAVE);
+        $this->fakeMailAi(
+            ['intent' => 'information', 'statements' => [
+                ['statement' => 'Medewerkers hebben recht op 30 vakantiedagen per jaar.', 'subject' => 'verlof', 'valid_from' => null],
+            ]],
+            verdicts: fn (): array => ['verdicts' => [
+                ['id' => 'N1', 'verdict' => 'contradicts', 'existing_fact_id' => $existing->id, 'explanation' => 'De kennisbank noemt 25 dagen, de mail 30.'],
+            ]],
+        );
+        $this->listSenders(['tom@haarlem.nl' => SenderAccess::Learn]);
+
+        $interpretation = $this->interpret($this->arrived($this->email()));
+
+        $this->assertSame(InterpretationOutcome::Conflict, $interpretation->outcome);
+        $this->assertSame(ReplyStatus::None, $interpretation->reply_status);
+        $this->assertNull($interpretation->reply_text);
+        Http::assertNothingSent();
+    }
+
+    public function test_reading_a_mail_howy_ignored_on_arrival_on_request_reads_it_in_full(): void
+    {
+        $this->fakeKnowledgeAi();
+        $this->fakeMailAi(['intent' => 'information', 'question' => '', 'statements' => [
+            ['statement' => 'Het kantoor is op 5 december gesloten.', 'subject' => 'feestdagen', 'valid_from' => null],
+        ]]);
+        $this->listSenders(['tom@haarlem.nl' => SenderAccess::Ignore]);
+        $email = $this->arrived($this->email());
+
+        $interpretation = $this->interpret($email, force: true);
+
+        $this->assertSame(SenderAccess::LearnAndAnswer, $interpretation->sender_access);
+        $this->assertSame(InterpretationOutcome::Added, $interpretation->outcome);
     }
 
     public function test_a_reply_goes_out_once_even_when_the_mail_is_interpreted_again(): void
@@ -460,6 +688,39 @@ class InterpretEmailTest extends TestCase
             'content_text' => 'Hoeveel vakantiedagen heb ik?',
             ...$attributes,
         ]));
+    }
+
+    /**
+     * The interpretation the mail's arrival leaves: in its role, with what the
+     * mailbox's rules let Howy do with the sender then.
+     */
+    private function arrived(Email $email): Email
+    {
+        Tenancy::for($this->account, function () use ($email): void {
+            $eligibility = app(EmailEligibility::class);
+
+            EmailInterpretation::query()->create([
+                'email_id' => $email->id,
+                'mode' => $eligibility->role($email, $this->mailbox),
+                'sender_access' => $eligibility->access($email, $this->mailbox),
+            ]);
+        });
+
+        return $email;
+    }
+
+    /**
+     * List exactly these senders on the mailbox under test.
+     *
+     * @param  array<string, SenderAccess>  $senders
+     */
+    private function listSenders(array $senders): void
+    {
+        Tenancy::for($this->account, fn () => $this->mailbox->syncSenders(array_map(
+            fn (string $entry, SenderAccess $access): array => ['entry' => $entry, 'access' => $access],
+            array_keys($senders),
+            array_values($senders),
+        )));
     }
 
     private function interpret(Email $email, bool $force = false): EmailInterpretation

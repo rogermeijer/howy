@@ -1,3 +1,5 @@
+import type { InterpretedStatement } from './interpretations';
+
 export type ProcessingStatus =
     | 'queued'
     | 'extracting'
@@ -6,14 +8,17 @@ export type ProcessingStatus =
     | 'embedding'
     | 'searchable'
     | 'enriching'
+    | 'review'
     | 'ready'
-    | 'failed';
+    | 'failed'
+    | 'rejected';
 
 export type DocumentType =
     | 'handbook'
     | 'policy'
     | 'manual'
     | 'documentation'
+    | 'correspondence'
     | 'other';
 
 export type DocumentVersionSummary = {
@@ -25,6 +30,7 @@ export type DocumentVersionSummary = {
     pageCount: number | null;
     status: ProcessingStatus;
     error: string | null;
+    isApproved: boolean;
     createdAt: string | null;
 };
 
@@ -37,6 +43,9 @@ export type KnowledgeDocument = {
     effectiveDate: string | null;
     updatedAt: string | null;
     uploadedBy: string | null;
+    /** The version that answers; null while the first one waits for approval. */
+    publishedVersion: { id: number; number: number } | null;
+    /** The newest version, published or not. */
     version: DocumentVersionSummary | null;
 };
 
@@ -82,6 +91,20 @@ export type ChunkView = {
 
 export type FactStatus = 'core' | 'supplementary' | 'expired' | 'proposed';
 
+/** One place a fact is stated. */
+export type FactSourceView = {
+    kind: 'document' | 'mail';
+    title: string;
+    documentId: number | null;
+    versionNumber: number | null;
+    sectionId: number | null;
+    headingPath: string | null;
+    pageFrom: number | null;
+    emailId: number | null;
+    /** Its document was removed and the fact kept. */
+    removed: boolean;
+};
+
 export type FactView = {
     id: number;
     statement: string;
@@ -89,6 +112,14 @@ export type FactView = {
     validFrom: string | null;
     validUntil: string | null;
     pageFrom: number | null;
+    /** Every place it is stated, the cited one first. */
+    sources: FactSourceView[];
+    /** Waiting for approval: how it compares with what is known. */
+    verdict: 'new' | 'duplicate' | 'conflict' | 'unchecked' | 'carried' | null;
+    /** The known fact it repeats or contradicts. */
+    known: NonNullable<JudgedFact['existing']> | null;
+    /** Why it contradicts the known fact. */
+    explanation: string | null;
 };
 
 export type SectionDetail = {
@@ -119,8 +150,148 @@ export type VersionOption = {
     number: number;
     filename: string;
     status: ProcessingStatus;
+    isApproved: boolean;
+    isCurrent: boolean;
     createdAt: string | null;
     isPdf: boolean;
+};
+
+/** What approving a version would change, for the administrator who decides. */
+export type DocumentSourceView = {
+    kind: 'upload' | 'mail';
+    filename: string;
+    user: string | null;
+    emailId: number | null;
+    subject: string | null;
+    from: string | null;
+    context: string | null;
+    createdAt: string | null;
+};
+
+/** A fact of a version waiting for approval, with where it is in the document. */
+export type ReviewFact = {
+    id: number;
+    statement: string;
+    sectionId: number | null;
+    heading: string | null;
+    /** Left out by a reviewer: not added on approval. */
+    omitted?: boolean;
+};
+
+/** A fact of the previous version that expires when this one is approved. */
+export type ExpiringFact = {
+    id: number;
+    statement: string;
+    sectionId: number | null;
+    heading: string | null;
+    /** Its section is not in the new version at all (else it changed). */
+    sectionRemoved: boolean;
+    /** The new fact that takes its place, if any. */
+    replacedBy: string | null;
+};
+
+/** A fact of the previous version that stays because something else states it too. */
+export type StayingFact = {
+    id: number;
+    statement: string;
+    /** Where it is cited from once this version is approved. */
+    source: FactSourceView;
+};
+
+export type VersionReview = {
+    replaces: number | null;
+    previousVersionId: number | null;
+    /** No earlier version to compare with. */
+    firstVersion: boolean;
+    uploadedBy: string | null;
+    sources: DocumentSourceView[];
+    summary: string | null;
+    error: string | null;
+    sections: {
+        unchanged: number;
+        changed: number;
+        added: number;
+        removed: number;
+    };
+    placement: {
+        kind: 'new' | 'version' | 'similar' | 'same_content';
+        document_id?: number | null;
+        version_number?: number | null;
+        score?: number | null;
+        reason?: string | null;
+        title?: string | null;
+    } | null;
+    facts: {
+        new: number;
+        duplicate: number;
+        conflict: number;
+        unchecked: number;
+        expire: number;
+    };
+    conflicts: JudgedFact[];
+    duplicates: JudgedFact[];
+    newFacts: ReviewFact[];
+    uncheckedFacts: ReviewFact[];
+    expiring: ExpiringFact[];
+    staying: StayingFact[];
+    /** Said word for word again in a changed section: carries on as it is. */
+    carried: ReviewFact[];
+    folders: { id: number; name: string; isNew: boolean }[];
+};
+
+/** A processed document version in the approvals list. */
+export type ApprovalDocument = {
+    documentId: number;
+    versionId: number;
+    title: string;
+    filename: string;
+    versionNumber: number;
+    /** The live version it would replace, or null for a new document. */
+    replaces: number | null;
+    /** An upload that looks like a document already there. */
+    hint: {
+        kind: 'similar' | 'same_content';
+        title: string | null;
+    } | null;
+    sources: Pick<
+        DocumentSourceView,
+        'kind' | 'user' | 'emailId' | 'subject' | 'from'
+    >[];
+    error: string | null;
+    processedAt: string | null;
+};
+
+/** A mail with the statements it would add or change, in the approvals list. */
+export type ApprovalMail = {
+    emailId: number;
+    subject: string | null;
+    from: string | null;
+    receivedAt: string | null;
+    summary: string | null;
+    statements: InterpretedStatement[];
+};
+
+/** A new fact with the known one it duplicates or contradicts. */
+export type JudgedFact = {
+    id: number;
+    statement: string;
+    explanation: string | null;
+    sectionId: number | null;
+    heading: string | null;
+    /** What a reviewer chose so far, kept until approval. */
+    choice?: 'new' | 'keep' | null;
+    existing: {
+        statement: string;
+        status: FactStatus;
+        source:
+            | { type: 'email'; id: number; title: string }
+            | {
+                  type: 'document';
+                  id: number | null;
+                  title: string;
+                  versionNumber: number | null;
+              };
+    } | null;
 };
 
 export type TopicFact = {
@@ -135,6 +306,8 @@ export type TopicFact = {
     sectionId: number | null;
     headingPath: string | null;
     pageFrom: number | null;
+    /** Every place it is stated, the cited one first. */
+    sources: FactSourceView[];
 };
 
 export type TopicSource = {

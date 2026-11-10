@@ -2,6 +2,9 @@
 
 namespace App\Services\Mail\Interpretation;
 
+use App\Enums\EmailIntent;
+use App\Enums\InterpretationMode;
+use App\Enums\InterpretationOutcome;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
 use App\Models\KnowledgeFact;
@@ -18,7 +21,7 @@ class InterpretationPresenter
     /**
      * The short form for a list row.
      *
-     * @return array{status: string, statusLabel: string, intent: string|null, intentLabel: string|null, outcome: string|null, outcomeLabel: string|null, needsReview: bool}
+     * @return array{status: string, statusLabel: string, intent: string|null, intentLabel: string|null, outcome: string|null, outcomeLabel: string|null}
      */
     public function brief(EmailInterpretation $interpretation): array
     {
@@ -29,7 +32,6 @@ class InterpretationPresenter
             'intentLabel' => $interpretation->intent?->label(),
             'outcome' => $interpretation->outcome?->value,
             'outcomeLabel' => $interpretation->outcome?->label(),
-            'needsReview' => $interpretation->needs_review,
         ];
     }
 
@@ -38,33 +40,23 @@ class InterpretationPresenter
      */
     public function full(EmailInterpretation $interpretation): array
     {
-        $statements = $interpretation->statements ?? [];
-        $existing = $this->existingSources(array_values(array_filter(array_column($statements, 'existing_fact_id'))));
-        $reviewers = User::query()->whereKey(array_values(array_filter(array_column($statements, 'reviewed_by'))))->pluck('name', 'id');
-
         return [
             ...$this->brief($interpretation),
             'mode' => $interpretation->mode->value,
             'modeLabel' => $interpretation->mode->label(),
+            'senderAccess' => $interpretation->sender_access->value,
+            'senderAccessLabel' => $interpretation->sender_access->label(),
+            'note' => $this->note($interpretation),
             'confidence' => $interpretation->intent_confidence,
             'answerConfidence' => $interpretation->answer_confidence,
             'answerGaps' => $interpretation->answer_gaps,
-            'summary' => $interpretation->summary,
+            'summary' => $interpretation->summary ?? ($interpretation->outcome === InterpretationOutcome::Duplicate && $interpretation->statements === null
+                ? __('Nothing new: this mail only repeats what is already known.')
+                : null),
             'question' => $interpretation->question,
             'answer' => $interpretation->answer,
             'citations' => array_map($this->citation(...), $interpretation->citations ?? []),
-            'statements' => array_map(fn (array $statement): array => [
-                'statement' => $statement['statement'],
-                'verdict' => $statement['verdict'],
-                'factId' => $statement['fact_id'],
-                'existingStatement' => $statement['existing_statement'],
-                'existingSource' => $statement['existing_fact_id'] !== null ? ($existing[$statement['existing_fact_id']] ?? null) : null,
-                'explanation' => $statement['explanation'],
-                'flag' => $statement['flag'] ?? null,
-                'review' => $statement['review'] ?? null,
-                'reviewedBy' => isset($statement['reviewed_by']) ? ($reviewers[$statement['reviewed_by']] ?? null) : null,
-                'reviewedAt' => $statement['reviewed_at'] ?? null,
-            ], $statements),
+            'statements' => $this->statements($interpretation),
             'replyStatus' => $interpretation->reply_status->value,
             'replyStatusLabel' => $interpretation->reply_status->label(),
             'replyText' => $interpretation->reply_text,
@@ -73,6 +65,51 @@ class InterpretationPresenter
             'error' => $interpretation->error,
             'processedAt' => $interpretation->processed_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Why nothing followed a mail Howy read, when the mailbox's rules for its
+     * sender are the reason.
+     */
+    private function note(EmailInterpretation $interpretation): ?string
+    {
+        return match (true) {
+            $interpretation->intent === EmailIntent::Question
+                && $interpretation->mode === InterpretationMode::Addressed
+                && ! $interpretation->sender_access->answers() => (string) __('Not answered: Howy only learns from this sender.'),
+            $interpretation->intent === EmailIntent::Information
+                && ! $interpretation->sender_access->learns() => (string) __('Not learned: Howy only answers this sender.'),
+            default => null,
+        };
+    }
+
+    /**
+     * Every statement with its verdict, where the fact it was held against
+     * comes from, and who decided on it. The position in the list is what a
+     * decision on it refers to.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function statements(EmailInterpretation $interpretation): array
+    {
+        $statements = $interpretation->statements ?? [];
+        $existing = $this->existingSources(array_values(array_filter(array_column($statements, 'existing_fact_id'))));
+        $reviewers = User::query()->whereKey(array_values(array_filter(array_column($statements, 'reviewed_by'))))->pluck('name', 'id');
+
+        return array_map(fn (array $statement, int $index): array => [
+            'index' => $index,
+            'statement' => $statement['statement'],
+            'verdict' => $statement['verdict'],
+            'factId' => $statement['fact_id'],
+            'existingStatement' => $statement['existing_statement'],
+            'existingSource' => $statement['existing_fact_id'] !== null ? ($existing[$statement['existing_fact_id']] ?? null) : null,
+            'explanation' => $statement['explanation'],
+            'flag' => $statement['flag'] ?? null,
+            'fromHistory' => $statement['from_history'] ?? false,
+            'review' => $statement['review'] ?? null,
+            'reviewedBy' => isset($statement['reviewed_by']) ? ($reviewers[$statement['reviewed_by']] ?? null) : null,
+            'reviewedAt' => $statement['reviewed_at'] ?? null,
+        ], $statements, array_keys($statements));
     }
 
     /**
@@ -111,7 +148,7 @@ class InterpretationPresenter
         foreach ($facts as $fact) {
             $sources[$fact->id] = $fact->source_type === 'email'
                 ? ['type' => 'email', 'id' => $fact->source_id, 'title' => (string) ($subjects[$fact->source_id] ?? ''), 'sectionId' => null, 'headingPath' => null, 'page' => null]
-                : ['type' => 'document', 'id' => (int) $fact->document_id, 'title' => (string) $fact->document?->title, 'sectionId' => $fact->section_id, 'headingPath' => $fact->section?->heading_path, 'page' => $fact->page_from];
+                : ['type' => 'document', 'id' => (int) $fact->document_id, 'title' => $fact->documentTitle(), 'sectionId' => $fact->section_id, 'headingPath' => $fact->section?->heading_path, 'page' => $fact->page_from];
         }
 
         return $sources;

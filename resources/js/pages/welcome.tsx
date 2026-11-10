@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect } from 'react';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     BarChart3,
     EyeOff,
@@ -36,7 +36,13 @@ import { useActiveSection } from '@/hooks/use-active-section';
 import { useScrolled } from '@/hooks/use-scrolled';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
-import { dashboard, login, register } from '@/routes';
+import {
+    dashboard,
+    login,
+    privacyPolicy,
+    register,
+    termsOfService,
+} from '@/routes';
 import type { Auth } from '@/types';
 import heroTeam from '../../images/welcome/hero-team.jpg';
 import kitchenTable from '../../images/welcome/kitchen-table.jpg';
@@ -235,6 +241,12 @@ const footerLinks: { href: string; label: string }[] = [
     { href: '#security', label: 'Privacy & GDPR' },
     { href: '#pricing', label: 'Pricing' },
     { href: '#faq', label: 'FAQ' },
+];
+
+/** The legal pages, on routes of their own. */
+const legalLinks = [
+    { href: privacyPolicy(), label: 'Privacy policy' },
+    { href: termsOfService(), label: 'Terms of service' },
 ];
 
 /** Page width and side gutter, shared by every band: 1240px of content. */
@@ -1272,6 +1284,15 @@ export default function Welcome() {
                             >
                                 {t(label)}
                             </a>
+                        ))}
+                        {legalLinks.map(({ href, label }) => (
+                            <Link
+                                key={label}
+                                href={href}
+                                className="text-cc-muted no-underline transition-colors hover:text-cc-accent-deep"
+                            >
+                                {t(label)}
+                            </Link>
                         ))}
                         <ContactDialog>
                             <button
