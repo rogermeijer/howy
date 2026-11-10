@@ -33,6 +33,9 @@ Route::get('site.webmanifest', function () {
 
 Route::inertia('/', 'welcome')->name('home');
 
+Route::inertia('privacy-policy', 'legal/privacy-policy')->name('privacy-policy');
+Route::inertia('terms-of-service', 'legal/terms-of-service')->name('terms-of-service');
+
 // Deliberately public: the language switcher has to work on the marketing and
 // auth screens, before there is an account to store the choice against.
 Route::put('locale', [LocaleController::class, 'update'])->name('locale.update');
