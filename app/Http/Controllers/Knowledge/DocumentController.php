@@ -47,7 +47,9 @@ class DocumentController extends Controller
                 ...array_map(fn (string $extension): string => ".{$extension}", DocumentFormat::allExtensions()),
                 ...DocumentFormat::allMimeTypes(),
             ]),
-            'canManage' => $request->user()->isAdminOf(Tenancy::account()),
+            'canManage' => $canManage = $request->user()->isAdminOf(Tenancy::account()),
+            // ?upload=1 opens the upload dialog, so setup can link straight to it.
+            'openUpload' => $canManage && $request->query('upload') === '1',
         ]);
     }
 

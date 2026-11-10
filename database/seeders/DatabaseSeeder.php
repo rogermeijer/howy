@@ -48,6 +48,11 @@ class DatabaseSeeder extends Seeder
         $roger->active_account_id = $cc->id;
         $roger->save();
 
+        // Both come with a knowledge base, so they count as set up: the setup
+        // wizard is for accounts that start empty, from registration.
+        $cc->forceFill(['domain' => 'howyknows.com', 'onboarded_at' => now()])->save();
+        $devkidsAccount->forceFill(['domain' => 'devkids.nl', 'onboarded_at' => now()])->save();
+
         // A short private beta list for /admin/beta: one waiting, one invited.
         BetaAccessRequest::submit('waiting@example.com', 'nl');
         BetaAccessRequest::submit('invited@example.com', 'en')->forceFill(['invited_at' => now()])->save();

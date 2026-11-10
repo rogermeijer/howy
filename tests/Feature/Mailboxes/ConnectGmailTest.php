@@ -219,6 +219,32 @@ class ConnectGmailTest extends TestCase
         $this->assertSame(0, Tenancy::for($this->account, fn () => Mailbox::query()->count()));
     }
 
+    public function test_connecting_from_setup_comes_back_to_setup(): void
+    {
+        Queue::fake();
+        $this->fakeGoogleUser();
+
+        $this->actingAs($this->admin)
+            ->get(route('mailboxes.gmail.redirect', ['from' => 'setup']))
+            ->assertSessionHas('mailbox_connect', ['account_id' => $this->account->id, 'return' => 'setup.mailbox']);
+
+        $this->actingAs($this->admin)
+            ->withSession(['mailbox_connect' => ['account_id' => $this->account->id, 'return' => 'setup.mailbox']])
+            ->get(route('mailboxes.gmail.callback', ['code' => 'abc', 'state' => 'xyz']))
+            ->assertRedirect(route('setup.mailbox'));
+
+        $this->assertSame(1, Tenancy::for($this->account, fn () => Mailbox::query()->count()));
+    }
+
+    public function test_a_connection_refused_from_setup_comes_back_to_setup_too(): void
+    {
+        $this->actingAs($this->admin)
+            ->withSession(['mailbox_connect' => ['account_id' => $this->account->id, 'return' => 'setup.mailbox']])
+            ->get(route('mailboxes.gmail.callback', ['error' => 'access_denied']))
+            ->assertRedirect(route('setup.mailbox'))
+            ->assertInertiaFlash('toast.type', 'error');
+    }
+
     public function test_the_callback_refuses_when_the_account_changed_since_the_redirect(): void
     {
         $other = Account::factory()->create();

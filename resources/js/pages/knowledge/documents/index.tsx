@@ -38,6 +38,7 @@ type Props = {
     maxUploadMegabytes: number;
     uploadAccept: string;
     canManage: boolean;
+    openUpload: boolean;
 };
 
 const rowGrid =
@@ -51,10 +52,23 @@ export default function Documents({
     maxUploadMegabytes,
     uploadAccept,
     canManage,
+    openUpload,
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
-    const [uploading, setUploading] = useState(false);
+    const [uploading, setUploading] = useState(openUpload);
+
+    // Opened from setup via ?upload=1: drop the query so a reload or a later
+    // visit does not reopen it.
+    useEffect(() => {
+        if (openUpload) {
+            router.replace({
+                url: documentRoutes.index.url(),
+                preserveState: true,
+                preserveScroll: true,
+            });
+        }
+    }, [openUpload]);
     const [versioning, setVersioning] = useState<KnowledgeDocument | null>(
         null,
     );

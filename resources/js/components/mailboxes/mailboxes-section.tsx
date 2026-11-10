@@ -17,6 +17,7 @@ import { Section } from '@/components/cc/section';
 import { ConnectMailboxDialog } from '@/components/mailboxes/connect-mailbox-dialog';
 import { DisconnectMailboxDialog } from '@/components/mailboxes/disconnect-mailbox-dialog';
 import { ImportMailboxDialog } from '@/components/mailboxes/import-mailbox-dialog';
+import { ImportProgress } from '@/components/mailboxes/import-progress';
 import { MailboxExplainerDialog } from '@/components/mailboxes/mailbox-explainer-dialog';
 import {
     MailboxRulesPanel,
@@ -542,34 +543,10 @@ function MailboxRow({
             )}
 
             {mailbox.import && (
-                <div className="flex flex-col gap-2 border-t border-cc-border bg-cc-bg py-3 pr-5 pl-[76px]">
-                    <div className="flex justify-between text-[13px]">
-                        <span className="font-semibold">
-                            {t('Import running')}
-                        </span>
-                        <span className="text-cc-subtle">
-                            {t(':processed of :total emails', {
-                                processed: mailbox.import.processed,
-                                total: mailbox.import.total,
-                            })}
-                        </span>
-                    </div>
-                    <div
-                        role="progressbar"
-                        aria-label={t('Import progress')}
-                        aria-valuemin={0}
-                        aria-valuemax={mailbox.import.total}
-                        aria-valuenow={mailbox.import.processed}
-                        className="h-1.5 overflow-hidden rounded-full bg-cc-raised"
-                    >
-                        <div
-                            className="h-1.5 rounded-full bg-cc-accent transition-[width]"
-                            style={{
-                                width: `${Math.round((mailbox.import.processed / Math.max(1, mailbox.import.total)) * 100)}%`,
-                            }}
-                        />
-                    </div>
-                </div>
+                <ImportProgress
+                    progress={mailbox.import}
+                    className="border-t border-cc-border bg-cc-bg py-3 pr-5 pl-[76px]"
+                />
             )}
 
             {open && (

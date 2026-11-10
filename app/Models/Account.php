@@ -19,15 +19,17 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property string $name
+ * @property string|null $domain the domain the company mails from, never a public one
  * @property Locale $locale
  * @property Locale $knowledge_locale the language the knowledge base is built in
  * @property string $timezone
+ * @property Carbon|null $onboarded_at when an administrator finished the setup wizard
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, User> $users
  * @property-read Collection<int, User> $admins
  */
-#[Fillable(['name', 'locale', 'timezone'])]
+#[Fillable(['name', 'domain', 'locale', 'timezone'])]
 class Account extends Model
 {
     /** @use HasFactory<AccountFactory> */
@@ -68,6 +70,15 @@ class Account extends Model
     }
 
     /**
+     * Whether an administrator went through the setup wizard. Until then the
+     * account's administrators are sent there before anything else.
+     */
+    public function isSetUp(): bool
+    {
+        return $this->onboarded_at !== null;
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -75,6 +86,7 @@ class Account extends Model
         return [
             'locale' => Locale::class,
             'knowledge_locale' => Locale::class,
+            'onboarded_at' => 'datetime',
         ];
     }
 }

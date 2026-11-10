@@ -33,9 +33,18 @@ class GmailOAuthController extends Controller
 
     private const string READ_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
 
+    /**
+     * ?from=setup comes back to setup instead of settings, connected or not.
+     */
     public function redirect(Request $request): SymfonyRedirect
     {
-        $request->session()->put('mailbox_connect', ['account_id' => Tenancy::id()]);
+        $pending = ['account_id' => Tenancy::id()];
+
+        if ($request->query('from') === 'setup') {
+            $pending['return'] = 'setup.mailbox';
+        }
+
+        $request->session()->put('mailbox_connect', $pending);
 
         return $this->google()
             ->setScopes(self::SCOPES)
@@ -51,33 +60,35 @@ class GmailOAuthController extends Controller
 
     public function callback(Request $request, MailboxConnector $connector): RedirectResponse
     {
-        /** @var array{account_id: int}|null $pending */
+        /** @var array{account_id: int, return?: string}|null $pending */
         $pending = $request->session()->pull('mailbox_connect');
 
         // The account could have been switched in another tab between leaving for
         // Google and coming back. Never attach a mailbox to the wrong account.
         abort_unless($pending !== null && $pending['account_id'] === Tenancy::id(), 403);
 
+        $back = $pending['return'] ?? 'settings';
+
         if ($request->filled('error')) {
-            return $this->fail(__('The mailbox was not connected.'));
+            return $this->fail(__('The mailbox was not connected.'), $back);
         }
 
         try {
             /** @var GoogleUser $google */
             $google = $this->google()->user();
         } catch (Throwable) {
-            return $this->fail(__('Google could not confirm the connection. Please try again.'));
+            return $this->fail(__('Google could not confirm the connection. Please try again.'), $back);
         }
 
         // Google lets people untick individual permissions on the consent screen.
         if (! in_array(self::READ_SCOPE, $google->approvedScopes, true)) {
-            return $this->fail(__('Howy needs permission to read mail. Connect again and allow it.'));
+            return $this->fail(__('Howy needs permission to read mail. Connect again and allow it.'), $back);
         }
 
         try {
             $mailbox = $connector->connect($google, $request->user());
         } catch (MailboxConnectedElsewhereException) {
-            return $this->fail(__('This mailbox is already connected to another Howy account. Disconnect it there first.'));
+            return $this->fail(__('This mailbox is already connected to another Howy account. Disconnect it there first.'), $back);
         }
 
         Inertia::flash('toast', [
@@ -85,7 +96,7 @@ class GmailOAuthController extends Controller
             'message' => __(':address is connected.', ['address' => $mailbox->email_address]),
         ]);
 
-        return to_route('settings');
+        return to_route($back);
     }
 
     private function google(): GoogleProvider
@@ -94,10 +105,10 @@ class GmailOAuthController extends Controller
         return Socialite::driver('google');
     }
 
-    private function fail(string $message): RedirectResponse
+    private function fail(string $message, string $back): RedirectResponse
     {
         Inertia::flash('toast', ['type' => 'error', 'message' => $message]);
 
-        return to_route('settings');
+        return to_route($back);
     }
 }

@@ -18,6 +18,7 @@ use App\Http\Controllers\Knowledge\KnowledgeController;
 use App\Http\Controllers\Knowledge\KnowledgeSearchController;
 use App\Http\Controllers\Knowledge\KnowledgeTopicController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\SetupController;
 use App\Http\Controllers\Webhooks\GmailWebhookController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\File;
@@ -57,7 +58,23 @@ Route::middleware('guest')->group(function () {
         ->name('register.invite');
 });
 
-Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
+// Setup, once email is verified. Only for administrators: they are the ones
+// sent here, and the only ones who can save what it asks.
+Route::middleware(['auth', 'verified', 'tenant', 'account.admin'])->prefix('setup')->name('setup.')->group(function () {
+    Route::get('/', [SetupController::class, 'start'])->name('start');
+    Route::get('workspace', [SetupController::class, 'workspace'])->name('workspace');
+    Route::patch('workspace', [SetupController::class, 'updateWorkspace'])->name('workspace.update');
+    Route::get('knowledge', [SetupController::class, 'knowledge'])->name('knowledge');
+    Route::patch('knowledge', [SetupController::class, 'updateKnowledge'])->name('knowledge.update');
+    Route::get('mailbox', [SetupController::class, 'mailbox'])->name('mailbox');
+    Route::post('finish', [SetupController::class, 'finish'])->name('finish');
+    Route::get('done', [SetupController::class, 'done'])->name('done');
+});
+
+// set-up sends the administrators of an account that is not set up yet to
+// setup first. Settings stay reachable without it: connecting Gmail comes
+// back there.
+Route::middleware(['auth', 'verified', 'tenant', 'set-up'])->group(function () {
     Route::get('dashboard', [InboxController::class, 'index'])->name('dashboard');
     Route::get('inbox', [InboxController::class, 'index'])->name('inbox');
 
