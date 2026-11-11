@@ -2061,5 +2061,7 @@
     "Send again": "Opnieuw versturen",
     "The mail is on its way again.": "De mail is opnieuw onderweg.",
     "This mail cannot be sent again now.": "Deze mail kan nu niet opnieuw verstuurd worden.",
-    "Send again: :mail": "Opnieuw versturen: :mail"
+    "Send again: :mail": "Opnieuw versturen: :mail",
+    "Planned :date": "Gepland :date",
+    "Due": "Aan de beurt"
 }

@@ -13,7 +13,7 @@ first contribution, a nudge, and later a weekly and monthly rhythm. They grew ou
 | 2    | Colleagues and mailbox rules (`Colleague`, `MailboxRule`, replacing `mailbox_senders` and `domain_access`) | **Built**                    |
 | 3    | `HowyMailer`, `OutboundMail` (mail log, pause queue, reply recognition)                                    | **Built**                    |
 | 4    | The account's Live switch, and 01                                                                          | **Built**                    |
-| 5    | 02 and 06                                                                                                  | Planned                      |
+| 5    | 02 and 06                                                                                                  | **Built**                    |
 | 6    | 04                                                                                                         | Planned                      |
 | 7    | Links without login (rating 05, adjusting 04, unsubscribing)                                               | Planned                      |
 
@@ -151,6 +151,23 @@ what is underway shows straight away, on the colleague's page ("On its way") and
 colleague's row while it decides, so two first mails read at once, or a button clicked twice, log it once. The
 mail is written for them (`FlowMailComposer`): their first name, the access of their home mailbox, in a
 member's own language or the account's.
+
+## How it works and the nudge
+
+`adoption:send` (hourly) writes the follow-ups to the welcome that are due (`FollowUps::sendDue()`), only while
+the account is live and only in working time (`WorkingTime`: Monday to Friday, between
+`ADOPTION_SEND_FROM_HOUR` and `ADOPTION_SEND_UNTIL_HOUR`, in the account's timezone):
+
+- **How it works (02)**: `ADOPTION_HOW_IT_WORKS_AFTER_WORKDAYS` working days after the welcome went, at the same
+  local time. Welcomed on Friday at ten, with 2 that is Tuesday at ten.
+- **The nudge (06)**: `ADOPTION_NUDGE_AFTER_WORKDAYS` working days after the welcome, only for someone Howy learns
+  from (on their home mailbox) who has not mailed it since: `last_mail_at` empty, or before `welcomed_at`. The
+  mail that brought the welcome came before it, so it does not count.
+
+Each goes once (`explained_at`, `nudged_at`), to someone who still gets Howy mails, and one of Howy's own mails a
+day at most: after a pause the rest follows on the next working days. The colleague's page shows when each is
+planned. `HowyMailer::deliver()` takes a lock per mail, so the hourly command and a job that reach the same mail
+at once send it once.
 
 ## Sending and the mail log
 

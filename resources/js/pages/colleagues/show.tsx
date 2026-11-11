@@ -54,6 +54,8 @@ type Props = {
     onTheirWay: string[];
     /** Per kind of Howy's own mail, the one to send again. */
     resendable: Record<string, number>;
+    /** When the follow-ups to the welcome are due; null for one that will not come. */
+    planned: { how_it_works: string | null; nudge: string | null };
 };
 
 export default function Colleague({
@@ -65,6 +67,7 @@ export default function Colleague({
     canWelcome,
     onTheirWay,
     resendable,
+    planned,
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
@@ -74,23 +77,46 @@ export default function Colleague({
     const date = (value: string | null) =>
         value === null ? null : formatDate(value, { dateStyle: 'medium' });
 
+    // Past its date, it goes with the next round in working time.
+    const plannedOn = (at: string | null): string | null =>
+        at === null
+            ? null
+            : new Date(at) <= new Date()
+              ? t('Due')
+              : t('Planned :date', {
+                    date: formatDate(at, {
+                        dateStyle: undefined,
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                    }),
+                });
+
     // What their Howy mails have done so far, in order.
     const steps = [
-        { kind: 'welcome', label: t('Welcome'), at: colleague.welcomedAt },
+        {
+            kind: 'welcome',
+            label: t('Welcome'),
+            at: colleague.welcomedAt,
+            planned: null,
+        },
         {
             kind: 'how_it_works',
             label: t('How Howy works'),
             at: colleague.explainedAt,
+            planned: plannedOn(planned.how_it_works),
         },
         {
             kind: 'first_save',
             label: t('Thanks for the first contribution'),
             at: colleague.firstSavedAt,
+            planned: null,
         },
         {
             kind: 'nudge',
             label: t('Reminder to share'),
             at: colleague.nudgedAt,
+            planned: plannedOn(planned.nudge),
         },
     ];
 
@@ -361,6 +387,7 @@ export default function Colleague({
                                                 {onTheirWay.includes(step.kind)
                                                     ? t('On its way')
                                                     : (date(step.at) ??
+                                                      step.planned ??
                                                       t('Not yet'))}
                                             </span>
                                             {resendable[step.kind] !==

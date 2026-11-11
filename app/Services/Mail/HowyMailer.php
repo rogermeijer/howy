@@ -18,6 +18,7 @@ use App\Models\OutboundMail;
 use App\Services\Gmail\GmailClient;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 /**
@@ -110,9 +111,26 @@ class HowyMailer
     }
 
     /**
-     * Send a logged mail that has not gone yet, if it may go now.
+     * Send a logged mail that has not gone yet, if it may go now. One sender
+     * at a time: the hourly adoption:send and a job may reach the same mail
+     * at once, and whoever does not get the lock leaves it to the other.
      */
     public function deliver(OutboundMail $outbound): OutboundMail
+    {
+        $lock = Cache::lock("outbound-mail:{$outbound->id}", 120);
+
+        if (! $lock->get()) {
+            return $outbound;
+        }
+
+        try {
+            return $this->send($outbound->refresh());
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function send(OutboundMail $outbound): OutboundMail
     {
         if ($outbound->status !== OutboundMailStatus::Pending) {
             return $outbound;

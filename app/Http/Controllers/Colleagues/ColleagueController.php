@@ -17,6 +17,7 @@ use App\Models\Mailbox;
 use App\Models\MailboxRule;
 use App\Models\OutboundMail;
 use App\Services\Adoption\FlowSender;
+use App\Services\Adoption\FollowUps;
 use App\Services\Adoption\Welcomes;
 use App\Services\Colleagues\Colleagues;
 use App\Services\Mail\Interpretation\InterpretationPresenter;
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -74,7 +76,7 @@ class ColleagueController extends Controller
         ]);
     }
 
-    public function show(Colleague $colleague, InterpretationPresenter $presenter, Welcomes $welcomes): Response
+    public function show(Colleague $colleague, InterpretationPresenter $presenter, Welcomes $welcomes, FollowUps $followUps): Response
     {
         $colleague->loadCount($this->activity())->load('user:id,name,email');
         $mailboxes = $this->mailboxes();
@@ -112,6 +114,11 @@ class ColleagueController extends Controller
                 ->unique(fn (OutboundMail $mail): string => $mail->kind->value)
                 ->mapWithKeys(fn (OutboundMail $mail): array => [$mail->kind->value => $mail->id])
                 ->all(),
+            // When the follow-ups to the welcome are due, as things stand.
+            'planned' => array_map(
+                fn (?Carbon $at): ?string => $at?->toIso8601String(),
+                $followUps->plannedFor($colleague, $mailboxes->get((int) $colleague->home_mailbox_id), Tenancy::account()),
+            ),
             // Howy's own mails to them that are on their way, not sent yet.
             'onTheirWay' => $colleague->outboundMails()
                 ->where('status', OutboundMailStatus::Pending)
