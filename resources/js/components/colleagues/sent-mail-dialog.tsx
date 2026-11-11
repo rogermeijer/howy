@@ -1,15 +1,13 @@
-import { Form, Link } from '@inertiajs/react';
-import { Reply, RotateCw } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { Reply } from 'lucide-react';
 import { type SyntheticEvent, useState } from 'react';
 import { BRAND_NAME } from '@/components/brand/brand';
 import { WithHowy } from '@/components/brand/howy-name';
 import { MailAvatar, MessageRow } from '@/components/mail/message-parts';
-import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -50,20 +48,14 @@ export function SentMailDialog({
         >
             {mail !== null && (
                 <DialogContent className="flex max-h-[calc(100svh-4rem)] flex-col gap-0 overflow-hidden rounded-2xl bg-cc-panel p-0 sm:max-w-[760px]">
-                    <OpenedMail mail={mail} onClose={onClose} />
+                    <OpenedMail mail={mail} />
                 </DialogContent>
             )}
         </Dialog>
     );
 }
 
-function OpenedMail({
-    mail,
-    onClose,
-}: {
-    mail: SentMail;
-    onClose: () => void;
-}) {
+function OpenedMail({ mail }: { mail: SentMail }) {
     const t = useTranslations();
     const formatDate = useFormatDate();
     const title = mail.subject || t('(no subject)');
@@ -171,28 +163,6 @@ function OpenedMail({
                     </ol>
                 )}
             </div>
-
-            {mail.canResend && (
-                <DialogFooter className="border-t border-cc-border px-7 py-4">
-                    <Form
-                        {...sentRoutes.resend.form(mail.id)}
-                        options={{ preserveScroll: true, preserveState: true }}
-                        onSuccess={onClose}
-                    >
-                        {({ processing }) => (
-                            <Button
-                                type="submit"
-                                variant="outline"
-                                className="h-10"
-                                disabled={processing}
-                            >
-                                <RotateCw />
-                                {t('Send again')}
-                            </Button>
-                        )}
-                    </Form>
-                </DialogFooter>
-            )}
         </>
     );
 }
