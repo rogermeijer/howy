@@ -6,6 +6,7 @@ use App\Http\Middleware\RequireAccountAdmin;
 use App\Http\Middleware\RequireSetUpAccount;
 use App\Http\Middleware\RequireSuperAdmin;
 use App\Http\Middleware\RequireTenantContext;
+use App\Http\Middleware\ResolveTenantFromMailLink;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantContext;
 use Illuminate\Foundation\Application;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'account.admin' => RequireAccountAdmin::class,
             'set-up' => RequireSetUpAccount::class,
             'super-admin' => RequireSuperAdmin::class,
+            'mail-link' => ResolveTenantFromMailLink::class,
         ]);
 
         $middleware->web(append: [

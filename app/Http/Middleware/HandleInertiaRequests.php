@@ -91,8 +91,17 @@ class HandleInertiaRequests extends Middleware
      */
     protected function translations(): array
     {
-        $locale = app()->getLocale();
+        return static::catalogue(app()->getLocale());
+    }
 
+    /**
+     * One locale's string catalogue: also for a page that is in another
+     * language than the request, such as one opened from a link in a mail.
+     *
+     * @return array<string, string>
+     */
+    public static function catalogue(string $locale): array
+    {
         return static::$translationCache[$locale] ??= Lang::getLoader()->load($locale, '*', '*');
     }
 }

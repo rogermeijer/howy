@@ -2063,5 +2063,17 @@
     "Send again: :mail": "Opnieuw versturen: :mail",
     "Planned :date": "Gepland :date",
     "Due": "Aan de beurt",
-    "Thank you for sharing. This is what I took from your email:": "Bedankt voor het delen. Dit haalde ik uit je mail:"
+    "Thank you for sharing. This is what I took from your email:": "Bedankt voor het delen. Dit haalde ik uit je mail:",
+    "This link has expired": "Deze link is verlopen",
+    "A new link is on its way to :recipient.": "Er is een nieuwe link onderweg naar :recipient.",
+    "Links in mails work for a while only. Ask for a new one and it goes to :recipient.": "Links in mails werken maar een tijdje. Vraag een nieuwe aan, dan gaat die naar :recipient.",
+    "Send me a new link": "Stuur me een nieuwe link",
+    "Howy cannot send mail right now. Try again later.": "Howy kan nu geen mail versturen. Probeer het later nog eens.",
+    "You are unsubscribed": "Je bent uitgeschreven",
+    "Unsubscribe from Howy mails?": "Uitschrijven voor Howy-mails?",
+    ":email gets no more welcome, tips or reminders from Howy. Answers to your own questions still come.": ":email krijgt geen welkom, tips of herinneringen meer van Howy. Antwoorden op je eigen vragen komen gewoon.",
+    "For :email: no more welcome, tips or reminders from Howy. Answers to your own questions still come.": "Voor :email: geen welkom, tips of herinneringen meer van Howy. Antwoorden op je eigen vragen komen gewoon.",
+    "Subscribe again": "Weer inschrijven",
+    "for :company": "voor :company",
+    "You asked for a new link a few times already. Try again in an hour.": "Je hebt al een paar keer een nieuwe link gevraagd. Probeer het over een uur nog eens."
 }

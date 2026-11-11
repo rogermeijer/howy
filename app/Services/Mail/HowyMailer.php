@@ -10,6 +10,7 @@ use App\Enums\OutboundSkipReason;
 use App\Enums\ReplyStatus;
 use App\Enums\SenderAccess;
 use App\Exceptions\MailboxNeedsReauthException;
+use App\Jobs\Adoption\DeliverOutboundMail;
 use App\Mail\Content\RenderedMail;
 use App\Models\Colleague;
 use App\Models\Email;
@@ -73,6 +74,30 @@ class HowyMailer
                 'List-Unsubscribe-Post' => $unsubscribeUrl !== null ? 'List-Unsubscribe=One-Click' : null,
             ]),
         ]);
+    }
+
+    /**
+     * A mail of Howy's to one address, from a mailbox, as a message of its
+     * own: a new link someone asked for on a page. Logged at once, and sent by
+     * a job.
+     */
+    public function toAddress(Mailbox $mailbox, string $recipient, OutboundMailKind $kind, RenderedMail $mail, ?Colleague $colleague = null): OutboundMail
+    {
+        $outbound = OutboundMail::query()->create([
+            'mailbox_id' => $mailbox->id,
+            'colleague_id' => $colleague?->id,
+            'kind' => $kind,
+            'status' => OutboundMailStatus::Pending,
+            'recipient' => strtolower($recipient),
+            'subject' => $mail->subject,
+            'text' => $mail->text,
+            'html' => $mail->html,
+            'headers' => ['Auto-Submitted' => 'auto-generated'],
+        ]);
+
+        DeliverOutboundMail::dispatch($outbound->id)->afterCommit();
+
+        return $outbound;
     }
 
     /**

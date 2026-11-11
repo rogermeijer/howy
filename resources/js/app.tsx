@@ -14,6 +14,7 @@ void createInertiaApp({
             // Public pages that bring their own chrome.
             case name === 'welcome':
             case name.startsWith('legal/'):
+            case name.startsWith('mail-links/'):
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;

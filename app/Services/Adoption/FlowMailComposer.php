@@ -38,7 +38,15 @@ class FlowMailComposer
         return $kind->isFlow();
     }
 
-    public function compose(Colleague $colleague, OutboundMailKind $kind, ?Email $about = null): RenderedMail
+    /**
+     * Their language: a member's own, else the account's.
+     */
+    public function localeFor(Colleague $colleague): string
+    {
+        return $colleague->user?->locale->value ?? Tenancy::account()->locale->value;
+    }
+
+    public function compose(Colleague $colleague, OutboundMailKind $kind, ?Email $about = null, ?string $unsubscribeUrl = null): RenderedMail
     {
         $home = $colleague->homeMailbox;
         $to = new FlowRecipient(
@@ -46,8 +54,9 @@ class FlowMailComposer
             $home?->access($colleague->email) ?? SenderAccess::Ignore,
             Tenancy::account()->name,
             (string) $home?->email_address,
+            $unsubscribeUrl,
         );
-        $locale = $colleague->user?->locale->value ?? Tenancy::account()->locale->value;
+        $locale = $this->localeFor($colleague);
 
         return $this->withLocale($locale, fn (): RenderedMail => $this->renderer->render(match ($kind) {
             OutboundMailKind::Welcome => $this->flow->welcome($to),

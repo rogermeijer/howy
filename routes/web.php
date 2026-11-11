@@ -20,6 +20,8 @@ use App\Http\Controllers\Knowledge\KnowledgeController;
 use App\Http\Controllers\Knowledge\KnowledgeSearchController;
 use App\Http\Controllers\Knowledge\KnowledgeTopicController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\MailLinks\MailLinkController;
+use App\Http\Controllers\MailLinks\UnsubscribeController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\Webhooks\GmailWebhookController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -172,6 +174,20 @@ Route::middleware(['auth'])->group(function () {
 Route::post('webhooks/gmail', GmailWebhookController::class)
     ->withoutMiddleware([PreventRequestForgery::class])
     ->name('webhooks.gmail');
+
+// Links in Howy's mails, opened without logging in. The account comes from the
+// link itself, a token only this app makes (ResolveTenantFromMailLink).
+Route::prefix('m')->name('mail-links.')->middleware('throttle:60,1')->group(function () {
+    Route::middleware('mail-link:unsubscribe')->group(function () {
+        Route::get('unsubscribe/{token}', [UnsubscribeController::class, 'show'])->name('unsubscribe.show');
+        // A mail client's one-click unsubscribe comes without a session.
+        Route::post('unsubscribe/{token}', [UnsubscribeController::class, 'store'])
+            ->withoutMiddleware([PreventRequestForgery::class])
+            ->name('unsubscribe.store');
+    });
+
+    Route::post('renew/{token}', [MailLinkController::class, 'renew'])->middleware('mail-link')->name('renew');
+});
 
 require __DIR__.'/settings.php';
 require __DIR__.'/admin.php';

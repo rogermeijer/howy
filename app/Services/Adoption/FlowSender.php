@@ -2,6 +2,7 @@
 
 namespace App\Services\Adoption;
 
+use App\Enums\MailLinkPurpose;
 use App\Enums\OutboundMailKind;
 use App\Enums\OutboundMailStatus;
 use App\Jobs\Adoption\DeliverOutboundMail;
@@ -9,6 +10,7 @@ use App\Models\Colleague;
 use App\Models\Email;
 use App\Models\OutboundMail;
 use App\Services\Mail\HowyMailer;
+use App\Services\Mail\MailLinks;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -24,6 +26,7 @@ class FlowSender
     public function __construct(
         private readonly HowyMailer $mailer,
         private readonly FlowMailComposer $composer,
+        private readonly MailLinks $links,
     ) {}
 
     /**
@@ -38,7 +41,8 @@ class FlowSender
                 return false;
             }
 
-            $mail = $this->mailer->logForColleague($colleague, $kind, $this->composer->compose($colleague, $kind, $about), $about);
+            $unsubscribe = $this->unsubscribeUrl($colleague);
+            $mail = $this->mailer->logForColleague($colleague, $kind, $this->composer->compose($colleague, $kind, $about, $unsubscribe), $about, $unsubscribe);
 
             DeliverOutboundMail::dispatch($mail->id)->afterCommit();
 
@@ -65,7 +69,8 @@ class FlowSender
                 return false;
             }
 
-            $fresh = $this->mailer->logForColleague($colleague, $mail->kind, $this->composer->compose($colleague, $mail->kind, $mail->email), $mail->email);
+            $unsubscribe = $this->unsubscribeUrl($colleague);
+            $fresh = $this->mailer->logForColleague($colleague, $mail->kind, $this->composer->compose($colleague, $mail->kind, $mail->email, $unsubscribe), $mail->email, $unsubscribe);
 
             DeliverOutboundMail::dispatch($fresh->id)->afterCommit();
 
@@ -83,6 +88,15 @@ class FlowSender
             && ($mail->kind !== OutboundMailKind::FirstSave || $mail->email_id !== null)
             && $mail->colleague_id !== null
             && in_array($mail->status, [OutboundMailStatus::Sent, OutboundMailStatus::Failed], true);
+    }
+
+    /**
+     * Their way out of Howy's own mails, in the footer and as the mail's
+     * List-Unsubscribe header. It never expires.
+     */
+    private function unsubscribeUrl(Colleague $colleague): string
+    {
+        return $this->links->url(MailLinkPurpose::Unsubscribe, $colleague->id, $colleague->email, $this->composer->localeFor($colleague));
     }
 
     /**

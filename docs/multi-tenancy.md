@@ -139,6 +139,28 @@ The bypass is kept as small as possible:
 `tests/Feature/Tenancy/WithoutTenancyGuardTest.php` pins the exception to that single file, so any other
 call under `app/` fails CI. Adding a second exception needs a written reason in that test and in CLAUDE.md.
 
+### The second source of an account: a link in a mail
+
+Pages opened from a link in one of Howy's mails (rating an answer, looking over what a mail added,
+unsubscribing) have no session: whoever opens them usually has no account. Their account comes from the
+link itself, which looks like it breaks rule 7, "never trust an `account_id` from user input". It does not,
+and this is why:
+
+- The link carries a token, not an id. `App\Services\Mail\MailLinks` makes it: the account, what the link
+  opens, whom it went to, its language and until when it works, as JSON, encrypted and authenticated with
+  AES-256-GCM under a key derived from the app key. Only this app can make one or read one; a changed byte does
+  not decrypt.
+- `ResolveTenantFromMailLink` (alias `mail-link`, optionally with the purpose a route expects) decrypts it and
+  calls `Tenancy::set()` with that account. A token this app did not issue, or one for another page, 404s.
+- After that everything goes through the normal scope: the record the link names is loaded with a scoped
+  query, so one that is not the account's 404s. There is no `withoutTenancy()` anywhere in it.
+- A form on such a page never posts an account or a record id: both come from the token in the URL.
+
+`tests/Feature/Tenancy/TenantSourceGuardTest.php` pins `Tenancy::set()` to `SetTenantContext` and this
+middleware, so a third way to pick an account fails CI. Adding one needs a written reason there and in
+CLAUDE.md. A link expires after `MAIL_LINK_HOURS` (48), except the one to unsubscribe; an expired one offers a
+new link by mail, sent only to whom the old one went, from the mailbox the mail came from.
+
 ### The one cross-account unique index: an active Gmail address
 
 A Gmail address is active in one account at most. Revoking a grant at Google, which disconnecting does,
@@ -189,8 +211,9 @@ someone forgot to update. It asserts:
 - every model using the trait sits on a table that has the column;
 - nothing under `app/` contains `withoutGlobalScope`.
 
-`WithoutTenancyGuardTest` separately asserts that the only `withoutTenancy()` call under `app/` is the one
-in the Gmail webhook.
+`WithoutTenancyGuardTest` separately asserts that the only `withoutTenancy()` calls under `app/` are the
+written exceptions, and `TenantSourceGuardTest` that only `SetTenantContext` and `ResolveTenantFromMailLink`
+call `Tenancy::set()`.
 
 It does **not** catch a tenant column named anything other than `account_id`, a hand-written
 `Route::bind()` closure, an overridden `resolveRouteBinding()`, or raw SQL. Those are covered by rules,
