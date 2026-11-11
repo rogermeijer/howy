@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Mail\Content\MailContent;
 use App\Mail\Content\MailRenderer;
+use App\Mail\Content\MailUrl;
 use App\Models\BetaAccessRequest;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -40,6 +41,6 @@ class BetaInvite extends Mailable implements ShouldQueue
 
     private function mail(): MailContent
     {
-        return app(SystemMails::class)->betaInvite($this->invite->code, route('register.invite', $this->invite->code));
+        return app(SystemMails::class)->betaInvite($this->invite->code, MailUrl::route('register.invite', $this->invite->code));
     }
 }

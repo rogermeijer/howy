@@ -25,7 +25,7 @@ class MailRenderer
         $parts = array_map(fn (array $block): string => self::plain($block['text']), $content->blocks());
 
         if ($content->footerReason() !== null) {
-            $footer = ['-- ', self::plain($content->footerReason()), __('Privacy policy: :url', ['url' => route('privacy-policy')])];
+            $footer = ['-- ', self::plain($content->footerReason()), __('Privacy policy: :url', ['url' => MailUrl::route('privacy-policy')])];
 
             if ($content->unsubscribeUrl() !== null) {
                 $footer[] = __('Unsubscribe: :url', ['url' => $content->unsubscribeUrl()]);

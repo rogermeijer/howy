@@ -7,6 +7,7 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Facades\Tenancy;
 use App\Mail\Content\MailContent;
 use App\Mail\Content\MailRenderer;
+use App\Mail\Content\MailUrl;
 use App\Mail\SystemMails;
 use App\Models\BetaAccessRequest;
 use App\Models\User;
@@ -20,6 +21,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use InvalidArgumentException;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 
@@ -58,9 +60,20 @@ class FortifyServiceProvider extends ServiceProvider
             return $this->mailMessage(app(SystemMails::class)->resetPassword(
                 $user?->name,
                 $email,
-                url(route('password.reset', ['token' => $token, 'email' => $email], false)),
+                MailUrl::route('password.reset', ['token' => $token, 'email' => $email]),
                 (int) config("auth.passwords.{$broker}.expire"),
             ));
+        });
+
+        // Signed for the address it is opened on: the public one (MailUrl).
+        VerifyEmail::createUrlUsing(function (mixed $notifiable): string {
+            $user = $notifiable instanceof User ? $notifiable : throw new InvalidArgumentException('Only a user verifies an address.');
+
+            return MailUrl::temporarySignedRoute(
+                'verification.verify',
+                now()->addMinutes((int) config('auth.verification.expire', 60)),
+                ['id' => $user->getKey(), 'hash' => sha1($user->getEmailForVerification())],
+            );
         });
 
         VerifyEmail::toMailUsing(function (mixed $notifiable, string $url): MailMessage {

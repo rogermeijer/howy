@@ -5,6 +5,7 @@ namespace App\Mail\Previews;
 use App\Enums\SenderAccess;
 use App\Mail\Content\MailContent;
 use App\Mail\Content\MailRenderer;
+use App\Mail\Content\MailUrl;
 use App\Mail\Content\RenderedMail;
 use App\Mail\Flow\FlowMails;
 use App\Mail\Flow\FlowRecipient;
@@ -84,7 +85,7 @@ class MailPreviews
      */
     private function previews(): array
     {
-        $link = route('home');
+        $link = MailUrl::route('home');
 
         return [
             $this->content('welcome', 'flow', '01 · Welcome', fn (SenderAccess $access): MailContent => $this->flow->welcome($this->recipient($access))),
@@ -180,7 +181,7 @@ class MailPreviews
 
     private function recipient(SenderAccess $access): FlowRecipient
     {
-        return new FlowRecipient('Sanne de Vries', $access, self::ACCOUNT, self::ADDRESS, route('home'));
+        return new FlowRecipient('Sanne de Vries', $access, self::ACCOUNT, self::ADDRESS, MailUrl::route('home'));
     }
 
     /**

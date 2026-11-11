@@ -56,6 +56,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Public URL
+    |--------------------------------------------------------------------------
+    |
+    | Where people outside can reach the app, for the links in the mails it
+    | sends (App\Mail\Content\MailUrl). Unset, the links use APP_URL. Set it
+    | locally, where APP_URL is a .test host: a spam filter drops a mail that
+    | links to a domain that does not exist.
+    |
+    */
+
+    'public_url' => env('APP_PUBLIC_URL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

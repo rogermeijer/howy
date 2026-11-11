@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Mail\Content\MailContent;
 use App\Mail\Content\MailRenderer;
+use App\Mail\Content\MailUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -44,6 +45,6 @@ class MailboxNeedsReconnecting extends Mailable implements ShouldQueue
 
     private function mail(): MailContent
     {
-        return app(SystemMails::class)->mailboxNeedsReconnecting($this->address, $this->accountName, route('settings'));
+        return app(SystemMails::class)->mailboxNeedsReconnecting($this->address, $this->accountName, MailUrl::route('settings'));
     }
 }

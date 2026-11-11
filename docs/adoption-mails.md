@@ -81,6 +81,10 @@ is safe to run again.
   account and address under it. The footer says why the reader got the mail, with the privacy policy and,
   for flow mails, the way out.
 - **Always a text part**, from the same blocks.
+- **Links a recipient can open.** Every link in a mail is built with `MailUrl`, on `APP_PUBLIC_URL` when set,
+  else `APP_URL`; a signed link is signed for that address. Locally `APP_URL` is a `.test` host: a welcome
+  linking to `howyknows.test` was silently dropped by the recipient's spam filter (11 November 2026), while
+  the same mail linking to the real domain arrived. Set `APP_PUBLIC_URL` to the ngrok address there.
 - **Only what the reader's access allows.** Someone Howy only learns from is never told to ask it something,
   and gets a note saying so; someone it only answers is never told to copy it in.
 - **Cc and To as Howy actually treats them.** In Cc, Howy listens and learns, and stays quiet: nobody on the

@@ -98,7 +98,7 @@ a { color: #2f6b1f; }
 <tr>
 <td class="hm-px hm-faint" style="padding: 20px 40px 0; font-size: 12px; line-height: 18px; color: #84919a;">
 {{ \App\Mail\Content\MailRenderer::inline($reason) }}<br>
-<a class="hm-faint" href="{{ route('privacy-policy') }}" style="color: #84919a; text-decoration: underline;">{{ __('Privacy policy') }}</a>@if ($unsubscribeUrl) &nbsp;·&nbsp; <a class="hm-faint" href="{{ $unsubscribeUrl }}" style="color: #84919a; text-decoration: underline;">{{ __('Unsubscribe from these emails') }}</a>@endif
+<a class="hm-faint" href="{{ \App\Mail\Content\MailUrl::route('privacy-policy') }}" style="color: #84919a; text-decoration: underline;">{{ __('Privacy policy') }}</a>@if ($unsubscribeUrl) &nbsp;·&nbsp; <a class="hm-faint" href="{{ $unsubscribeUrl }}" style="color: #84919a; text-decoration: underline;">{{ __('Unsubscribe from these emails') }}</a>@endif
 </td>
 </tr>
 </table>
