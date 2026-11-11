@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -41,7 +42,7 @@ class SentMailController extends Controller
             ->when($status !== null, fn (Builder $query) => $query->where('status', $status))
             ->when($from !== null, fn (Builder $query) => $query->where('created_at', '>=', $from?->copy()->startOfDay()->utc()))
             ->when($until !== null, fn (Builder $query) => $query->where('created_at', '<=', $until?->copy()->endOfDay()->utc()))
-            ->with(['colleague:id,name,email', 'mailbox:id,email_address,status', 'replies:id,outbound_mail_id'])
+            ->with(self::loads())
             ->latest('id')
             ->paginate(50)
             ->withQueryString()
@@ -63,12 +64,16 @@ class SentMailController extends Controller
 
     /**
      * A logged mail as its recipient got it: the HTML, for the log to show in
-     * a frame. Nothing in it runs or loads from elsewhere, and only this app
-     * may frame it.
+     * a frame once it is opened, or the text where no HTML was kept. Nothing
+     * in it runs or loads from elsewhere, and only this app may frame it.
      */
     public function mail(OutboundMail $outboundMail): HttpResponse
     {
-        return response($outboundMail->html, 200, [
+        $html = filled($outboundMail->html)
+            ? $outboundMail->html
+            : '<!doctype html><meta charset="utf-8"><body style="margin:0;padding:24px;font:15px/1.6 Helvetica,Arial,sans-serif;color:#0d1b1e;white-space:pre-wrap">'.e((string) $outboundMail->text).'</body>';
+
+        return response($html, 200, [
             'Content-Type' => 'text/html; charset=UTF-8',
             'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'",
             'X-Frame-Options' => 'SAMEORIGIN',
@@ -86,6 +91,22 @@ class SentMailController extends Controller
             : ['type' => 'error', 'message' => __('This mail cannot be sent again now.')]);
 
         return back();
+    }
+
+    /**
+     * What the mail log loads with each mail: who wrote back and what the
+     * mail answers, never what it says, which loads once the mail is opened.
+     *
+     * @return array<int|string, string>
+     */
+    public static function loads(): array
+    {
+        return [
+            'colleague:id,name,email',
+            'mailbox:id,email_address,status',
+            'email:id,subject',
+            'replies:id,outbound_mail_id,from_name,from_email,snippet,received_at',
+        ];
     }
 
     /**
@@ -108,9 +129,20 @@ class SentMailController extends Controller
             'statusLabel' => $mail->status->label(),
             'reason' => $mail->skip_reason?->label() ?? $mail->error ?? self::waitingFor($mail),
             'subject' => $mail->subject,
-            'text' => $mail->text,
-            'emailId' => $mail->email_id,
-            'replyIds' => $mail->replies->map(fn (Email $email): int => $email->id)->values()->all(),
+            // Something to show once it is opened: the HTML, or else the text.
+            'hasContent' => filled($mail->html) || filled($mail->text),
+            'answers' => $mail->email !== null ? ['id' => $mail->email->id, 'subject' => $mail->email->subject] : null,
+            'replies' => $mail->replies
+                ->sortBy('received_at')
+                ->map(fn (Email $email): array => [
+                    'id' => $email->id,
+                    'fromName' => $email->from_name,
+                    'fromEmail' => $email->from_email,
+                    'snippet' => Str::limit(Str::squish(html_entity_decode((string) $email->snippet, ENT_QUOTES | ENT_HTML5)), 120),
+                    'receivedAt' => $email->received_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all(),
             'canResend' => FlowSender::resendable($mail),
             'createdAt' => $mail->created_at?->toIso8601String(),
             'sentAt' => $mail->sent_at?->toIso8601String(),

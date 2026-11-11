@@ -48,6 +48,20 @@ trait ColleagueValidationRules
     }
 
     /**
+     * One change to a colleague, from where it shows on their page: the name,
+     * the mailbox their Howy mails come from or the switch, each on its own.
+     *
+     * @return array<string, array<int, ValidationRule|array<mixed>|string|Closure>>
+     */
+    protected function colleagueChangeRules(): array
+    {
+        return array_map(
+            fn (array $rules): array => ['sometimes', ...array_filter($rules, fn (mixed $rule): bool => $rule !== 'sometimes')],
+            $this->colleagueRules(),
+        );
+    }
+
+    /**
      * A rule of their own on a mailbox, or "default": none, so the rule for
      * their domain decides.
      *

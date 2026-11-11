@@ -9,14 +9,14 @@
 @foreach ($conflicts as $conflict)
 <table role="presentation" class="hm-card" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 24px; background-color: #ffffff; border: 1px solid #e3e8e6; border-radius: 12px;">
 <tr>
-<td class="hm-line" style="padding: 18px 20px; border-bottom: 1px solid #e3e8e6;">
+<td style="padding: 18px 20px;">
 @include('mail.cc.partials.label', ['text' => __('You wrote'), 'color' => '#2f6b1f', 'class' => 'hm-deep'])
 <div class="hm-ink" style="font-size: 16px; line-height: 25px; color: #0d1b1e;">{{ $conflict['statement'] }}</div>
 </td>
 </tr>
 @if ($conflict['existing'])
 <tr>
-<td class="hm-raised hm-line" style="padding: 18px 20px; background-color: #f4f6f5; border-bottom: 1px solid #e3e8e6;">
+<td class="hm-raised hm-line" style="padding: 18px 20px; background-color: #f4f6f5; border-top: 1px solid #e3e8e6;@unless ($conflict['explanation']) border-radius: 0 0 11px 11px;@endunless">
 @include('mail.cc.partials.label', ['text' => __('The knowledge base says')])
 <div class="hm-ink" style="font-size: 16px; line-height: 25px; color: #0d1b1e;">{{ $conflict['existing'] }}</div>
 @if ($conflict['source'])
@@ -27,7 +27,7 @@
 @endif
 @if ($conflict['explanation'])
 <tr>
-<td class="hm-muted" style="padding: 16px 20px; font-size: 14px; line-height: 22px; color: #55636a;">{{ $conflict['explanation'] }}</td>
+<td class="hm-muted hm-line" style="padding: 16px 20px; border-top: 1px solid #e3e8e6; font-size: 14px; line-height: 22px; color: #55636a;">{{ $conflict['explanation'] }}</td>
 </tr>
 @endif
 </table>

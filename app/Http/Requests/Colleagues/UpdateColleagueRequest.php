@@ -14,6 +14,6 @@ class UpdateColleagueRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->colleagueRules();
+        return $this->colleagueChangeRules();
     }
 }

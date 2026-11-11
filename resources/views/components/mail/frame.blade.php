@@ -7,6 +7,10 @@
     Light is the base; clients that honour prefers-color-scheme (Apple Mail,
     iOS, Outlook for Mac) get the dark tokens through the hm-* classes, and
     clients that invert colours themselves have no image to spoil.
+
+    Tables keep their borders separate, never collapsed: a collapsed table
+    ignores border-radius and draws a square border round a rounded card. So a
+    line inside a bordered card sits on top of a row, never under the last.
 --}}
 @props([
     'title' => '',
@@ -38,7 +42,7 @@
 <style>
 :root { color-scheme: light dark; supported-color-schemes: light dark; }
 body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
-table { border-collapse: collapse; }
+table { border-collapse: separate; border-spacing: 0; }
 a { color: #2f6b1f; }
 @media only screen and (max-width: 620px) {
     .hm-px { padding-left: 24px !important; padding-right: 24px !important; }

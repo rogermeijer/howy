@@ -1,25 +1,18 @@
-import { RotateCw } from 'lucide-react';
-import { Form, Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { WithHowy } from '@/components/brand/howy-name';
-import { PageHeader } from '@/components/cc/page-header';
 import { Section } from '@/components/cc/section';
-import {
-    ColleagueStatusTag,
-    useActivityLine,
-} from '@/components/colleagues/colleague-status';
+import { ColleagueHeader } from '@/components/colleagues/colleague-header';
+import { useActivityLine } from '@/components/colleagues/colleague-status';
+import { HowyMailsProgress } from '@/components/colleagues/howy-mails-progress';
 import { SentMailList } from '@/components/colleagues/sent-mail-list';
-import InputError from '@/components/input-error';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { shownEntry } from '@/components/mailboxes/sender-badge';
 import {
     AccessTag,
     useAccessLooks,
 } from '@/components/mailboxes/sender-access';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -30,9 +23,8 @@ import {
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
 import { ACCESSES } from '@/lib/mailbox-rules';
-import { index, update, welcome } from '@/routes/colleagues';
+import { cn } from '@/lib/utils';
 import colleagueAccess from '@/routes/colleagues/access';
-import sentRoutes from '@/routes/colleagues/sent';
 import { show as showEmail } from '@/routes/emails';
 import type {
     ColleagueDetail,
@@ -56,7 +48,16 @@ type Props = {
     resendable: Record<string, number>;
     /** When the follow-ups to the welcome are due; null for one that will not come. */
     planned: { how_it_works: string | null; nudge: string | null };
+    isLive: boolean;
+    /** Working days after the welcome for each follow-up. */
+    followUpDays: { how_it_works: number; nudge: number };
 };
+
+type Tab = 'overview' | 'activity' | 'log';
+
+/** Howy's own mails, as against its answers. */
+const FLOW_KINDS = ['welcome', 'how_it_works', 'first_save', 'nudge'];
+const REPLY_KINDS = ['answer', 'not_found', 'conflict'];
 
 export default function Colleague({
     colleague,
@@ -68,56 +69,17 @@ export default function Colleague({
     onTheirWay,
     resendable,
     planned,
+    isLive,
+    followUpDays,
 }: Props) {
     const t = useTranslations();
-    const formatDate = useFormatDate();
     const activity = useActivityLine();
-    const [receivesMail, setReceivesMail] = useState(colleague.receivesMail);
+    const [tab, setTab] = useState<Tab>('overview');
 
-    const date = (value: string | null) =>
-        value === null ? null : formatDate(value, { dateStyle: 'medium' });
-
-    // Past its date, it goes with the next round in working time.
-    const plannedOn = (at: string | null): string | null =>
-        at === null
-            ? null
-            : new Date(at) <= new Date()
-              ? t('Due')
-              : t('Planned :date', {
-                    date: formatDate(at, {
-                        dateStyle: undefined,
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short',
-                    }),
-                });
-
-    // What their Howy mails have done so far, in order.
-    const steps = [
-        {
-            kind: 'welcome',
-            label: t('Welcome'),
-            at: colleague.welcomedAt,
-            planned: null,
-        },
-        {
-            kind: 'how_it_works',
-            label: t('How Howy works'),
-            at: colleague.explainedAt,
-            planned: plannedOn(planned.how_it_works),
-        },
-        {
-            kind: 'first_save',
-            label: t('Thanks for the first contribution'),
-            at: colleague.firstSavedAt,
-            planned: null,
-        },
-        {
-            kind: 'nudge',
-            label: t('Reminder to share'),
-            at: colleague.nudgedAt,
-            planned: plannedOn(planned.nudge),
-        },
+    const tabs: { key: Tab; label: string; count: number | null }[] = [
+        { key: 'overview', label: t('Overview'), count: null },
+        { key: 'activity', label: t('Activity'), count: colleague.emailsCount },
+        { key: 'log', label: t('Mail log'), count: sent.length },
     ];
 
     return (
@@ -125,351 +87,241 @@ export default function Colleague({
             <Head title={colleague.name ?? colleague.email} />
 
             <div className="flex flex-col gap-7">
-                <PageHeader
-                    title={colleague.name ?? colleague.email}
-                    breadcrumb={
-                        <div className="cc-caption flex items-center gap-2">
-                            <Link
-                                href={index()}
-                                className="text-cc-subtle transition-colors hover:text-cc-ink"
-                            >
-                                {t('Colleagues')}
-                            </Link>
-                            <span>/</span>
-                            <span className="truncate font-medium text-cc-ink">
-                                {colleague.name ?? colleague.email}
-                            </span>
-                        </div>
+                <ColleagueHeader colleague={colleague} />
+
+                <HowyMailsProgress
+                    colleague={colleague}
+                    home={
+                        access.find(
+                            (item) =>
+                                item.mailboxId === colleague.homeMailboxId,
+                        ) ?? null
                     }
-                    description={
-                        <span className="flex flex-wrap items-center gap-2">
-                            {colleague.email}
-                            {colleague.user !== null && (
-                                <span className="cc-tag cc-tag-action">
-                                    {t('Member')}
-                                </span>
-                            )}
-                        </span>
-                    }
+                    mailboxes={mailboxes}
+                    planned={planned}
+                    onTheirWay={onTheirWay}
+                    resendable={resendable}
+                    sent={sent}
+                    canWelcome={canWelcome}
+                    isLive={isLive}
+                    followUpDays={followUpDays}
+                    onShowLog={() => setTab('log')}
                 />
 
-                <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
-                    <div className="flex flex-col gap-7">
-                        <Section
-                            title={t('What Howy does with their mail')}
-                            description={
-                                <WithHowy
-                                    text={t(
-                                        'Per mailbox: a rule of their own, or the rule for their domain.',
-                                    )}
-                                />
-                            }
-                        >
-                            {access.length === 0 ? (
-                                <p className="cc-caption">
-                                    {t('No mailbox is connected yet.')}
-                                </p>
-                            ) : (
-                                <ul className="flex flex-col divide-y divide-cc-border">
-                                    {access.map((item) => (
-                                        <MailboxAccessRow
-                                            key={item.mailboxId}
-                                            colleagueId={colleague.id}
-                                            item={item}
-                                        />
-                                    ))}
-                                </ul>
-                            )}
-                        </Section>
-
-                        <Section
-                            title={t('Activity')}
-                            description={activity(colleague)}
-                        >
-                            {emails.length === 0 ? (
-                                <p className="cc-caption">
-                                    <WithHowy
-                                        text={t(
-                                            'No mail from them has reached Howy yet.',
-                                        )}
-                                    />
-                                </p>
-                            ) : (
-                                <ul className="-mx-2 flex flex-col">
-                                    {emails.map((email) => (
-                                        <li key={email.id}>
-                                            <Link
-                                                href={showEmail(email.id)}
-                                                className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[10px] px-2 py-2.5 transition-colors hover:bg-cc-bg"
-                                            >
-                                                <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium">
-                                                    {email.subject ||
-                                                        t('(no subject)')}
-                                                </span>
-                                                <InterpretationTag
-                                                    interpretation={
-                                                        email.interpretation
-                                                    }
-                                                />
-                                                <span className="cc-caption w-[100px] text-right">
-                                                    {date(email.receivedAt)}
-                                                </span>
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </Section>
-
-                        <Section
-                            title={t('Mails from Howy')}
-                            description={
-                                <WithHowy
-                                    text={t(
-                                        'What Howy sent them, or held back, newest first.',
-                                    )}
-                                />
-                            }
-                            className="pb-2 lg:pb-3"
-                        >
-                            {sent.length === 0 ? (
-                                <p className="cc-caption pb-4">
-                                    <WithHowy
-                                        text={t(
-                                            'Howy has not sent them anything yet.',
-                                        )}
-                                    />
-                                </p>
-                            ) : (
-                                <div className="-mx-6 lg:-mx-8">
-                                    <SentMailList
-                                        mails={sent}
-                                        showRecipient={false}
-                                    />
-                                </div>
-                            )}
-                        </Section>
+                <div className="flex flex-col gap-7">
+                    <div
+                        role="tablist"
+                        aria-label={t('About this colleague')}
+                        className="flex gap-1 overflow-x-auto border-b border-cc-border"
+                    >
+                        {tabs.map((item) => (
+                            <button
+                                key={item.key}
+                                type="button"
+                                role="tab"
+                                id={`colleague-tab-${item.key}`}
+                                aria-selected={tab === item.key}
+                                aria-controls="colleague-tab-panel"
+                                onClick={() => setTab(item.key)}
+                                className={cn(
+                                    '-mb-px flex h-11 shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 text-sm transition-colors',
+                                    tab === item.key
+                                        ? 'border-cc-accent font-semibold text-cc-ink'
+                                        : 'border-transparent font-medium text-cc-subtle hover:text-cc-ink',
+                                )}
+                            >
+                                {item.label}
+                                {item.count !== null && (
+                                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-cc-raised px-1.5 text-[11px] font-semibold text-cc-ink">
+                                        {item.count}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
                     </div>
 
-                    <div className="flex flex-col gap-7">
-                        <Section title={t('Details')}>
-                            <Form
-                                {...update.form(colleague.id)}
-                                options={{ preserveScroll: true }}
-                                className="flex flex-col gap-5"
-                            >
-                                {({ processing, errors }) => (
-                                    <>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="name">
-                                                {t('Name')}
-                                            </Label>
-                                            <Input
-                                                id="name"
-                                                name="name"
-                                                defaultValue={
-                                                    colleague.name ?? ''
-                                                }
-                                                className="h-11"
-                                            />
-                                            <InputError message={errors.name} />
-                                        </div>
-
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="home-mailbox">
-                                                {t('Howy mails come from')}
-                                            </Label>
-                                            <Select
-                                                name="home_mailbox_id"
-                                                defaultValue={
-                                                    colleague.homeMailboxId !==
-                                                    null
-                                                        ? String(
-                                                              colleague.homeMailboxId,
-                                                          )
-                                                        : undefined
-                                                }
-                                            >
-                                                <SelectTrigger
-                                                    id="home-mailbox"
-                                                    className="h-11 w-full"
-                                                >
-                                                    <SelectValue
-                                                        placeholder={t(
-                                                            'Choose a mailbox',
-                                                        )}
-                                                    />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {mailboxes.map(
-                                                        (mailbox) => (
-                                                            <SelectItem
-                                                                key={mailbox.id}
-                                                                value={String(
-                                                                    mailbox.id,
-                                                                )}
-                                                            >
-                                                                {
-                                                                    mailbox.emailAddress
-                                                                }
-                                                            </SelectItem>
-                                                        ),
-                                                    )}
-                                                </SelectContent>
-                                            </Select>
-                                            <InputError
-                                                message={errors.home_mailbox_id}
-                                            />
-                                        </div>
-
-                                        <label className="flex items-start gap-3 rounded-xl border border-cc-border px-3.5 py-3">
-                                            <input
-                                                type="hidden"
-                                                name="receives_mail"
-                                                value={receivesMail ? '1' : '0'}
-                                            />
-                                            <Checkbox
-                                                checked={receivesMail}
-                                                onCheckedChange={(on) =>
-                                                    setReceivesMail(on === true)
-                                                }
-                                                className="mt-0.5 size-[18px] border-[1.5px] border-cc-border-strong bg-cc-panel"
-                                            />
-                                            <span className="flex flex-col gap-0.5">
-                                                <span className="text-[14px] font-semibold">
-                                                    {t('Receives Howy mails')}
-                                                </span>
-                                                <span className="cc-caption">
-                                                    <WithHowy
-                                                        text={t(
-                                                            'Answers to their own questions always go out.',
-                                                        )}
-                                                    />
-                                                </span>
-                                            </span>
-                                        </label>
-
-                                        <Button
-                                            type="submit"
-                                            className="h-11 self-start px-[18px]"
-                                            disabled={processing}
-                                        >
-                                            {t('Save')}
-                                        </Button>
-                                    </>
-                                )}
-                            </Form>
-                        </Section>
-
-                        <Section
-                            title={t('Howy mails')}
-                            action={
-                                <ColleagueStatusTag status={colleague.status} />
-                            }
-                        >
-                            <ol className="flex flex-col gap-2.5">
-                                {steps.map((step) => (
-                                    <li
-                                        key={step.label}
-                                        className="flex items-center justify-between gap-3 text-[14px]"
-                                    >
-                                        <span
-                                            className={
-                                                step.at === null
-                                                    ? 'text-cc-subtle'
-                                                    : 'font-medium'
-                                            }
-                                        >
-                                            {step.label}
-                                        </span>
-                                        <span className="flex shrink-0 items-center gap-2">
-                                            <span className="cc-caption whitespace-nowrap">
-                                                {onTheirWay.includes(step.kind)
-                                                    ? t('On its way')
-                                                    : (date(step.at) ??
-                                                      step.planned ??
-                                                      t('Not yet'))}
-                                            </span>
-                                            {resendable[step.kind] !==
-                                                undefined &&
-                                                !onTheirWay.includes(
-                                                    step.kind,
-                                                ) && (
-                                                    <Form
-                                                        {...sentRoutes.resend.form(
-                                                            resendable[
-                                                                step.kind
-                                                            ],
-                                                        )}
-                                                        options={{
-                                                            preserveScroll: true,
-                                                        }}
-                                                    >
-                                                        {({ processing }) => (
-                                                            <Button
-                                                                type="submit"
-                                                                variant="outline"
-                                                                size="icon"
-                                                                disabled={
-                                                                    processing
-                                                                }
-                                                                title={t(
-                                                                    'Send again',
-                                                                )}
-                                                                aria-label={t(
-                                                                    'Send again: :mail',
-                                                                    {
-                                                                        mail: step.label,
-                                                                    },
-                                                                )}
-                                                                className="size-7 rounded-full border-cc-border-strong text-cc-subtle hover:text-cc-ink"
-                                                            >
-                                                                <RotateCw className="size-3.5" />
-                                                            </Button>
-                                                        )}
-                                                    </Form>
-                                                )}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ol>
-                            {canWelcome && (
-                                <Form
-                                    {...welcome.form(colleague.id)}
-                                    options={{ preserveScroll: true }}
+                    <div
+                        id="colleague-tab-panel"
+                        role="tabpanel"
+                        aria-labelledby={`colleague-tab-${tab}`}
+                    >
+                        {tab === 'overview' && (
+                            <div className="grid items-start gap-7 xl:grid-cols-2">
+                                <Section
+                                    title={t('What Howy does with their mail')}
+                                    description={
+                                        <WithHowy
+                                            text={t(
+                                                'Per mailbox: a rule of their own, or the rule for their domain.',
+                                            )}
+                                        />
+                                    }
                                 >
-                                    {({ processing }) => (
-                                        <Button
-                                            type="submit"
-                                            variant="outline"
-                                            className="h-10"
-                                            disabled={processing}
-                                        >
-                                            {t('Send the welcome mail now')}
-                                        </Button>
+                                    {access.length === 0 ? (
+                                        <p className="cc-caption">
+                                            {t('No mailbox is connected yet.')}
+                                        </p>
+                                    ) : (
+                                        <ul className="flex flex-col divide-y divide-cc-border">
+                                            {access.map((item) => (
+                                                <MailboxAccessRow
+                                                    key={item.mailboxId}
+                                                    colleagueId={colleague.id}
+                                                    item={item}
+                                                />
+                                            ))}
+                                        </ul>
                                     )}
-                                </Form>
-                            )}
-                            {colleague.optedOutAt !== null && (
-                                <p className="cc-caption">
-                                    {t('Unsubscribed on :date.', {
-                                        date: date(colleague.optedOutAt) ?? '',
-                                    })}
-                                </p>
-                            )}
-                            <p className="cc-caption">
-                                {colleague.firstSeenAt !== null
-                                    ? t('First mail to Howy on :date.', {
-                                          date:
-                                              date(colleague.firstSeenAt) ?? '',
-                                      })
-                                    : t('Has not mailed Howy yet.')}
-                            </p>
-                        </Section>
+                                </Section>
+
+                                <Section
+                                    title={t('Recent activity')}
+                                    description={activity(colleague)}
+                                    action={
+                                        emails.length > 3 && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setTab('activity')
+                                                }
+                                                className="inline-flex h-9 cursor-pointer items-center gap-1.5 text-[13px] font-semibold text-cc-ink"
+                                            >
+                                                {t('All mails')}
+                                                <ArrowRight className="size-[15px]" />
+                                            </button>
+                                        )
+                                    }
+                                >
+                                    <EmailList emails={emails.slice(0, 3)} />
+                                </Section>
+                            </div>
+                        )}
+
+                        {tab === 'activity' && (
+                            <Section
+                                title={t('Their mails to Howy')}
+                                description={activity(colleague)}
+                            >
+                                <EmailList emails={emails} />
+                            </Section>
+                        )}
+
+                        {tab === 'log' && <MailLog sent={sent} />}
                     </div>
                 </div>
             </div>
         </>
+    );
+}
+
+/**
+ * Their mails to Howy, newest first, each with what Howy made of it.
+ */
+function EmailList({ emails }: { emails: ColleagueEmail[] }) {
+    const t = useTranslations();
+    const formatDate = useFormatDate();
+
+    if (emails.length === 0) {
+        return (
+            <p className="cc-caption">
+                <WithHowy text={t('No mail from them has reached Howy yet.')} />
+            </p>
+        );
+    }
+
+    return (
+        <ul className="-mx-2 flex flex-col">
+            {emails.map((email) => (
+                <li key={email.id}>
+                    <Link
+                        href={showEmail(email.id)}
+                        className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[10px] px-2 py-2.5 transition-colors hover:bg-cc-bg"
+                    >
+                        <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium">
+                            {email.subject || t('(no subject)')}
+                        </span>
+                        <InterpretationTag
+                            interpretation={email.interpretation}
+                        />
+                        <span className="cc-caption w-[100px] text-right">
+                            {email.receivedAt !== null &&
+                                formatDate(email.receivedAt)}
+                        </span>
+                    </Link>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+/**
+ * Everything Howy sent them, or held back, newest first: all of it, its own
+ * mails, or its answers.
+ */
+function MailLog({ sent }: { sent: SentMail[] }) {
+    const t = useTranslations();
+    const [filter, setFilter] = useState<'all' | 'flow' | 'replies'>('all');
+
+    const filters = [
+        { key: 'all', label: t('All') },
+        { key: 'flow', label: t('Howy mails') },
+        { key: 'replies', label: t('Answers to their questions') },
+    ] as const;
+
+    const shown = sent.filter((mail) =>
+        filter === 'flow'
+            ? FLOW_KINDS.includes(mail.kind)
+            : filter === 'replies'
+              ? REPLY_KINDS.includes(mail.kind)
+              : true,
+    );
+
+    return (
+        <Section
+            title={t('Mail log')}
+            description={
+                <WithHowy
+                    text={t('What Howy sent them, or held back, newest first.')}
+                />
+            }
+            action={
+                sent.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                        {filters.map((item) => (
+                            <button
+                                key={item.key}
+                                type="button"
+                                aria-pressed={filter === item.key}
+                                onClick={() => setFilter(item.key)}
+                                className={cn(
+                                    'cc-pill',
+                                    filter === item.key && 'cc-pill-active',
+                                )}
+                            >
+                                <WithHowy text={item.label} />
+                            </button>
+                        ))}
+                    </div>
+                )
+            }
+            className="pb-2 lg:pb-3"
+        >
+            {shown.length === 0 ? (
+                <p className="cc-caption pb-4">
+                    <WithHowy
+                        text={
+                            sent.length === 0
+                                ? t('Howy has not sent them anything yet.')
+                                : t('Nothing of this kind yet.')
+                        }
+                    />
+                </p>
+            ) : (
+                <div className="-mx-6 lg:-mx-8">
+                    <SentMailList mails={shown} showRecipient={false} />
+                </div>
+            )}
+        </Section>
     );
 }
 
@@ -503,7 +355,7 @@ function MailboxAccessRow({
                 mailbox: item.mailboxId,
             }),
             { access: value },
-            { preserveScroll: true },
+            { preserveScroll: true, preserveState: true },
         );
 
     return (

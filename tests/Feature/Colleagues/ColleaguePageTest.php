@@ -211,6 +211,49 @@ class ColleaguePageTest extends TestCase
         $this->assertFalse($anna->receives_mail);
     }
 
+    public function test_each_part_of_a_colleague_changes_on_its_own_where_it_shows(): void
+    {
+        $support = Tenancy::for($this->account, fn () => Mailbox::factory()->create(['email_address' => 'support@noordkade.nl']));
+        $theirs = Tenancy::for(Account::factory()->create(), fn () => Mailbox::factory()->create(['email_address' => 'kennis@elders.nl']));
+        $anna = $this->colleague('anna@noordkade.nl');
+
+        // The name in the header, the switch beside it, the mailbox in the card.
+        $this->actingAs($this->admin)->patch(route('colleagues.update', $anna), ['name' => 'Anna de Boer'])->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->patch(route('colleagues.update', $anna), ['receives_mail' => false])->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->patch(route('colleagues.update', $anna), ['home_mailbox_id' => $support->id])->assertSessionHasNoErrors();
+
+        $anna = Tenancy::for($this->account, fn () => $anna->refresh());
+        $this->assertSame('Anna de Boer', $anna->name);
+        $this->assertFalse($anna->receives_mail);
+        $this->assertSame($support->id, $anna->home_mailbox_id);
+
+        // Back to no name, and never another account's mailbox.
+        $this->actingAs($this->admin)->patch(route('colleagues.update', $anna), ['name' => ''])->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->patch(route('colleagues.update', $anna), ['home_mailbox_id' => $theirs->id])->assertSessionHasErrors('home_mailbox_id');
+
+        $anna = Tenancy::for($this->account, fn () => $anna->refresh());
+        $this->assertNull($anna->name);
+        $this->assertSame($support->id, $anna->home_mailbox_id);
+    }
+
+    public function test_the_page_says_whether_howy_is_live_and_when_the_follow_ups_come(): void
+    {
+        config(['adoption.how_it_works_after_workdays' => 3, 'adoption.nudge_after_workdays' => 7]);
+        $anna = $this->colleague('anna@noordkade.nl');
+
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.show', $anna))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('isLive', false)
+                ->where('followUpDays', ['how_it_works' => 3, 'nudge' => 7]));
+
+        $this->account->forceFill(['live_at' => now()])->save();
+
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.show', $anna))
+            ->assertInertia(fn (Assert $page) => $page->where('isLive', true));
+    }
+
     public function test_access_per_mailbox_is_a_rule_of_their_own_or_none(): void
     {
         $anna = $this->colleague('anna@noordkade.nl');

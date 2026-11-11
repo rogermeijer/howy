@@ -72,7 +72,7 @@ class SentMailPageTest extends TestCase
                 ->where('mails.data.1.status', 'sent')
                 ->where('mails.data.1.colleague', ['id' => $this->anna->id, 'name' => 'Anna de Boer'])
                 ->where('mails.data.1.mailbox', 'howy@noordkade.nl')
-                ->where('mails.data.1.replyIds', [$reply->id]));
+                ->where('mails.data.1.replies.0.id', $reply->id));
 
         // A colleague's page lists what Howy sent them.
         $this->actingAs($this->admin)
@@ -168,6 +168,42 @@ class SentMailPageTest extends TestCase
 
         Queue::assertNothingPushed();
         $this->assertSame(2, Tenancy::for($this->account, fn () => OutboundMail::query()->count()));
+    }
+
+    public function test_the_log_carries_who_wrote_back_and_what_a_mail_answers_but_not_what_it_says(): void
+    {
+        $welcome = $this->mail(['kind' => OutboundMailKind::Welcome, 'subject' => 'Welkom bij Howy', 'html' => '<p>Hoi Anna</p>', 'text' => 'Hoi Anna'], sent: true);
+        $reply = Tenancy::for($this->account, fn () => Email::factory()->create([
+            'mailbox_id' => $this->mailbox->id, 'from_name' => 'Anna de Boer', 'from_email' => 'anna@noordkade.nl', 'snippet' => 'Dank je, Howy! Ik ga het meteen proberen.',
+        ]));
+        Tenancy::for($this->account, fn () => $reply->outboundMail()->associate($welcome)->save());
+        $question = Tenancy::for($this->account, fn () => Email::factory()->create(['mailbox_id' => $this->mailbox->id, 'subject' => 'Vakantiedagen']));
+        $this->mail(['kind' => OutboundMailKind::Answer, 'email_id' => $question->id], sent: true);
+
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.sent'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('mails.data.0.answers', ['id' => $question->id, 'subject' => 'Vakantiedagen'])
+                ->where('mails.data.1.answers', null)
+                ->where('mails.data.1.hasContent', true)
+                ->missing('mails.data.1.text')
+                ->where('mails.data.1.replies', [[
+                    'id' => $reply->id,
+                    'fromName' => 'Anna de Boer',
+                    'fromEmail' => 'anna@noordkade.nl',
+                    'snippet' => 'Dank je, Howy! Ik ga het meteen proberen.',
+                    'receivedAt' => $reply->received_at?->toIso8601String(),
+                ]]));
+    }
+
+    public function test_a_mail_kept_without_html_shows_its_text(): void
+    {
+        $mail = $this->mail(['kind' => OutboundMailKind::Welcome, 'html' => '', 'text' => "Hoi Anna,\n<b>welkom</b>"], sent: true);
+
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.sent.mail', $mail))
+            ->assertOk()
+            ->assertSee('Hoi Anna,'."\n".'&lt;b&gt;welkom&lt;/b&gt;', escape: false);
     }
 
     public function test_another_accounts_mail_is_out_of_sight(): void

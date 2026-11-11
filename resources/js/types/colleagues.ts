@@ -64,6 +64,15 @@ export type MailboxOption = { id: number; emailAddress: string };
 /** Mirrors App\Enums\OutboundMailStatus. */
 export type SentMailStatus = 'pending' | 'sent' | 'skipped' | 'failed';
 
+/** A mail that came in as a reply to one of Howy's. */
+export type SentMailReply = {
+    id: number;
+    fromName: string | null;
+    fromEmail: string | null;
+    snippet: string;
+    receivedAt: string | null;
+};
+
 /** A mail Howy sent, or meant to. Mirrors SentMailController::present(). */
 export type SentMail = {
     id: number;
@@ -78,11 +87,13 @@ export type SentMail = {
     /** Why it did not go: the skip reason, or the error. */
     reason: string | null;
     subject: string | null;
-    text: string;
+    /** Something to show once opened: the HTML it went with, or its text. */
+    hasContent: boolean;
     /** The mail it answers, or is about. */
     emailId: number | null;
-    /** The mails that came in as a reply to it. */
-    replyIds: number[];
+    answers: { id: number; subject: string | null } | null;
+    /** The mails that came in as a reply to it, oldest first. */
+    replies: SentMailReply[];
     /** One of Howy's own mails to a colleague that went, or failed. */
     canResend: boolean;
     createdAt: string | null;

@@ -129,7 +129,7 @@ class ColleagueController extends Controller
                 ->all(),
             // What Howy sent them, newest first.
             'sent' => $colleague->outboundMails()
-                ->with(['colleague:id,name,email', 'mailbox:id,email_address,status', 'replies:id,outbound_mail_id'])
+                ->with(SentMailController::loads())
                 ->latest('id')
                 ->limit(25)
                 ->get()
@@ -138,6 +138,13 @@ class ColleagueController extends Controller
             'mailboxes' => $this->mailboxOptions($mailboxes),
             // The welcome by hand, for someone who may get it and has not.
             'canWelcome' => Tenancy::account()->isLive() && $welcomes->mayReceive($colleague) && $welcomes->awaits($colleague),
+            // Not live, nothing of Howy's own goes out.
+            'isLive' => Tenancy::account()->isLive(),
+            // How many working days after the welcome each follow-up comes.
+            'followUpDays' => [
+                'how_it_works' => (int) config('adoption.how_it_works_after_workdays'),
+                'nudge' => (int) config('adoption.nudge_after_workdays'),
+            ],
         ]);
     }
 

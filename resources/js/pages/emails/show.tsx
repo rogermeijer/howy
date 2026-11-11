@@ -1,13 +1,13 @@
 import { Head, Link } from '@inertiajs/react';
-import { ChevronLeft, Paperclip, Quote, Reply } from 'lucide-react';
+import { ChevronLeft, Quote, Reply } from 'lucide-react';
 import { WithHowy } from '@/components/brand/howy-name';
 import { Fragment, useState } from 'react';
 import { AttachmentChip } from '@/components/mail/attachment-chip';
 import { CcReply, hasCcReply } from '@/components/mail/cc-reply';
 import { InterpretationPanel } from '@/components/mail/interpretation-panel';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
+import { MessageHead, MessageRow } from '@/components/mail/message-parts';
 import { useFormatDate } from '@/hooks/use-format-date';
-import { useInitials } from '@/hooks/use-initials';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { inbox } from '@/routes';
@@ -236,21 +236,6 @@ export default function EmailShow({
     );
 }
 
-function Avatar({ name, small = false }: { name: string; small?: boolean }) {
-    const initials = useInitials();
-
-    return (
-        <span
-            className={cn(
-                'flex shrink-0 items-center justify-center rounded-full bg-cc-raised font-semibold text-cc-ink',
-                small ? 'size-8 text-[12px]' : 'size-10 text-[13px]',
-            )}
-        >
-            {initials(name)}
-        </span>
-    );
-}
-
 function OpenMessage({
     message,
     quotesOpen,
@@ -280,11 +265,13 @@ function OpenMessage({
     const list = (addresses: Address[]) =>
         addresses.map((address) => address.email).join(', ');
     const recipients = [
-        message.to.length > 0 &&
-            t('to :recipients', { recipients: list(message.to) }),
-        message.cc.length > 0 &&
-            t('cc :recipients', { recipients: list(message.cc) }),
-    ].filter(Boolean);
+        ...(message.to.length > 0
+            ? [t('to :recipients', { recipients: list(message.to) })]
+            : []),
+        ...(message.cc.length > 0
+            ? [t('cc :recipients', { recipients: list(message.cc) })]
+            : []),
+    ];
 
     const count = message.quotes.length;
 
@@ -293,37 +280,13 @@ function OpenMessage({
             id={anchor(message.id)}
             className="scroll-mt-24 border-b border-cc-border last:border-b-0"
         >
-            <button
-                type="button"
-                onClick={onCollapse}
-                aria-expanded
-                className="flex w-full cursor-pointer items-center gap-3.5 px-7 pt-5 pb-3 text-left"
-            >
-                <Avatar name={sender} />
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="truncate text-[15px] font-semibold">
-                        {sender}{' '}
-                        {message.fromName && (
-                            <span className="font-normal text-cc-subtle">
-                                {message.fromEmail}
-                            </span>
-                        )}
-                    </span>
-                    {recipients.length > 0 && (
-                        <span className="cc-caption truncate">
-                            {recipients.join(' · ')}
-                        </span>
-                    )}
-                </span>
-                {message.receivedAt && (
-                    <span className="cc-caption shrink-0">
-                        {formatDate(message.receivedAt, {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                        })}
-                    </span>
-                )}
-            </button>
+            <MessageHead
+                sender={sender}
+                senderEmail={message.fromName ? message.fromEmail : null}
+                recipients={recipients}
+                date={message.receivedAt}
+                onFold={onCollapse}
+            />
 
             <div className="flex flex-col gap-3.5 px-7 pb-6 sm:pl-[82px]">
                 {message.repliesTo && (
@@ -487,45 +450,18 @@ function ClosedMessage({
     message: Message;
     onOpen: () => void;
 }) {
-    const t = useTranslations();
-    const formatDate = useFormatDate();
-    const sender = message.fromName ?? message.fromEmail ?? '';
-
     return (
         <li
             id={anchor(message.id)}
             className="scroll-mt-24 border-b border-cc-border last:border-b-0"
         >
-            <button
-                type="button"
-                onClick={onOpen}
-                aria-expanded={false}
-                className="grid w-full cursor-pointer grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3.5 px-7 py-3.5 text-left transition-colors hover:bg-cc-bg sm:grid-cols-[40px_160px_minmax(0,1fr)_auto]"
-            >
-                <span className="flex justify-center">
-                    <Avatar name={sender} small />
-                </span>
-                <span className="truncate text-[14px] font-semibold">
-                    {sender}
-                </span>
-                <span className="hidden truncate text-[14px] text-cc-muted sm:block">
-                    {message.excerpt}
-                </span>
-                <span className="cc-caption flex items-center gap-2 whitespace-nowrap">
-                    {message.attachments.length > 0 && (
-                        <Paperclip
-                            className="size-3.5"
-                            aria-label={t('Attachment')}
-                        />
-                    )}
-                    {message.receivedAt &&
-                        formatDate(message.receivedAt, {
-                            dateStyle: undefined,
-                            day: 'numeric',
-                            month: 'short',
-                        })}
-                </span>
-            </button>
+            <MessageRow
+                sender={message.fromName ?? message.fromEmail ?? ''}
+                excerpt={message.excerpt}
+                date={message.receivedAt}
+                attachment={message.attachments.length > 0}
+                onOpen={onOpen}
+            />
         </li>
     );
 }

@@ -55,9 +55,13 @@ For nearly every account they work at the company, and they are who the flow mai
   one by one, such as a customer's address. Their home mailbox (`home_mailbox_id`) is the first they mailed: the
   flow mails will come from there.
 - **The page** (`/colleagues`, account admins, in the top bar): search, filter on where their Howy mails stand
-  and on what Howy does with their mail on their home mailbox, and per person their access per mailbox (a rule
-  of their own, or their domain's), their mail, and the steps of their flow (`welcomed_at`, `explained_at`,
-  `first_saved_at`, `nudged_at`, `opted_out_at`; nothing sets those until step 4).
+  and on what Howy does with their mail on their home mailbox. A colleague's page leads with where their Howy
+  mails stand: a bar through welcome, how it works, the reminder and the first contribution as the goal
+  (`welcomed_at`, `explained_at`, `nudged_at`, `first_saved_at`; the reminder and the goal only for someone Howy
+  learns from), with when the next one is planned and, above it, one sentence on what stops them or comes next
+  (unsubscribed, switched off, ignored, not live, the mailbox out). Their name (or their address while Howy has
+  none), the switch and the home mailbox are changed where they show. Below, in tabs: their access per mailbox
+  (a rule of their own, or their domain's) and recent mail, all their mail, and the mail log.
 
 What Howy may do with mail is the mailbox's rules, now per colleague or per domain; see "Sender rules" in
 [`knowledge-base.md`](knowledge-base.md).
@@ -233,9 +237,10 @@ thread of a flow mail, which starts a thread of its own. Only within the mailbox
 read with what Howy wrote as its context, and the mail page says what it replies to.
 
 **The log** is the _Sent mails_ tab on the colleagues page (`/colleagues/sent`, account admins): filter on
-recipient, kind, status and period; open a mail to see it as its recipient got it (the stored HTML, in a frame
-nothing in which runs or loads from elsewhere), why it did not go, and the replies it got. A colleague's page
-lists what Howy sent them. One of Howy's own mails that went, or failed, can be sent again ("Send again", in the log and per step on
+recipient, kind, status and period; open a mail, in a dialog read the way a mail in the inbox is, to see it as
+its recipient got it (the stored HTML, or its text, in a frame nothing in which runs or loads from elsewhere,
+loaded only then), why it did not go, and the replies it got. A colleague's page
+lists what Howy sent them under its _Mail log_ tab, Howy's own mails or its answers apart. One of Howy's own mails that went, or failed, can be sent again ("Send again", in the log and per step on
 the colleague's page; `FlowSender::resend()`): written afresh, so it says what that mail says today, with today's
 links and access, from their home mailbox, and logged at once with a Message-ID of its own; one on its way at a
 time. Replies in someone's thread are never sent again.
