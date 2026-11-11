@@ -2081,5 +2081,21 @@
     "Anything to add? (optional)": "Nog iets toe te voegen? (optioneel)",
     "What was missing, or what has changed?": "Wat ontbrak er, of wat is er veranderd?",
     "Rated :date": "Gewaardeerd op :date",
-    "Valuable": "Waardevol"
+    "Valuable": "Waardevol",
+    "Keep": "Laten staan",
+    "Don’t share": "Niet delen",
+    "Not right": "Klopt niet",
+    "What Howy took from your email": "Wat Howy uit je mail haalde",
+    "Thank you! What was still waiting is taken out; an admin at :company deals with the rest.": "Bedankt! Wat nog wachtte is eruit gehaald; een beheerder bij :company handelt de rest af.",
+    "Taken out at your request.": "Op jouw verzoek eruit gehaald.",
+    "Not taken into the knowledge base.": "Niet in de kennisbank opgenomen.",
+    "In the knowledge base.": "Staat in de kennisbank.",
+    "Waiting for an admin to approve it.": "Wacht op goedkeuring door een beheerder.",
+    "What is right?": "Wat klopt er wel?",
+    "Mark as done": "Markeer als afgehandeld",
+    "The sender asks to take this out.": "De afzender vraagt dit eruit te halen.",
+    "The sender says this is not right:": "Volgens de afzender klopt dit niet:",
+    "Done.": "Afgehandeld.",
+    "Taken back by the sender": "Ingetrokken door de afzender",
+    "Marked as done.": "Gemarkeerd als afgehandeld."
 }

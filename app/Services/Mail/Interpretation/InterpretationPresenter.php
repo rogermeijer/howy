@@ -100,6 +100,7 @@ class InterpretationPresenter
         $statements = $interpretation->statements ?? [];
         $existing = $this->existingSources(array_values(array_filter(array_column($statements, 'existing_fact_id'))));
         $reviewers = User::query()->whereKey(array_values(array_filter(array_column($statements, 'reviewed_by'))))->pluck('name', 'id');
+        $requests = collect($interpretation->sender_feedback ?? [])->keyBy('statement');
 
         return array_map(fn (array $statement, int $index): array => [
             'index' => $index,
@@ -114,6 +115,14 @@ class InterpretationPresenter
             'review' => $statement['review'] ?? null,
             'reviewedBy' => isset($statement['reviewed_by']) ? ($reviewers[$statement['reviewed_by']] ?? null) : null,
             'reviewedAt' => $statement['reviewed_at'] ?? null,
+            // Taken back by whoever sent the mail, from the page linked in Saved! (04).
+            'bySender' => $statement['by_sender'] ?? false,
+            'senderRequest' => $requests->has($index) ? [
+                'choice' => $requests[$index]['choice'],
+                'correction' => $requests[$index]['correction'],
+                'at' => $requests[$index]['at'],
+                'handled' => ($requests[$index]['handled_at'] ?? null) !== null,
+            ] : null,
         ], $statements, array_keys($statements));
     }
 

@@ -25,7 +25,7 @@ use Illuminate\Support\Carbon;
  * (needs_review) before it reaches the knowledge base.
  *
  * @phpstan-type Citation array{type: 'document'|'email', id: int, title: string, section_id: int|null, heading_path: string|null, page: int|null}
- * @phpstan-type Statement array{statement: string, subject: string|null, valid_from: string|null, verdict: 'new'|'duplicate'|'conflict', fact_id: int|null, existing_fact_id: int|null, existing_statement: string|null, explanation: string|null, flag: string|null, from_history?: bool, review: 'pending'|'approved'|'rejected'|null, reviewed_by: int|null, reviewed_at: string|null}
+ * @phpstan-type Statement array{statement: string, subject: string|null, valid_from: string|null, verdict: 'new'|'duplicate'|'conflict', fact_id: int|null, existing_fact_id: int|null, existing_statement: string|null, explanation: string|null, flag: string|null, from_history?: bool, review: 'pending'|'approved'|'rejected'|null, reviewed_by: int|null, reviewed_at: string|null, by_sender?: bool}
  * @phpstan-type SenderFeedback array{statement: int, choice: 'withdraw'|'correct', correction: string|null, at: string, handled_at?: string|null}
  *
  * @property int $id
@@ -94,6 +94,22 @@ class EmailInterpretation extends Model
     public function email(): BelongsTo
     {
         return $this->belongsTo(Email::class);
+    }
+
+    /**
+     * Whether something here waits for an admin: a statement to approve, or a
+     * sender's request about one, from the page linked in Saved! (04).
+     *
+     * @param  list<Statement>|null  $statements  as they are about to be saved
+     * @param  list<SenderFeedback>|null  $feedback  as it is about to be saved
+     */
+    public function waitsForReview(?array $statements = null, ?array $feedback = null): bool
+    {
+        $statements ??= $this->statements ?? [];
+        $feedback ??= $this->sender_feedback ?? [];
+
+        return in_array('pending', array_column($statements, 'review'), true)
+            || array_filter($feedback, fn (array $request): bool => ($request['handled_at'] ?? null) === null) !== [];
     }
 
     /**

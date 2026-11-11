@@ -66,9 +66,11 @@ class ApprovalController extends Controller
                 'from' => $interpretation->email->from_name ?? $interpretation->email->from_email,
                 'receivedAt' => $interpretation->email->received_at?->toIso8601String(),
                 'summary' => $interpretation->summary,
+                // Waiting to be approved, or a sender's request about one waiting to be dealt with.
                 'statements' => array_values(array_filter(
                     $presenter->statements($interpretation),
-                    fn (array $statement): bool => $statement['review'] === 'pending',
+                    fn (array $statement): bool => $statement['review'] === 'pending'
+                        || ($statement['senderRequest'] !== null && ! $statement['senderRequest']['handled']),
                 )),
             ])->values()->all(),
         ]);

@@ -76,9 +76,10 @@ class FirstSaveTest extends TestCase
             // Three shown, the rest counted.
             $this->assertStringNotContainsString('De lunch begint om half een.', $thanks->text);
             $this->assertStringContainsString('…and 1 more point.', $thanks->text);
-            // Waiting for an admin, and saying so; no button to a page that is not there yet.
+            // Waiting for an admin, and saying so; with the page to look it over.
             $this->assertStringContainsString('takes a quick look', $thanks->text);
-            $this->assertStringNotContainsString('Review or adjust', $thanks->text);
+            $this->assertStringContainsString('Review or adjust', $thanks->text);
+            $this->assertStringContainsString(url('/m/review').'/', $thanks->text);
             $this->assertNotNull($anna->refresh()->first_saved_at);
 
             // What it wrote back is no news when quoted under a reply.

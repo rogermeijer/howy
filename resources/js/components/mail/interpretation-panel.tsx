@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { WithHowy } from '@/components/brand/howy-name';
 import { EmailSourceChip } from '@/components/knowledge/source-chip';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
+import { SenderRequestNote } from '@/components/mail/sender-request';
 import { SourceLink, StatementCard } from '@/components/mail/statement-card';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
@@ -169,7 +170,11 @@ export function InterpretationPanel({
                                     <StatementCard
                                         key={statement.index}
                                         statement={statement}
-                                    />
+                                    >
+                                        <SenderRequestNote
+                                            statement={statement}
+                                        />
+                                    </StatementCard>
                                 ))}
                             </ul>
                             {canReview ? (
@@ -204,6 +209,9 @@ export function InterpretationPanel({
                                         key={statement.index}
                                         statement={statement}
                                     >
+                                        <SenderRequestNote
+                                            statement={statement}
+                                        />
                                         <Decided statement={statement} />
                                     </StatementCard>
                                 ))}
@@ -288,6 +296,21 @@ function Decided({ statement }: { statement: InterpretedStatement }) {
 
     if (statement.review !== 'approved' && statement.review !== 'rejected') {
         return null;
+    }
+
+    if (statement.bySender) {
+        return (
+            <p className="text-[12px] text-cc-faint">
+                {t('Taken back by the sender') +
+                    (statement.reviewedAt
+                        ? ' · ' +
+                          formatDate(statement.reviewedAt, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                          })
+                        : '')}
+            </p>
+        );
     }
 
     return (

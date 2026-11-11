@@ -2,6 +2,7 @@
 
 namespace App\Services\Adoption;
 
+use App\Enums\MailLinkPurpose;
 use App\Enums\OutboundMailKind;
 use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
@@ -12,6 +13,7 @@ use App\Mail\Flow\FlowMails;
 use App\Mail\Flow\FlowRecipient;
 use App\Models\Colleague;
 use App\Models\Email;
+use App\Services\Mail\MailLinks;
 use Illuminate\Support\Traits\Localizable;
 use InvalidArgumentException;
 
@@ -27,6 +29,7 @@ class FlowMailComposer
     public function __construct(
         private readonly FlowMails $flow,
         private readonly MailRenderer $renderer,
+        private readonly MailLinks $links,
     ) {}
 
     /**
@@ -62,17 +65,20 @@ class FlowMailComposer
             OutboundMailKind::Welcome => $this->flow->welcome($to),
             OutboundMailKind::HowItWorks => $this->flow->howItWorks($to),
             OutboundMailKind::Nudge => $this->flow->nudge($to),
-            OutboundMailKind::FirstSave => $this->firstSave($to, $about ?? throw new InvalidArgumentException('A thanks for a contribution needs the mail it came in.')),
+            OutboundMailKind::FirstSave => $this->firstSave(
+                $to,
+                $about ?? throw new InvalidArgumentException('A thanks for a contribution needs the mail it came in.'),
+                $this->links->url(MailLinkPurpose::Review, $about->id, $colleague->email, $locale),
+            ),
             default => throw new InvalidArgumentException("[{$kind->value}] is not a flow mail of its own."),
         }));
     }
 
     /**
      * What the mail added, as Howy wrote it down: its new statements, none an
-     * admin turned down. No button to look it over yet: the page for that,
-     * open without logging in, is still to come.
+     * admin turned down, with the page to look them over and adjust them.
      */
-    private function firstSave(FlowRecipient $to, Email $about): MailContent
+    private function firstSave(FlowRecipient $to, Email $about, string $reviewUrl): MailContent
     {
         $interpretation = $about->interpretation;
         $statements = array_values(array_map(
@@ -83,6 +89,6 @@ class FlowMailComposer
             ),
         ));
 
-        return $this->flow->firstSave($to, trim((string) $about->subject), $statements, (bool) $interpretation?->needs_review, null);
+        return $this->flow->firstSave($to, trim((string) $about->subject), $statements, (bool) $interpretation?->needs_review, $reviewUrl);
     }
 }

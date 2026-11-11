@@ -22,6 +22,7 @@ use App\Http\Controllers\Knowledge\KnowledgeTopicController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\MailLinks\MailLinkController;
 use App\Http\Controllers\MailLinks\RateAnswerController;
+use App\Http\Controllers\MailLinks\ReviewContributionController;
 use App\Http\Controllers\MailLinks\UnsubscribeController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\Webhooks\GmailWebhookController;
@@ -94,6 +95,9 @@ Route::middleware(['auth', 'verified', 'tenant', 'set-up'])->group(function () {
         Route::post('emails/{email}/statements/{statement}/reject', [EmailStatementController::class, 'reject'])
             ->whereNumber('statement')
             ->name('emails.statements.reject');
+        Route::post('emails/{email}/statements/{statement}/handled', [EmailStatementController::class, 'handled'])
+            ->whereNumber('statement')
+            ->name('emails.statements.handled');
         Route::post('emails/{email}/attachments/{attachment}', [EmailAttachmentController::class, 'store'])
             ->whereNumber('attachment')
             ->name('emails.attachments.store');
@@ -185,6 +189,11 @@ Route::prefix('m')->name('mail-links.')->middleware('throttle:60,1')->group(func
         Route::post('unsubscribe/{token}', [UnsubscribeController::class, 'store'])
             ->withoutMiddleware([PreventRequestForgery::class])
             ->name('unsubscribe.store');
+    });
+
+    Route::middleware('mail-link:review')->group(function () {
+        Route::get('review/{token}', [ReviewContributionController::class, 'show'])->name('review.show');
+        Route::post('review/{token}', [ReviewContributionController::class, 'store'])->name('review.store');
     });
 
     Route::middleware('mail-link:rate')->group(function () {

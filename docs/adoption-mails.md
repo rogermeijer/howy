@@ -15,11 +15,11 @@ first contribution, a nudge, and later a weekly and monthly rhythm. They grew ou
 | 4    | The account's Live switch, and 01                                                                          | **Built**                    |
 | 5    | 02 and 06                                                                                                  | **Built**                    |
 | 6    | 04                                                                                                         | **Built**                    |
-| 7    | Links without login (rating 05, adjusting 04, unsubscribing)                                               | Planned                      |
+| 7    | Links without login (rating 05, adjusting 04, unsubscribing)                                               | **Built**                    |
 
-What is live on the branch: the existing mails (answers, not found, conflict, beta invite, mailbox needs
-reconnecting, password reset, email verification) in the new frame and voice, colleagues with their page, the
-mail log, and the welcome (01) once an account is live. The welcome has no unsubscribe link until step 7.
+Everything in the plan is built on the branch: the existing mails in the new frame and voice, colleagues with
+their page, the mail log, the Live switch, 01, 02, 04 and 06, and the links without login. What is left before
+going out is under "Before sign-off".
 
 ## Where it lives
 
@@ -177,7 +177,30 @@ where customers and suppliers often are. It shows up to three of the new stateme
 mail's subject, and that an admin looks it over first when it waits for approval. Howy's text is fingerprinted
 with the mail, so quoted under a reply it is not news. The mail that brought the welcome is day 0 and gets no
 thanks: the next contribution does. Once (`first_saved_at`), only while live, only to someone who gets Howy
-mails. The button to look it over without logging in comes with step 7; until then the mail has none.
+mails. Its button opens what Howy took from the mail, to adjust (see "Links without login").
+
+## Links without login
+
+A link in a mail opens a page without logging in (`/m/…`, `App\Http\Controllers\MailLinks`). Its token is made
+by `MailLinks`: the account, what it opens, whom it went to, the mail's language and until when it works,
+encrypted with AES-256-GCM under a key derived from the app key. How the account in it is trusted, and why that
+is no breach of "never trust an account id from input", is in "Mail links" in
+[`multi-tenancy.md`](multi-tenancy.md). The page is in the language of the mail. A link works for
+`MAIL_LINK_HOURS` (48); an expired one offers a new one by mail, sent only to whom it went, from the mailbox
+the mail came from, three times an hour at most, and not while that mailbox needs reconnecting.
+
+- **Unsubscribe.** Every one of Howy's own mails carries the link in its footer and as `List-Unsubscribe` with
+  `List-Unsubscribe-Post: List-Unsubscribe=One-Click`, so a mail client can unsubscribe in one click, without a
+  session. The page unsubscribes, or brings someone back. This link never expires. Answers still go out.
+- **Rating an answer (05).** Under every answer: Yes, Not quite, Outdated. Each opens the page with that choice
+  made and room for a note; nothing is saved until it is sent, because link scanners in mail (Outlook's Safe
+  Links) open every link. Kept on the interpretation (`rating`, `rating_note`, `rated_at`), shown under the
+  answer on the mail page and as a tag in the inbox.
+- **Adjusting what was saved (04).** The button in Saved! opens what Howy took from the mail. Per statement the
+  sender keeps it, takes it back, or says it is not right with a correction (`SenderFeedback`). One still
+  waiting for approval is rejected at once, as by the sender. One already in the knowledge base, and any
+  correction, waits for an admin (`sender_feedback`, `needs_review`): it shows on the mail and in the approvals,
+  counts in their badge, and is marked done there.
 
 ## Sending and the mail log
 

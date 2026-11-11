@@ -62,6 +62,15 @@ export type InterpretedStatement = {
     review: 'pending' | 'approved' | 'rejected' | null;
     reviewedBy: string | null;
     reviewedAt: string | null;
+    /** Taken back by whoever sent the mail. */
+    bySender: boolean;
+    /** What the sender asked about it, from the page linked in Saved! (04). */
+    senderRequest: {
+        choice: 'withdraw' | 'correct';
+        correction: string | null;
+        at: string;
+        handled: boolean;
+    } | null;
 };
 
 export type Interpretation = InterpretationBrief & {
