@@ -161,6 +161,30 @@ middleware, so a third way to pick an account fails CI. Adding one needs a writt
 CLAUDE.md. A link expires after `MAIL_LINK_HOURS` (48), except the one to unsubscribe; an expired one offers a
 new link by mail, sent only to whom the old one went, from the mailbox the mail came from.
 
+### Broadcasting: one channel per account, topics only
+
+Open pages follow along over Laravel Reverb (a mail that went shows in the log without a refresh). A socket is
+a second way for data to leave the app, so it carries none:
+
+- There is one channel, the private `account.{id}` in `routes/channels.php`. Only a member of that account may
+  listen (`$user->belongsToAccount()`, which reads `account_user`, the one table meant to be read across
+  accounts). There are no user, model or presence channels.
+- What goes over it is `App\Events\AccountChanged`: an account id and an `AccountTopic`, nothing else. A page
+  that hears its topic does a partial Inertia reload (`useAccountUpdates()`), so the data still comes through
+  the normal request path, under the session's tenant and the global scope. A listener on the wrong channel
+  would learn that something changed, never what.
+- It is sent from the model that changed, with the record's own `account_id`, after the change is committed,
+  and queued, so a socket server that is down never holds up a mail. It is unique per account and topic while
+  it waits in the queue: a burst goes out once, and a change after it went out sends another.
+- The topics: `mail` (mail came in, other than an import; an interpretation saved), `sent-mails` (a logged mail
+  created or moved to another status), `approvals` (`needs_review` changed, or a document version came to or
+  left review, or was approved). The inbox, a mail, the colleagues, the mail log, the approvals and the count in
+  the top bar listen.
+
+A new channel, or an event that carries data, needs a written reason here and in CLAUDE.md.
+`tests/Feature/Tenancy/AccountChannelTest.php` holds the line. Locally `php artisan dev` starts Reverb when
+`BROADCAST_CONNECTION=reverb`; on Forge, Reverb is switched on per site.
+
 ### The one cross-account unique index: an active Gmail address
 
 A Gmail address is active in one account at most. Revoking a grant at Google, which disconnecting does,

@@ -8,6 +8,7 @@ import { InterpretationPanel } from '@/components/mail/interpretation-panel';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { MessageHead, MessageRow } from '@/components/mail/message-parts';
 import { useFormatDate } from '@/hooks/use-format-date';
+import { useAccountUpdates } from '@/hooks/use-account-updates';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { inbox } from '@/routes';
@@ -72,6 +73,9 @@ export default function EmailShow({
     messages,
 }: Props) {
     const t = useTranslations();
+
+    // A reply that comes in, or Howy reading one, shows as it happens.
+    useAccountUpdates('mail', ['messages']);
     const title = subject || t('(no subject)');
 
     // Newest first. The newest message and the one that was opened start

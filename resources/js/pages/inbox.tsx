@@ -7,6 +7,7 @@ import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { RatingTag } from '@/components/mail/rating-tag';
 import { MailboxBanner } from '@/components/mailboxes/mailbox-banner';
 import { useFormatDate } from '@/hooks/use-format-date';
+import { useAccountUpdates } from '@/hooks/use-account-updates';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { show } from '@/routes/emails';
@@ -39,6 +40,9 @@ export default function Inbox({
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
+
+    // Mail that comes in, and what Howy makes of it, shows as it happens.
+    useAccountUpdates('mail', ['threads']);
 
     const time = (value: string) => {
         const date = new Date(value);

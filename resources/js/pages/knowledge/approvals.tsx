@@ -10,6 +10,7 @@ import { SenderRequestNote } from '@/components/mail/sender-request';
 import { StatementCard } from '@/components/mail/statement-card';
 import { Button } from '@/components/ui/button';
 import { useFormatDate } from '@/hooks/use-format-date';
+import { useAccountUpdates } from '@/hooks/use-account-updates';
 import { useTranslations } from '@/hooks/use-translations';
 import { knowledge } from '@/routes';
 import emailRoutes from '@/routes/emails';
@@ -32,6 +33,9 @@ type Props = {
  */
 export default function Approvals({ documents, mails }: Props) {
     const t = useTranslations();
+
+    // What comes to wait, or is dealt with elsewhere, shows as it happens.
+    useAccountUpdates('approvals', ['documents', 'mails']);
 
     return (
         <>

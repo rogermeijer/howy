@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToAccount;
+use App\Enums\AccountTopic;
 use App\Enums\EmailSource;
+use App\Events\AccountChanged;
 use Database\Factories\EmailFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -74,6 +76,19 @@ class Email extends Model
 
     /** @use HasFactory<EmailFactory> */
     use HasFactory;
+
+    /**
+     * Mail that comes in shows in an open inbox. An import of a mailbox's
+     * history stays quiet: it would only be thousands of reloads.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (Email $email): void {
+            if ($email->source !== EmailSource::Import) {
+                AccountChanged::dispatch($email->account_id, AccountTopic::Mail);
+            }
+        });
+    }
 
     /**
      * @return BelongsTo<Mailbox, $this>

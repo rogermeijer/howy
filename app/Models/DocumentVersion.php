@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToAccount;
+use App\Enums\AccountTopic;
 use App\Enums\DocumentFormat;
 use App\Enums\ProcessingStatus;
 use App\Enums\SourceKind;
+use App\Events\AccountChanged;
 use Database\Factories\DocumentVersionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -66,6 +68,22 @@ class DocumentVersion extends Model
 
     /** @use HasFactory<DocumentVersionFactory> */
     use HasFactory;
+
+    /**
+     * A version that comes to wait for approval, or stops waiting, moves the
+     * count in the top bar. The steps of the pipeline before it stay quiet.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (DocumentVersion $version): void {
+            $waited = $version->wasRecentlyCreated ? null : $version->getOriginal('status');
+
+            if ($version->wasChanged('approved_at')
+                || ($version->status === ProcessingStatus::Review) !== ($waited === ProcessingStatus::Review)) {
+                AccountChanged::dispatch($version->account_id, AccountTopic::Approvals);
+            }
+        });
+    }
 
     /**
      * @return BelongsTo<Document, $this>

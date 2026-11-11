@@ -25,6 +25,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useFormatDate } from '@/hooks/use-format-date';
+import { useAccountUpdates } from '@/hooks/use-account-updates';
 import { useTranslations } from '@/hooks/use-translations';
 import { ACCESSES } from '@/lib/mailbox-rules';
 import { cn } from '@/lib/utils';
@@ -75,6 +76,9 @@ export default function Colleagues({
     const accessLooks = useAccessLooks();
     const activity = useActivityLine();
     const [adding, setAdding] = useState(false);
+
+    // Someone new who mails Howy, or their latest mail, shows as it happens.
+    useAccountUpdates('mail', ['colleagues', 'total']);
     const [query, setQuery] = useState(filters.q);
 
     const filter = (changes: Partial<Filters>) => {

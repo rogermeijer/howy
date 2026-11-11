@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToAccount;
+use App\Enums\AccountTopic;
 use App\Enums\OutboundMailKind;
 use App\Enums\OutboundMailStatus;
 use App\Enums\OutboundSkipReason;
+use App\Events\AccountChanged;
 use Database\Factories\OutboundMailFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -64,6 +66,19 @@ class OutboundMail extends Model
 
     /** @use HasFactory<OutboundMailFactory> */
     use HasFactory;
+
+    /**
+     * An open mail log follows along: a mail logged, sent, held back or
+     * failed is heard on the account's channel.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (OutboundMail $mail): void {
+            if ($mail->wasRecentlyCreated || $mail->wasChanged('status')) {
+                AccountChanged::dispatch($mail->account_id, AccountTopic::SentMails);
+            }
+        });
+    }
 
     /**
      * @return BelongsTo<Mailbox, $this>

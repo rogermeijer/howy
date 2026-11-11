@@ -15,6 +15,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useAccountUpdates } from '@/hooks/use-account-updates';
 import { useTranslations } from '@/hooks/use-translations';
 import { sent } from '@/routes/colleagues';
 import type { Option, Paginated, SentMail } from '@/types';
@@ -36,6 +37,9 @@ type Props = {
 
 export default function SentMails({ mails, filters, kinds, statuses }: Props) {
     const t = useTranslations();
+
+    // A mail logged, sent, held back or failed shows as it happens.
+    useAccountUpdates('sent-mails', ['mails']);
     const [query, setQuery] = useState(filters.q);
 
     const filter = (changes: Partial<Filters>) => {

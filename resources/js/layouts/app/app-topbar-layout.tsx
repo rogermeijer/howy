@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { Bell, Search } from 'lucide-react';
+import { useAccountUpdates } from '@/hooks/use-account-updates';
 import { useTranslations } from '@/hooks/use-translations';
 import type { PropsWithChildren } from 'react';
 import { AccountSwitcher } from '@/components/account-switcher';
@@ -25,6 +26,9 @@ function TopBar() {
         knowledge: { awaitingApproval: number };
     }>().props;
     const awaitingApproval = knowledgeCounts?.awaitingApproval ?? 0;
+
+    // The count follows what comes to wait, wherever it comes from.
+    useAccountUpdates('approvals', ['knowledge']);
 
     // Titles are English source strings, translated where they are rendered.
     // The knowledge base counts what waits for approval, documents and mail

@@ -20,6 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useAccountUpdates } from '@/hooks/use-account-updates';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
 import { ACCESSES } from '@/lib/mailbox-rules';
@@ -75,6 +76,18 @@ export default function Colleague({
     const t = useTranslations();
     const activity = useActivityLine();
     const [tab, setTab] = useState<Tab>('overview');
+
+    // A mail that goes, or is held back, moves the bar and the log along.
+    useAccountUpdates('sent-mails', [
+        'colleague',
+        'sent',
+        'onTheirWay',
+        'resendable',
+        'planned',
+        'canWelcome',
+    ]);
+    // Their mail coming in moves the activity, and the reminder, along.
+    useAccountUpdates('mail', ['colleague', 'emails', 'planned']);
 
     const tabs: { key: Tab; label: string; count: number | null }[] = [
         { key: 'overview', label: t('Overview'), count: null },

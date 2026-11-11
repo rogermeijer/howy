@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToAccount;
+use App\Enums\AccountTopic;
 use App\Enums\AnswerRating;
 use App\Enums\EmailIntent;
 use App\Enums\InterpretationMode;
@@ -10,6 +11,7 @@ use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
 use App\Enums\ReplyStatus;
 use App\Enums\SenderAccess;
+use App\Events\AccountChanged;
 use Database\Factories\EmailInterpretationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -74,6 +76,21 @@ class EmailInterpretation extends Model
 
     /** @use HasFactory<EmailInterpretationFactory> */
     use HasFactory;
+
+    /**
+     * What Howy made of a mail shows as it goes: queued, read, answered,
+     * rated. Whether it waits for an admin moves the count in the top bar.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (EmailInterpretation $interpretation): void {
+            AccountChanged::dispatch($interpretation->account_id, AccountTopic::Mail);
+
+            if ($interpretation->wasChanged('needs_review') || ($interpretation->wasRecentlyCreated && $interpretation->needs_review)) {
+                AccountChanged::dispatch($interpretation->account_id, AccountTopic::Approvals);
+            }
+        });
+    }
 
     /**
      * Mirror the column defaults, so a new row knows them before it is read back.

@@ -166,7 +166,7 @@ class SentMailPageTest extends TestCase
         $this->actingAs($this->admin)->post(route('colleagues.sent.resend', $skipped))->assertRedirect();
         $this->actingAs($this->admin)->post(route('colleagues.sent.resend', $theirs))->assertNotFound();
 
-        Queue::assertNothingPushed();
+        Queue::assertNotPushed(DeliverOutboundMail::class);
         $this->assertSame(2, Tenancy::for($this->account, fn () => OutboundMail::query()->count()));
     }
 
