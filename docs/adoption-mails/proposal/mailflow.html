@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Howy Mailflow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+/* Layout: één kolom, tijdlijn per fase met mailkaarten; daaronder triggerregels en een flowdiagram voor de developer */
+:root{
+  --bg:#FFFFFF; --surface:#F4F4F1; --ink:#111111; --muted:#5E5E58; --line:#E4E4DF;
+  --lime:#CDF464; --lime-ink:#111111; --dash:#B9DF45;
+  --sched:#111111; --event:#5E5E58;
+  --display:'Plus Jakarta Sans',Helvetica,Arial,sans-serif;
+  --body:'Plus Jakarta Sans',Helvetica,Arial,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141413; --surface:#1E1E1C; --ink:#F2F2EE; --muted:#A8A8A0; --line:#33332F;
+  --lime:#CDF464; --lime-ink:#111111; --dash:#CDF464; --sched:#F2F2EE; --event:#A8A8A0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141413; --surface:#1E1E1C; --ink:#F2F2EE; --muted:#A8A8A0; --line:#33332F;
+  --lime:#CDF464; --lime-ink:#111111; --dash:#CDF464; --sched:#F2F2EE; --event:#A8A8A0; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1040px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:48px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.02em}
+h1{font-size:clamp(30px,5vw,44px);line-height:1.1;font-weight:800}
+h1 mark{background:var(--lime);color:var(--lime-ink);padding:0 .15em}
+h2{font-size:24px;font-weight:800}
+h3{font-size:17px;font-weight:800}
+p{margin:0;max-width:68ch}
+.lede{color:var(--muted);font-size:16px}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+header{display:grid;gap:14px}
+.logo{font-weight:800;font-size:22px;border-bottom:5px solid var(--lime);justify-self:start;line-height:1.1}
+
+/* legenda */
+.legend{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.tag{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.tag.sched{background:var(--lime);color:var(--lime-ink)}
+.tag.event{border:1.5px dashed var(--dash);color:var(--ink)}
+.tag.who{background:var(--surface);color:var(--ink)}
+
+/* tijdlijn */
+.phases{display:grid;gap:36px}
+.phase{display:grid;grid-template-columns:180px 1fr;gap:24px}
+.phase-head{position:relative;padding-left:22px;display:grid;gap:4px;align-content:start}
+.phase-head::before{content:"";position:absolute;left:5px;top:6px;bottom:-36px;border-left:2px dashed var(--dash)}
+.phase:last-child .phase-head::before{bottom:0}
+.phase-head::after{content:"";position:absolute;left:0;top:4px;width:12px;height:12px;border-radius:50%;background:var(--lime);border:1px solid var(--ink)}
+.phase-head .when{font-size:13px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;min-width:0}
+.card{background:var(--surface);border-radius:12px;padding:16px 18px;display:grid;gap:10px;align-content:start;min-width:0}
+.card.event{background:var(--bg);border:2px dashed var(--dash)}
+.card-top{display:flex;align-items:baseline;gap:10px}
+.num{font-family:var(--mono);font-weight:600;font-size:13px;background:var(--ink);color:var(--bg);border-radius:6px;padding:1px 7px}
+.card h3{font-size:16px}
+.trigger{font-family:var(--mono);font-size:12px;line-height:1.5;background:var(--bg);border-radius:8px;padding:8px 10px;overflow-x:auto;white-space:pre-wrap;word-break:break-word}
+.card.event .trigger{background:var(--surface)}
+.meta{display:flex;flex-wrap:wrap;gap:6px}
+.goal{font-size:14px}
+.goal b{font-weight:800}
+.rule{font-size:13px;color:var(--muted)}
+
+/* regels */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.rulebox{border:2px dashed var(--dash);border-radius:12px;padding:16px 18px;display:grid;gap:8px;align-content:start}
+.rulebox ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14px}
+.rulebox code,.tbl code{font-family:var(--mono);font-size:12px;background:var(--surface);padding:1px 5px;border-radius:4px}
+
+/* tabel */
+.tblwrap{overflow-x:auto;border-radius:12px;border:1px solid var(--line)}
+.tbl{border-collapse:collapse;width:100%;min-width:820px;font-size:13.5px}
+.tbl th{text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--surface);padding:10px 12px;font-weight:800}
+.tbl td{padding:10px 12px;border-top:1px solid var(--line);vertical-align:top}
+.tbl td:first-child{font-family:var(--mono);font-weight:600;white-space:nowrap}
+
+/* flow */
+.flowbox{background:var(--surface);border-radius:12px;padding:16px;overflow-x:auto}
+.flowbox .mermaid-svg{background:var(--bg);border-radius:8px;padding:12px}.flowbox .mermaid-svg svg{max-width:100%;height:auto}
+.note{font-size:13px;color:var(--muted)}
+
+@media (max-width:720px){
+  .phase{grid-template-columns:1fr;gap:12px}
+  .phase-head::before{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="logo">howy</span>
+  <span class="eyebrow">Developer-overzicht · adoptiemails</span>
+  <h1>Welke mail, <mark>wanneer en waarom</mark></h1>
+  <p class="lede">Overzicht van de 13 Howy-mails: het moment of de trigger die elke mail verstuurt, voor wie hij is en wat hij moet bereiken. Templates staan in de map <code style="font-family:var(--mono);font-size:13px">Howy-adoptiemails/HTML</code> (howy-mail-01 t/m 13). Variabelen staan in het HTML-commentaar bovenaan elk template.</p>
+  <div class="legend">
+    <span><span class="tag sched">GEPLAND</span> verstuurd op een vast moment (datum of tijd)</span>
+    <span><span class="tag event">TRIGGER</span> verstuurd na een gebeurtenis</span>
+    <span><span class="tag who">MEDEWERKER</span> / <span class="tag who">MANAGER</span> ontvanger</span>
+  </div>
+</header>
+
+<section class="phases" aria-label="Tijdlijn">
+
+  <!-- Fase 1 -->
+  <div class="phase">
+    <div class="phase-head">
+      <span class="eyebrow">Fase 1</span>
+      <h2>Kennismaken</h2>
+      <span class="when">Dag 0 t/m 3 na de start bij het bedrijf</span>
+    </div>
+    <div class="cards">
+      <article class="card">
+        <div class="card-top"><span class="num">01</span><h3>Introductie</h3></div>
+        <div class="meta"><span class="tag sched">GEPLAND</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">dag 0 = company.go_live_date
+voor: alle medewerkers bij livegang</div>
+        <p class="goal"><b>Doel:</b> uitleggen wie Howy is en waarom het belangrijk is voor jou en het bedrijf.</p>
+      </article>
+      <article class="card">
+        <div class="card-top"><span class="num">02</span><h3>Zo werkt het</h3></div>
+        <div class="meta"><span class="tag sched">GEPLAND</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">dag 0 + 2 werkdagen</div>
+        <p class="goal"><b>Doel:</b> de twee regels leren (Cc = bewaren, Aan = vragen) en de eerste vraag laten stellen.</p>
+      </article>
+      <article class="card">
+        <div class="card-top"><span class="num">03</span><h3>Welkomstchallenge</h3></div>
+        <div class="meta"><span class="tag sched">GEPLAND</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">dag 0 + 3 werkdagen
+challenge loopt 7 dagen (einddatum_challenge)</div>
+        <p class="goal"><b>Doel:</b> 4 kleine acties uitvoeren en Howy Hero worden.</p>
+        <p class="rule">Ook voor nieuwe collega's: 3 werkdagen na mail 12.</p>
+      </article>
+    </div>
+  </div>
+
+  <!-- Fase 2 -->
+  <div class="phase">
+    <div class="phase-head">
+      <span class="eyebrow">Fase 2</span>
+      <h2>Gewoonte opbouwen</h2>
+      <span class="when">Vanaf dag 0, doorlopend op basis van gedrag</span>
+    </div>
+    <div class="cards">
+      <article class="card event">
+        <div class="card-top"><span class="num">04</span><h3>Bewaard!</h3></div>
+        <div class="meta"><span class="tag event">TRIGGER</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">on: email_received(howy in Cc)
+if: user.cc_count == 1   // alleen de eerste keer</div>
+        <p class="goal"><b>Doel:</b> laten zien dat het werkt en wat er is bewaard; correctie mogelijk via "Input aanpassen".</p>
+        <p class="rule">Daarna geen losse bevestigingen meer.</p>
+      </article>
+      <article class="card event">
+        <div class="card-top"><span class="num">05</span><h3>Antwoord + feedback</h3></div>
+        <div class="meta"><span class="tag event">TRIGGER</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">on: email_received(howy in Aan)
+reply: in dezelfde thread ("Re: …")
+else: variant B als geen antwoord gevonden</div>
+        <p class="goal"><b>Doel:</b> direct het juiste antwoord met bron geven en een beoordeling ophalen (Ja / Niet helemaal / Verouderd).</p>
+        <p class="rule">Elke keer. Variant B zet de vraag door naar de kennishouder (zie 09).</p>
+      </article>
+      <article class="card event">
+        <div class="card-top"><span class="num">06</span><h3>Wat weet jij…?</h3></div>
+        <div class="meta"><span class="tag event">TRIGGER</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">at: dag 0 + 5 werkdagen
+if: user.cc_count == 0
+max: 1× per medewerker</div>
+        <p class="goal"><b>Doel:</b> een laagdrempelig duwtje naar de eerste Cc, zonder verwijt.</p>
+      </article>
+      <article class="card event">
+        <div class="card-top"><span class="num">08</span><h3>Challenge gehaald</h3></div>
+        <div class="meta"><span class="tag event">TRIGGER</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">on: challenge.all_4_done
+if: binnen einddatum_challenge</div>
+        <p class="goal"><b>Doel:</b> de Howy Hero-badge en 70 credits uitreiken en vieren.</p>
+      </article>
+    </div>
+  </div>
+
+  <!-- Fase 3 -->
+  <div class="phase">
+    <div class="phase-head">
+      <span class="eyebrow">Fase 3</span>
+      <h2>Kennis laten stromen</h2>
+      <span class="when">Doorlopend, vanaf week 1</span>
+    </div>
+    <div class="cards">
+      <article class="card">
+        <div class="card-top"><span class="num">07</span><h3>Trending kennis topics</h3></div>
+        <div class="meta"><span class="tag sched">GEPLAND</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">cron: elke vrijdag
+start: eerste vrijdag na dag 0
+inhoud: top 3 topics + "jouw week"</div>
+        <p class="goal"><b>Doel:</b> laten zien wat er speelt en de wekelijkse gewoonte (streak) vasthouden.</p>
+      </article>
+      <article class="card event">
+        <div class="card-top"><span class="num">09</span><h3>Howy vraagt</h3></div>
+        <div class="meta"><span class="tag event">TRIGGER</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">on: knowledge_gap_detected
+  (onbeantwoorde vraag | verouderd item)
+to: kennishouder van {{topic}}
+max: een paar keer per maand per persoon</div>
+        <p class="goal"><b>Doel:</b> ontbrekende kennis persoonlijk ophalen bij wie het weet (+25 credits).</p>
+        <p class="rule">Knoppen: "Iemand anders weet het beter" en "Niet nu".</p>
+      </article>
+      <article class="card event">
+        <div class="card-top"><span class="num">10</span><h3>Je kennis hielp</h3></div>
+        <div class="meta"><span class="tag event">TRIGGER</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">on: rating == "valuable" op kennis van user
+max: 1× per week, meerdere ratings bundelen</div>
+        <p class="goal"><b>Doel:</b> erkenning geven: jouw kennis hielp een collega (+10 credits).</p>
+      </article>
+      <article class="card">
+        <div class="card-top"><span class="num">11</span><h3>Maandupdate</h3></div>
+        <div class="meta"><span class="tag sched">GEPLAND</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">cron: 1e werkdag van de maand
+inhoud: bedrijfscijfers, top 3, jouw bijdrage</div>
+        <p class="goal"><b>Doel:</b> laten zien wat het bedrijf samen heeft opgebouwd, en jouw rol daarin.</p>
+      </article>
+      <article class="card">
+        <div class="card-top"><span class="num">13</span><h3>Teamrapport</h3></div>
+        <div class="meta"><span class="tag sched">GEPLAND</span><span class="tag who">MANAGER</span></div>
+        <div class="trigger">cron: 1e werkdag van de maand
+to: users met rol manager / teamleider
+data: alleen teamniveau, nooit individueel</div>
+        <p class="goal"><b>Doel:</b> managers inzicht geven in het gebruik door hun team, zodat ze zelf kunnen bijsturen.</p>
+        <p class="rule">Variant als het team onder het doel zit (zie HTML-commentaar).</p>
+      </article>
+    </div>
+  </div>
+
+  <!-- Nieuwe collega -->
+  <div class="phase">
+    <div class="phase-head">
+      <span class="eyebrow">Instroom</span>
+      <h2>Nieuwe collega</h2>
+      <span class="when">Iedereen die na livegang start</span>
+    </div>
+    <div class="cards">
+      <article class="card event">
+        <div class="card-top"><span class="num">12</span><h3>Welkom, nieuwe collega</h3></div>
+        <div class="meta"><span class="tag event">TRIGGER</span><span class="tag who">MEDEWERKER</span></div>
+        <div class="trigger">on: user.start_date (eerste werkdag)
+if: start_date &gt; company.go_live_date
+vervangt: 01 en 02
+daarna: 03 op start_date + 3 werkdagen</div>
+        <p class="goal"><b>Doel:</b> een nieuwe collega snel op weg helpen met kennis die al klaarstaat.</p>
+        <p class="rule">Daarna volgt dezelfde flow: 04, 05, 06 (start_date + 5 werkdagen), 07 …</p>
+      </article>
+    </div>
+  </div>
+
+</section>
+
+<section style="display:grid;gap:16px">
+  <h2>Flow per medewerker</h2>
+  <p class="note">Links de vaste route vanaf de start; rechts wat er doorlopend gebeurt, via triggers en op een vast ritme.</p>
+  <div class="flowbox">
+<div class="mermaid-svg"><svg viewBox="0 0 760 680" role="img" aria-label="Mailflow per medewerker" font-family="Plus Jakarta Sans, Helvetica, Arial, sans-serif" style="width:100%;height:auto;color:var(--ink)"><defs><marker id="mf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8A8A82"/></marker></defs><text x="24" y="34" font-size="15" font-weight="700" text-anchor="start" fill="currentColor">Elke medewerker start met drie geplande mails; daarna stuurt gedrag de rest</text><g fill="none" stroke="#8A8A82" stroke-width="1.25"><path d="M232 112V132" marker-end="url(#mf)"/><path d="M152 170H120V220" marker-end="url(#mf)"/><path d="M312 170H344V220" marker-end="url(#mf)"/><path d="M120 276V300" marker-end="url(#mf)"/><path d="M120 356V380H182V400" marker-end="url(#mf)"/><path d="M344 276V380H282V400" marker-end="url(#mf)"/><path d="M232 456V476" marker-end="url(#mf)"/><path d="M136 520H100V590" marker-end="url(#mf)"/><path d="M328 520H364V590" marker-end="url(#mf)"/><path d="M180 620H270" marker-end="url(#mf)"/><path d="M454 620H600V510" marker-end="url(#mf)"/><path d="M590 128H604" marker-end="url(#mf)"/><path d="M590 168H604" marker-end="url(#mf)"/><path d="M590 208H604" marker-end="url(#mf)"/><path d="M590 248H604" marker-end="url(#mf)"/><path d="M590 288H604" marker-end="url(#mf)"/><path d="M590 398H604" marker-end="url(#mf)"/><path d="M590 438H604" marker-end="url(#mf)"/><path d="M590 478H604" marker-end="url(#mf)"/></g><rect x="97.0" y="72.0" width="270" height="40" rx="8" fill="#CDF464" stroke="#9DBF2F" stroke-width="2"/><text x="232" y="96" font-size="13" font-weight="600" text-anchor="middle" fill="#111111">Start: livegang of eerste werkdag</text><polygon points="152,170 232,136 312,170 232,204" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="232" y="174" font-size="13" font-weight="400" text-anchor="middle" fill="currentColor">Nieuwe collega?</text><text x="132" y="160" font-size="11.5" font-weight="400" text-anchor="middle" fill="#6B6B66">nee</text><text x="330" y="160" font-size="11.5" font-weight="400" text-anchor="middle" fill="#6B6B66">ja</text><rect x="30.0" y="224.0" width="180" height="52" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="120" y="246" font-size="13" font-weight="600" text-anchor="middle" fill="currentColor">01 Introductie</text><text x="120" y="264" font-size="11.5" font-weight="400" text-anchor="middle" fill="#6B6B66">dag 0</text><rect x="30.0" y="304.0" width="180" height="52" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="120" y="326" font-size="13" font-weight="600" text-anchor="middle" fill="currentColor">02 Zo werkt het</text><text x="120" y="344" font-size="11.5" font-weight="400" text-anchor="middle" fill="#6B6B66">dag 0 + 2 werkdagen</text><rect x="244.0" y="224.0" width="200" height="52" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="344" y="246" font-size="13" font-weight="600" text-anchor="middle" fill="currentColor">12 Welkom, nieuwe collega</text><text x="344" y="264" font-size="11.5" font-weight="400" text-anchor="middle" fill="#6B6B66">eerste werkdag</text><rect x="132.0" y="404.0" width="200" height="52" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="232" y="426" font-size="13" font-weight="600" text-anchor="middle" fill="currentColor">03 Welkomstchallenge</text><text x="232" y="444" font-size="11.5" font-weight="400" text-anchor="middle" fill="#6B6B66">start + 3 werkdagen</text><polygon points="136,520 232,480 328,520 232,560" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="232" y="516" font-size="13" font-weight="400" text-anchor="middle" fill="currentColor">Na 5 werkdagen</text><text x="232" y="532" font-size="13" font-weight="400" text-anchor="middle" fill="currentColor">iets gedeeld?</text><text x="112" y="510" font-size="11.5" font-weight="400" text-anchor="middle" fill="#6B6B66">nee</text><text x="352" y="510" font-size="11.5" font-weight="400" text-anchor="middle" fill="#6B6B66">ja</text><rect x="20.0" y="594.0" width="160" height="52" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="100" y="616" font-size="13" font-weight="600" text-anchor="middle" fill="currentColor">06 Wat weet jij?</text><text x="100" y="634" font-size="11.5" font-weight="400" text-anchor="middle" fill="#6B6B66">1× herinnering</text><rect x="274.0" y="594.0" width="180" height="52" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="364" y="616" font-size="13" font-weight="600" text-anchor="middle" fill="currentColor">Doorlopend</text><text x="364" y="634" font-size="11.5" font-weight="400" text-anchor="middle" fill="#6B6B66">triggers en vast ritme</text><text x="608" y="566" font-size="11.5" font-weight="400" text-anchor="start" fill="#6B6B66">vanaf week 1</text><rect x="464" y="70" width="272" height="246" rx="8" fill="none" stroke="#B9DF45" stroke-width="2" stroke-dasharray="5 4"/><text x="480" y="96" font-size="13" font-weight="600" text-anchor="start" fill="currentColor">Triggers, op elk moment</text><rect x="464" y="340" width="272" height="166" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="480" y="366" font-size="13" font-weight="600" text-anchor="start" fill="currentColor">Vast ritme</text><rect x="608" y="113" width="112" height="30" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="480" y="132" font-size="11.5" font-weight="400" text-anchor="start" fill="currentColor">Eerste Cc</text><text x="664" y="132" font-size="11.5" font-weight="600" text-anchor="middle" fill="currentColor">04 Bewaard!</text><rect x="608" y="153" width="112" height="30" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="480" y="172" font-size="11.5" font-weight="400" text-anchor="start" fill="currentColor">Vraag aan Howy</text><text x="664" y="172" font-size="11.5" font-weight="600" text-anchor="middle" fill="currentColor">05 Antwoord</text><rect x="608" y="193" width="112" height="30" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="480" y="212" font-size="11.5" font-weight="400" text-anchor="start" fill="currentColor">Challenge klaar</text><text x="664" y="212" font-size="11.5" font-weight="600" text-anchor="middle" fill="currentColor">08 Howy Hero</text><rect x="608" y="233" width="112" height="30" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="480" y="252" font-size="11.5" font-weight="400" text-anchor="start" fill="currentColor">Kennisgat</text><text x="664" y="252" font-size="11.5" font-weight="600" text-anchor="middle" fill="currentColor">09 Howy vraagt</text><rect x="608" y="273" width="112" height="30" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="480" y="292" font-size="11.5" font-weight="400" text-anchor="start" fill="currentColor">Rating waardevol</text><text x="664" y="292" font-size="11.5" font-weight="600" text-anchor="middle" fill="currentColor">10 Kennis hielp</text><rect x="608" y="383" width="112" height="30" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="480" y="402" font-size="11.5" font-weight="400" text-anchor="start" fill="currentColor">Elke vrijdag</text><text x="664" y="402" font-size="11.5" font-weight="600" text-anchor="middle" fill="currentColor">07 Trending topics</text><rect x="608" y="423" width="112" height="30" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="480" y="442" font-size="11.5" font-weight="400" text-anchor="start" fill="currentColor">1e werkdag maand</text><text x="664" y="442" font-size="11.5" font-weight="600" text-anchor="middle" fill="currentColor">11 Maandupdate</text><rect x="608" y="463" width="112" height="30" rx="8" fill="none" stroke="#8A8A82" stroke-width="1.25"/><text x="480" y="474" font-size="11.5" font-weight="400" text-anchor="start" fill="currentColor">1e werkdag maand</text><text x="480" y="488" font-size="11.5" font-weight="400" text-anchor="start" fill="#6B6B66">alleen managers</text><text x="664" y="482" font-size="11.5" font-weight="600" text-anchor="middle" fill="currentColor">13 Teamrapport</text></svg></div>
+  </div>
+</section>
+
+<section style="display:grid;gap:16px">
+  <h2>Regels voor versturen</h2>
+  <div class="rules">
+    <div class="rulebox">
+      <h3>Frequentie</h3>
+      <ul>
+        <li>Na de kennismakingsweek alleen de vaste geplande mails: <code>07</code> elke vrijdag en <code>11</code> maandelijks. Alle andere mails zijn triggers op gedrag.</li>
+        <li><code>04</code> alleen bij de eerste Cc; <code>06</code> maximaal één keer.</li>
+        <li><code>10</code> maximaal één keer per week, gebundeld.</li>
+        <li><code>09</code> maximaal een paar keer per maand per persoon.</li>
+      </ul>
+    </div>
+    <div class="rulebox">
+      <h3>Botsingen <span class="tag event" style="margin-left:6px">VOORSTEL</span></h3>
+      <ul>
+        <li>Valt de eerste werkdag van de maand op een vrijdag? Dan gaat <code>11</code> voor en schuift <code>07</code> naar de volgende week.</li>
+        <li>Geen geplande mails in de week van <code>01</code>–<code>03</code>, behalve die drie.</li>
+        <li>Stuur geen <code>06</code> als de medewerker al een <code>05</code> heeft gekregen (dan heeft hij Howy al gebruikt).</li>
+      </ul>
+    </div>
+    <div class="rulebox">
+      <h3>Privacy</h3>
+      <ul>
+        <li>Howy verwerkt alleen mails waarin Howy zelf in Cc of Aan staat. Geen monitoring.</li>
+        <li><code>13</code> bevat alleen cijfers op teamniveau. Individuele cijfers zijn nooit zichtbaar voor managers.</li>
+        <li>Kennisbijdragers in <code>11</code> alleen met opt-in.</li>
+        <li>Elke mail heeft een link naar de mailvoorkeuren en de privacyverklaring.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section style="display:grid;gap:16px">
+  <h2>Alle mails in één tabel</h2>
+  <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>Mail</th><th>Type</th><th>Moment / trigger</th><th>Ontvanger</th><th>Doel</th><th>Template</th></tr></thead>
+      <tbody>
+        <tr><td>01</td><td>Introductie</td><td><span class="tag sched">GEPLAND</span></td><td>Dag 0 (livegang)</td><td>Alle medewerkers</td><td>Wie is Howy, waarom belangrijk</td><td><code>howy-mail-01-introductie</code></td></tr>
+        <tr><td>02</td><td>Zo werkt het</td><td><span class="tag sched">GEPLAND</span></td><td>Dag 0 + 2 werkdagen</td><td>Alle medewerkers</td><td>Cc = bewaren, Aan = vragen</td><td><code>howy-mail-02-zo-werkt-het</code></td></tr>
+        <tr><td>03</td><td>Welkomstchallenge</td><td><span class="tag sched">GEPLAND</span></td><td>Dag 0 + 3 werkdagen (of 12 + 3)</td><td>Alle medewerkers</td><td>4 acties in 7 dagen, Howy Hero worden</td><td><code>howy-mail-03-welkomstchallenge</code></td></tr>
+        <tr><td>04</td><td>Bewaard!</td><td><span class="tag event">TRIGGER</span></td><td>Eerste Cc van de medewerker</td><td>Afzender van die mail</td><td>Laten zien wat er is bewaard</td><td><code>howy-mail-04-bewaard</code></td></tr>
+        <tr><td>05</td><td>Antwoord + feedback</td><td><span class="tag event">TRIGGER</span></td><td>Elke mail met Howy in Aan</td><td>Vraagsteller</td><td>Antwoord met bron, beoordeling ophalen</td><td><code>howy-mail-05-antwoord-feedback</code></td></tr>
+        <tr><td>06</td><td>Wat weet jij…?</td><td><span class="tag event">TRIGGER</span></td><td>Dag 0 + 5 werkdagen en 0 Cc's</td><td>Medewerker zonder bijdrage</td><td>Eerste Cc uitlokken</td><td><code>howy-mail-06-wat-weet-jij</code></td></tr>
+        <tr><td>07</td><td>Trending kennis topics</td><td><span class="tag sched">GEPLAND</span></td><td>Elke vrijdag</td><td>Alle medewerkers</td><td>Top 3 topics en jouw week</td><td><code>howy-mail-07-trending-kennis-topics</code></td></tr>
+        <tr><td>08</td><td>Challenge gehaald</td><td><span class="tag event">TRIGGER</span></td><td>Alle 4 challenge-acties gedaan</td><td>Medewerker</td><td>Howy Hero-badge, 70 credits</td><td><code>howy-mail-08-challenge-gehaald</code></td></tr>
+        <tr><td>09</td><td>Howy vraagt</td><td><span class="tag event">TRIGGER</span></td><td>Kennisgat gevonden</td><td>Kennishouder van het topic</td><td>Ontbrekende kennis ophalen</td><td><code>howy-mail-09-howy-vraagt</code></td></tr>
+        <tr><td>10</td><td>Je kennis hielp</td><td><span class="tag event">TRIGGER</span></td><td>Rating "waardevol" (bundel 1×/week)</td><td>Bron van de kennis</td><td>Erkenning, +10 credits</td><td><code>howy-mail-10-je-kennis-hielp</code></td></tr>
+        <tr><td>11</td><td>Maandupdate</td><td><span class="tag sched">GEPLAND</span></td><td>1e werkdag van de maand</td><td>Alle medewerkers</td><td>Wat we samen opbouwden + jouw bijdrage</td><td><code>howy-mail-11-maandupdate</code></td></tr>
+        <tr><td>12</td><td>Welkom nieuwe collega</td><td><span class="tag event">TRIGGER</span></td><td>start_date na livegang</td><td>Nieuwe medewerker</td><td>Snel op weg; vervangt 01 en 02</td><td><code>howy-mail-12-welkom-nieuwe-collega</code></td></tr>
+        <tr><td>13</td><td>Teamrapport</td><td><span class="tag sched">GEPLAND</span></td><td>1e werkdag van de maand</td><td>Managers / teamleiders</td><td>Gebruik van het team, zelf bijsturen</td><td><code>howy-mail-13-teamrapport-manager</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">"Werkdagen" = ma–vr, zonder feestdagen van het land van de klant. Regels gemarkeerd als VOORSTEL zijn nog niet besloten en moeten met product worden afgestemd.</p>
+</section>
+
+</div>
+
+</body>
+</html>

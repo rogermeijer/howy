@@ -1,0 +1,112 @@
+<?php
+
+namespace App\Services\Adoption;
+
+use App\Enums\MailLinkPurpose;
+use App\Enums\OutboundMailKind;
+use App\Enums\OutboundMailStatus;
+use App\Jobs\Adoption\DeliverOutboundMail;
+use App\Models\Colleague;
+use App\Models\Email;
+use App\Models\OutboundMail;
+use App\Services\Mail\HowyMailer;
+use App\Services\Mail\MailLinks;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Sends one of Howy's own mails to one colleague, once. It is written and
+ * logged at once, as a mail not sent yet, and a job delivers it: what is
+ * underway shows straight away, on the colleague's page and in the mail log.
+ *
+ * The colleague's row is locked while it decides, so asking twice (two first
+ * mails read at once, a button clicked twice) logs the mail once.
+ */
+class FlowSender
+{
+    public function __construct(
+        private readonly HowyMailer $mailer,
+        private readonly FlowMailComposer $composer,
+        private readonly MailLinks $links,
+    ) {}
+
+    /**
+     * @param  Email|null  $about  the mail it is about: the one a thanks for a first contribution thanks for
+     */
+    public function send(Colleague $colleague, OutboundMailKind $kind, ?Email $about = null): bool
+    {
+        return DB::transaction(function () use ($colleague, $kind, $about): bool {
+            $colleague = Colleague::query()->with(['homeMailbox', 'user'])->lockForUpdate()->find($colleague->id);
+
+            if ($colleague === null || $this->underway($colleague, $kind)) {
+                return false;
+            }
+
+            $unsubscribe = $this->unsubscribeUrl($colleague);
+            $mail = $this->mailer->logForColleague($colleague, $kind, $this->composer->compose($colleague, $kind, $about, $unsubscribe), $about, $unsubscribe);
+
+            DeliverOutboundMail::dispatch($mail->id)->afterCommit();
+
+            return true;
+        });
+    }
+
+    /**
+     * The same kind of mail to the same colleague once more, for one that did
+     * not arrive: written afresh, so it says what that mail says now, with the
+     * links and access of today, from their home mailbox. Logged at once and
+     * delivered by a job, like any other; one on its way at a time.
+     */
+    public function resend(OutboundMail $mail): bool
+    {
+        if (! self::resendable($mail)) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($mail): bool {
+            $colleague = Colleague::query()->with(['homeMailbox', 'user'])->lockForUpdate()->find($mail->colleague_id);
+
+            if ($colleague === null || $colleague->outboundMails()->where('kind', $mail->kind)->where('status', OutboundMailStatus::Pending)->exists()) {
+                return false;
+            }
+
+            $unsubscribe = $this->unsubscribeUrl($colleague);
+            $fresh = $this->mailer->logForColleague($colleague, $mail->kind, $this->composer->compose($colleague, $mail->kind, $mail->email, $unsubscribe), $mail->email, $unsubscribe);
+
+            DeliverOutboundMail::dispatch($fresh->id)->afterCommit();
+
+            return true;
+        });
+    }
+
+    /**
+     * One of Howy's own mails to a colleague that went, or failed, and that
+     * Howy can write again: a reply in someone's thread is not sent twice.
+     */
+    public static function resendable(OutboundMail $mail): bool
+    {
+        return FlowMailComposer::writes($mail->kind)
+            && ($mail->kind !== OutboundMailKind::FirstSave || $mail->email_id !== null)
+            && $mail->colleague_id !== null
+            && in_array($mail->status, [OutboundMailStatus::Sent, OutboundMailStatus::Failed], true);
+    }
+
+    /**
+     * Their way out of Howy's own mails, in the footer and as the mail's
+     * List-Unsubscribe header. It never expires.
+     */
+    private function unsubscribeUrl(Colleague $colleague): string
+    {
+        return $this->links->url(MailLinkPurpose::Unsubscribe, $colleague->id, $colleague->email, $this->composer->localeFor($colleague));
+    }
+
+    /**
+     * Whether they had this mail, or it is on its way.
+     */
+    public function underway(Colleague $colleague, OutboundMailKind $kind): bool
+    {
+        $column = $kind->colleagueColumn();
+
+        return ($column !== null && $colleague->getAttribute($column) !== null)
+            || $colleague->outboundMails()->where('kind', $kind)->whereIn('status', OutboundMailStatus::underway())->exists();
+    }
+}

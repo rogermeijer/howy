@@ -15,10 +15,12 @@ trait MailboxValidationRules
 
     /**
      * What Howy may do with mail on a mailbox: an access for its own domain,
-     * and per address or domain on top; everyone else is ignored. Normalise the
-     * rules with normalizeSenderRules() before validating. A public domain
-     * such as gmail.com is never a rule: it would let in everyone on it, so
-     * its addresses are listed one by one.
+     * and per address or domain on top; everyone else is ignored. A domain may
+     * say whether those it lets in become colleagues. Only what changed is
+     * sent: the rules set, and the addresses and domains removed. Normalise
+     * both with normalizeSenderRules() and normalizeEntries() before
+     * validating. A public domain such as gmail.com is never a rule: it would
+     * let in everyone on it, so its addresses are listed one by one.
      *
      * @return array<string, array<int, ValidationRule|array<mixed>|string|Closure>>
      */
@@ -37,9 +39,14 @@ trait MailboxValidationRules
         return [
             'domain_access' => ['required', Rule::enum(SenderAccess::class)],
             'sender_rules' => ['present', 'array', 'max:500'],
-            'sender_rules.*' => ['array:entry,access'],
+            'sender_rules.*' => ['array:entry,access,creates_colleagues'],
             'sender_rules.*.entry' => ['required', 'string', 'max:255', $entry],
             'sender_rules.*.access' => ['required', Rule::enum(SenderAccess::class)],
+            'sender_rules.*.creates_colleagues' => ['sometimes', 'boolean'],
+            'removed_rules' => ['present', 'array', 'max:500'],
+            'removed_rules.*' => ['string', 'max:255'],
+            // Welcome the colleagues an address on the list makes, when the account is live.
+            'welcome_new' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -48,24 +55,42 @@ trait MailboxValidationRules
      * domain once: a later rule for it replaces an earlier one, so a pasted
      * list can move senders that are already there.
      *
-     * @return list<array{entry: string, access: mixed}>
+     * @return list<array<string, mixed>>
      */
     protected function normalizeSenderRules(mixed $value): array
     {
         $rules = [];
 
         foreach (is_array($value) ? $value : [] as $rule) {
-            $entry = is_array($rule) && is_string($rule['entry'] ?? null) ? strtolower(trim($rule['entry'])) : '';
-            $entry = str_contains(ltrim($entry, '@'), '@') ? $entry : ltrim($entry, '@');
+            $entry = is_array($rule) ? $this->normalizeEntry($rule['entry'] ?? null) : '';
 
             if ($entry === '') {
                 continue;
             }
 
             unset($rules[$entry]);
-            $rules[$entry] = ['entry' => $entry, 'access' => is_array($rule) ? ($rule['access'] ?? null) : null];
+            $rules[$entry] = ['entry' => $entry, ...array_diff_key($rule, ['entry' => true])];
         }
 
         return array_values($rules);
+    }
+
+    /**
+     * Addresses and domains, written the way rules are.
+     *
+     * @return list<string>
+     */
+    protected function normalizeEntries(mixed $value): array
+    {
+        $entries = array_map(fn (mixed $entry): string => $this->normalizeEntry($entry), is_array($value) ? $value : []);
+
+        return array_values(array_unique(array_filter($entries, fn (string $entry): bool => $entry !== '')));
+    }
+
+    private function normalizeEntry(mixed $value): string
+    {
+        $entry = is_string($value) ? strtolower(trim($value)) : '';
+
+        return str_contains(ltrim($entry, '@'), '@') ? $entry : ltrim($entry, '@');
     }
 }

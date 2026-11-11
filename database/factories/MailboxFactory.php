@@ -5,8 +5,10 @@ namespace Database\Factories;
 use App\Enums\MailboxProvider;
 use App\Enums\MailboxStatus;
 use App\Enums\SenderAccess;
+use App\Models\Colleague;
 use App\Models\Mailbox;
-use App\Models\MailboxSender;
+use App\Models\MailboxRule;
+use App\Services\Mailboxes\MailboxRuleEditor;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -32,14 +34,23 @@ class MailboxFactory extends Factory
             'status' => MailboxStatus::Active,
             'history_id' => '1000',
             'watch_expires_at' => now()->addDays(7),
-            'domain_access' => SenderAccess::LearnAndAnswer,
         ];
     }
 
     /**
-     * Made, the mailbox knows its senders without storing them; created, they
-     * are stored with it.
+     * Like a mailbox just connected: its own domain learned from and
+     * answered, unless rules() says otherwise.
+     */
+    public function configure(): static
+    {
+        return $this->rules();
+    }
+
+    /**
+     * Made, the mailbox knows its rules without storing them; created, they
+     * are stored with it, an address as a colleague's own rule.
      *
+     * @param  SenderAccess  $domain  for the mailbox's own domain, when it is not a public one
      * @param  array<string, SenderAccess>  $senders  address or domain => access
      */
     public function rules(SenderAccess $domain = SenderAccess::LearnAndAnswer, array $senders = []): static
@@ -50,12 +61,24 @@ class MailboxFactory extends Factory
             array_values($senders),
         );
 
-        return $this->state(['domain_access' => $domain])
-            ->afterMaking(fn (Mailbox $mailbox) => $mailbox->setRelation(
-                'senders',
-                new Collection(array_map(fn (array $sender): MailboxSender => new MailboxSender($sender), $senders)),
-            ))
-            ->afterCreating(fn (Mailbox $mailbox) => $mailbox->syncSenders($senders));
+        return $this
+            ->afterMaking(function (Mailbox $mailbox) use ($domain, $senders): void {
+                $rules = $mailbox->isOnPublicDomain() ? [] : [$mailbox->domain() => new MailboxRule([
+                    'domain' => $mailbox->domain(), 'access' => $domain, 'creates_colleagues' => true,
+                ])];
+
+                foreach ($senders as $sender) {
+                    $rules[$sender['entry']] = str_contains($sender['entry'], '@')
+                        ? (new MailboxRule(['access' => $sender['access']]))->setRelation('colleague', new Colleague(['email' => $sender['entry']]))
+                        : new MailboxRule(['domain' => $sender['entry'], 'access' => $sender['access']]);
+                }
+
+                $mailbox->setRelation('rules', new Collection(array_map(
+                    fn (MailboxRule $rule): MailboxRule => $rule->relationLoaded('colleague') ? $rule : $rule->setRelation('colleague', null),
+                    array_values($rules),
+                )));
+            })
+            ->afterCreating(fn (Mailbox $mailbox) => app(MailboxRuleEditor::class)->apply($mailbox, $domain, $senders));
     }
 
     public function needsReauth(): static

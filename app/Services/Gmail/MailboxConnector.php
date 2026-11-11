@@ -9,6 +9,8 @@ use App\Exceptions\MailboxConnectedElsewhereException;
 use App\Jobs\StartGmailWatch;
 use App\Models\Mailbox;
 use App\Models\User;
+use App\Services\Colleagues\Colleagues;
+use App\Services\Mailboxes\MailboxRuleEditor;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Bus;
 use Laravel\Socialite\Two\User as GoogleUser;
@@ -21,6 +23,11 @@ class MailboxConnector
 {
     /** The partial index that keeps an address active in one account at most. */
     private const string ACTIVE_ADDRESS_INDEX = 'mailboxes_one_active_per_address';
+
+    public function __construct(
+        private readonly MailboxRuleEditor $rules,
+        private readonly Colleagues $colleagues,
+    ) {}
 
     /**
      * Create the mailbox, or bring an existing one back to life on re-auth.
@@ -60,11 +67,14 @@ class MailboxConnector
             throw $e;
         }
 
-        // On gmail.com "the same domain" is everyone: a new mailbox there
-        // reads only the senders listed, starting with whoever connected it.
-        // Connected again, a mailbox keeps the senders it has.
-        if ($mailbox->wasRecentlyCreated && $mailbox->isOnPublicDomain()) {
-            $mailbox->senders()->create(['entry' => mb_strtolower($by->email), 'access' => SenderAccess::LearnAndAnswer]);
+        // A new mailbox learns from and answers its own domain, whose people
+        // become colleagues. On gmail.com "the same domain" is everyone: a
+        // mailbox there reads only the senders listed, starting with whoever
+        // connected it. Connected again, a mailbox keeps the rules it has.
+        if ($mailbox->wasRecentlyCreated) {
+            $mailbox->isOnPublicDomain()
+                ? $this->rules->setFor($mailbox, $this->colleagues->findOrCreate($by->email, $mailbox, $by->name), SenderAccess::LearnAndAnswer)
+                : $this->rules->setForDomain($mailbox, $mailbox->domain(), SenderAccess::LearnAndAnswer, createsColleagues: true);
         }
 
         StartGmailWatch::dispatch($mailbox->id);

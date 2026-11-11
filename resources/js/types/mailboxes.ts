@@ -3,8 +3,17 @@ export type MailboxStatus = 'active' | 'needs_reauth' | 'disconnected';
 /** What Howy may do with a sender's mail. Mirrors App\Enums\SenderAccess. */
 export type SenderAccess = 'learn_answer' | 'learn' | 'answer' | 'ignore';
 
-/** One address (jan@x.nl) or domain (x.nl, stored without the @) on a mailbox. */
-export type SenderRule = { entry: string; access: SenderAccess };
+/**
+ * One address (jan@x.nl) or domain (x.nl, stored without the @) on a mailbox.
+ * An address is a colleague's own rule; a domain may make the people it lets
+ * in colleagues. Not yet saved, neither is known.
+ */
+export type SenderRule = {
+    entry: string;
+    access: SenderAccess;
+    createsColleagues?: boolean;
+    colleagueId?: number | null;
+};
 
 export type Mailbox = {
     id: number;

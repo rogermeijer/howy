@@ -6,9 +6,11 @@ import { WithHowy } from '@/components/brand/howy-name';
 import { PageHeader } from '@/components/cc/page-header';
 import { Tag } from '@/components/cc/tag';
 import { EmailSourceChip } from '@/components/knowledge/source-chip';
+import { SenderRequestNote } from '@/components/mail/sender-request';
 import { StatementCard } from '@/components/mail/statement-card';
 import { Button } from '@/components/ui/button';
 import { useFormatDate } from '@/hooks/use-format-date';
+import { useAccountUpdates } from '@/hooks/use-account-updates';
 import { useTranslations } from '@/hooks/use-translations';
 import { knowledge } from '@/routes';
 import emailRoutes from '@/routes/emails';
@@ -31,6 +33,9 @@ type Props = {
  */
 export default function Approvals({ documents, mails }: Props) {
     const t = useTranslations();
+
+    // What comes to wait, or is dealt with elsewhere, shows as it happens.
+    useAccountUpdates('approvals', ['documents', 'mails']);
 
     return (
         <>
@@ -241,6 +246,7 @@ function MailCard({ mail }: { mail: ApprovalMail }) {
                         statement={statement}
                         light
                     >
+                        <SenderRequestNote statement={statement} />
                         <Decision
                             emailId={mail.emailId}
                             statement={statement}
@@ -262,7 +268,7 @@ function Decision({
     const t = useTranslations();
     const [busy, setBusy] = useState(false);
 
-    const decide = (action: 'approve' | 'reject') =>
+    const decide = (action: 'approve' | 'reject' | 'handled') =>
         router.post(
             EmailStatementController[action].url({
                 email: emailId,
@@ -275,6 +281,24 @@ function Decision({
                 onFinish: () => setBusy(false),
             },
         );
+
+    // In the knowledge base already: the sender's request is for an admin to
+    // deal with by hand, and then to mark done.
+    if (statement.review !== 'pending') {
+        return (
+            <div className="flex flex-wrap gap-2 pt-1">
+                <Button
+                    variant="outline"
+                    className="h-10"
+                    disabled={busy}
+                    onClick={() => decide('handled')}
+                >
+                    <Check />
+                    {t('Mark as done')}
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-wrap gap-2 pt-1">

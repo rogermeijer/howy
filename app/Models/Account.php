@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property Locale $knowledge_locale the language the knowledge base is built in
  * @property string $timezone
  * @property Carbon|null $onboarded_at when an administrator finished the setup wizard
+ * @property Carbon|null $live_at since when Howy sends its own mails to colleagues; null is paused
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, User> $users
@@ -79,6 +80,16 @@ class Account extends Model
     }
 
     /**
+     * Whether Howy sends its own mails to colleagues: the welcome and what
+     * follows. Set by an admin, never by a form field (live_at is not
+     * fillable). Answers to questions go out either way.
+     */
+    public function isLive(): bool
+    {
+        return $this->live_at !== null;
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -87,6 +98,7 @@ class Account extends Model
             'locale' => Locale::class,
             'knowledge_locale' => Locale::class,
             'onboarded_at' => 'datetime',
+            'live_at' => 'datetime',
         ];
     }
 }

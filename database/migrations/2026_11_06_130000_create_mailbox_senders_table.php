@@ -2,9 +2,9 @@
 
 use App\Facades\Tenancy;
 use App\Models\Mailbox;
-use App\Models\MailboxSender;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -62,13 +62,17 @@ return new class extends Migration
                     }
                 }
 
+                // The table, not a model: mailbox_senders has since been replaced
+                // by mailbox_rules (2026_11_11_100000_create_colleagues_and_mailbox_rules).
                 foreach (array_keys($entries) as $entry) {
-                    (new MailboxSender)->forceFill([
+                    DB::table('mailbox_senders')->insert([
                         'account_id' => $mailbox->getRawOriginal('account_id'),
                         'mailbox_id' => $mailbox->id,
                         'entry' => $entry,
                         'access' => $access($policy === 'whitelist' ? 'learn_answer' : 'ignore'),
-                    ])->save();
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
                 }
 
                 $mailbox->forceFill([
@@ -93,10 +97,10 @@ return new class extends Migration
 
         Tenancy::withoutTenancy(function (): void {
             Mailbox::query()->each(function (Mailbox $mailbox): void {
-                $senders = MailboxSender::query()->where('mailbox_id', $mailbox->id)->orderBy('id')->get();
+                $senders = DB::table('mailbox_senders')->where('mailbox_id', $mailbox->id)->orderBy('id')->get();
                 $entries = fn (bool $ignored): array => $senders
-                    ->filter(fn (MailboxSender $sender): bool => ($sender->getRawOriginal('access') === 'ignore') === $ignored)
-                    ->map(fn (MailboxSender $sender): string => $sender->entry)
+                    ->filter(fn (object $sender): bool => ($sender->access === 'ignore') === $ignored)
+                    ->map(fn (object $sender): string => $sender->entry)
                     ->values()
                     ->all();
 

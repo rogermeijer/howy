@@ -14,13 +14,13 @@ use App\Models\EmailInterpretation;
 use App\Models\KnowledgeFact;
 use App\Models\Mailbox;
 use App\Models\User;
-use App\Services\Gmail\GmailClient;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
 use App\Services\Knowledge\Ai\Agents\QuestionAnswerer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Ai\Prompts\AgentPrompt;
+use Tests\Concerns\FakesGmailSending;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\TestCase;
 
@@ -30,6 +30,7 @@ use Tests\TestCase;
  */
 class CopiedMailTest extends TestCase
 {
+    use FakesGmailSending;
     use FakesKnowledgeAi, RefreshDatabase;
 
     private const string LEAVE = 'Medewerkers hebben recht op 25 vakantiedagen per jaar.';
@@ -45,7 +46,7 @@ class CopiedMailTest extends TestCase
         $this->account = Account::factory()->create(['locale' => 'nl']);
         $this->mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->create(['email_address' => 'kennis@noordkade.nl']));
 
-        Http::fake([GmailClient::BASE_URL.'/messages/send' => Http::response(['id' => 'reply-1', 'threadId' => 'thread-1'])]);
+        $this->fakeGmailSend();
         $this->fakeKnowledgeAi();
     }
 

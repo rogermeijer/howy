@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Concerns;
 
 use App\Models\Mailbox;
-use App\Models\MailboxSender;
+use App\Models\MailboxRule;
 use App\Services\Gmail\MailboxImporter;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -23,7 +23,7 @@ trait PresentsMailboxes
     {
         return $query
             ->withCount('emails')
-            ->with(['senders' => fn ($query) => $query->oldest('id')]);
+            ->with(['rules' => fn ($query) => $query->oldest('id'), 'rules.colleague']);
     }
 
     /**
@@ -31,6 +31,8 @@ trait PresentsMailboxes
      */
     protected function presentMailbox(Mailbox $mailbox, MailboxImporter $importer, bool $isAdmin): array
     {
+        $own = $mailbox->ownDomainRule();
+
         return [
             'id' => $mailbox->id,
             'emailAddress' => $mailbox->email_address,
@@ -41,11 +43,17 @@ trait PresentsMailboxes
             'import' => $importer->progress($mailbox),
             'domain' => $mailbox->domain(),
             'publicDomain' => $mailbox->isOnPublicDomain(),
-            'domainAccess' => $mailbox->domain_access->value,
-            'senderRules' => $mailbox->senders->map(fn (MailboxSender $sender): array => [
-                'entry' => $sender->entry,
-                'access' => $sender->access->value,
-            ])->all(),
+            'domainAccess' => $mailbox->domainAccess()->value,
+            'senderRules' => $mailbox->rules
+                ->reject(fn (MailboxRule $rule): bool => $rule->is($own))
+                ->map(fn (MailboxRule $rule): array => [
+                    'entry' => $rule->entry(),
+                    'access' => $rule->access->value,
+                    'createsColleagues' => $rule->creates_colleagues,
+                    'colleagueId' => $rule->colleague_id,
+                ])
+                ->values()
+                ->all(),
             'importOffered' => $isAdmin && $mailbox->offersImport(),
         ];
     }

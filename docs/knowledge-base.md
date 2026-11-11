@@ -297,30 +297,39 @@ answers. A sender Howy may only answer gets nothing done when the mailbox is onl
 `skipped` at once, without a model call. The interpretation's `note` says why a question went unanswered or
 information was not learned.
 
-`Mailbox::access()` takes the first of these that matches (mirrored in `resources/js/lib/mailbox-rules.ts`):
+Rules live in `mailbox_rules` (`MailboxRule`), each for one **colleague** (`colleague_id`) or one **domain**
+(`domain`, without its `@`, lowercased), never both (a check constraint). `Mailbox::access()` takes the first of
+these that matches (mirrored in `resources/js/lib/mailbox-rules.ts`):
 
-1. the sender's address among the mailbox's senders (`mailbox_senders`, `MailboxSender`);
-2. the sender's domain among them (exactly; subdomains do not match);
-3. `domain_access`, for the mailbox's own domain (default `learn_answer`).
+1. the rule of the colleague with the sender's address;
+2. the rule for the sender's domain (exactly; subdomains do not match). The mailbox's own domain is a domain rule
+   like any other, shown on the card as "Colleagues" (default `learn_answer`).
 
 Anyone else is ignored; to read someone else, list them.
 
-An address beats its domain, so one address inside an organisation can be ignored while the rest is read
-(`klant.nl` → `learn_answer`, `noreply@klant.nl` → `ignore`). Each listed sender is a row of its own: `entry` is
-the address, or the domain without its `@`, lowercased and once per mailbox; at most 500. The settings form saves
-the whole list at once (`Mailbox::syncSenders()`): a sender that stays keeps its row and only its `access`
-changes, so whatever later hangs off a sender survives a change of mind. On a public domain (`config/mailboxes.php`: gmail.com, outlook.com, …) the own domain would be
-everyone, so `domain_access` does not count there and such a domain is never a rule of its own: its addresses are
-listed one by one. A mailbox connected on one starts with only the address of whoever connected it; with an empty
-list it reads no one.
+A colleague's rule beats their domain's, so one address inside an organisation can be ignored while the rest is
+read (`klant.nl` → `learn_answer`, `noreply@klant.nl` → `ignore`). Listing an address makes that person a
+`Colleague` (one per address per account, see "Colleagues" in [`adoption-mails.md`](adoption-mails.md)) with a
+rule of their own; removing the rule keeps the colleague, whose domain's rule then decides. At most 500 per save.
+`MailboxRuleEditor` writes rules, and every change is aimed: the settings form sends the rules it sets and the
+ones it removes (`removed_rules`), never "the whole list", so a rule added elsewhere since the page loaded (by
+another admin, or on the colleagues page) survives a save. A rule that stays keeps its row.
+
+A domain rule says whether the people it lets in become colleagues (`creates_colleagues`): always for the own
+domain, off by default for any other (switch it on for a subsidiary). On a public domain (`config/mailboxes.php`:
+gmail.com, outlook.com, …) the own domain would be everyone, so there is no rule for it and such a domain is never
+a rule of its own: its addresses are listed one by one. A mailbox connected on one starts with only whoever
+connected it, as a colleague with a rule of their own; with no rules it reads no one.
 
 Older mail comes in only through the import dialog (its card's ⋯ menu), where you choose which emails; imported
 mail is kept, never interpreted. A mailbox that never imported anything offers this once, on its card: Import…
 opens the dialog, and the import ends the offer; No need sets `import_offer_answered_at`
 (`MailboxController::dismissImportOffer`).
 
-A blocked or failed reply is kept with its text (`reply_status` `blocked` / `failed`). A reply that went out
-is never sent again, also not when the mail is interpreted again.
+Replies go through `HowyMailer`, which logs every mail Howy sends (see "Sending and the mail log" in
+[`adoption-mails.md`](adoption-mails.md)). A blocked or failed reply is kept with its text (`reply_status`
+`blocked` / `failed`); one that waits for its mailbox to be reconnected is `waiting`, and goes once it is. A
+reply that went out, or waits, is never sent again, also not when the mail is interpreted again.
 
 `php artisan mail:interpret {account} {email}` interprets a mail on demand (again, or one that was never
 queued, such as an import); `--queue` queues it instead.
@@ -338,7 +347,7 @@ links is split. AI-made folders are `review_status = new` until approved. Anythi
 
 **Local (macOS):** `brew install postgresql@18 pgvector poppler pandoc qpdf redis`, create the `cc` and
 `howy_testing` databases, set `QUEUE_CONNECTION=redis` and the `KNOWLEDGE_*` binary paths if your PHP processes
-do not see `/opt/homebrew/bin`. `composer dev` starts Horizon, which works the `default` and `knowledge` queues.
+do not see `/opt/homebrew/bin`. `composer dev` starts Horizon, which works the `default` and `knowledge` queues, and `schedule:work`, which runs the scheduler every minute.
 
 **Server (Ubuntu, Forge-like):** the full runbook is `docs/deployment.md`; in short:
 

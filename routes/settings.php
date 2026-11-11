@@ -4,6 +4,7 @@ use App\Http\Controllers\Mailboxes\GmailOAuthController;
 use App\Http\Controllers\Mailboxes\MailboxController;
 use App\Http\Controllers\Mailboxes\MailboxImportController;
 use App\Http\Controllers\Settings\AccountController;
+use App\Http\Controllers\Settings\LiveController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('settings', [AccountController::class, 'edit'])->name('settings');
         Route::patch('settings', [AccountController::class, 'update'])->name('account.update');
         Route::patch('settings/knowledge-language', [AccountController::class, 'updateKnowledgeLanguage'])->name('account.knowledge-language.update');
+
+        // The start signal for Howy's own mails to colleagues.
+        Route::middleware('account.admin')->group(function () {
+            Route::post('settings/live', [LiveController::class, 'store'])->name('account.live.store');
+            Route::delete('settings/live', [LiveController::class, 'destroy'])->name('account.live.destroy');
+        });
 
         // Mailboxes belong to the account, so only its administrators manage them.
         Route::middleware('account.admin')->prefix('settings/mailboxes')->name('mailboxes.')->group(function () {

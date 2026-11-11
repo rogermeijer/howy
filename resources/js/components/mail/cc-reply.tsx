@@ -1,6 +1,7 @@
 import { CircleHelp } from 'lucide-react';
 import { WithHowy } from '@/components/brand/howy-name';
 import { Tag } from '@/components/cc/tag';
+import { RatingTag } from '@/components/mail/rating-tag';
 import {
     EmailSourceChip,
     SourceChip,
@@ -87,7 +88,9 @@ export function CcReply({
                             kind={
                                 sent
                                     ? 'decision'
-                                    : interpretation.replyStatus === 'blocked'
+                                    : interpretation.replyStatus ===
+                                            'blocked' ||
+                                        interpretation.replyStatus === 'waiting'
                                       ? 'pending'
                                       : 'action'
                             }
@@ -112,6 +115,13 @@ export function CcReply({
                             )}
                         </p>
                     )}
+                    {interpretation.replyStatus === 'waiting' && (
+                        <p className="cc-caption">
+                            {t(
+                                'Not sent yet: the mailbox needs reconnecting. The reply goes out once it is.',
+                            )}
+                        </p>
+                    )}
                     {interpretation.replyStatus === 'failed' &&
                         interpretation.error && (
                             <p className="cc-caption">
@@ -126,6 +136,31 @@ export function CcReply({
                             ? interpretation.answer
                             : interpretation.replyText}
                     </div>
+
+                    {interpretation.rating && interpretation.ratingLabel && (
+                        <div className="flex flex-col gap-1.5">
+                            <span className="flex flex-wrap items-center gap-2 text-[13px] text-cc-subtle">
+                                <RatingTag
+                                    rating={interpretation.rating}
+                                    label={interpretation.ratingLabel}
+                                />
+                                {interpretation.ratedAt &&
+                                    t('Rated :date', {
+                                        date: formatDate(
+                                            interpretation.ratedAt,
+                                            {
+                                                dateStyle: 'medium',
+                                            },
+                                        ),
+                                    })}
+                            </span>
+                            {interpretation.ratingNote && (
+                                <p className="text-[14px] leading-[1.55] text-cc-muted">
+                                    “{interpretation.ratingNote}”
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     {answered && interpretation.answerGaps && (
                         <div className="flex gap-3 rounded-xl border-[1.5px] border-dashed border-cc-border-strong bg-cc-panel px-5 py-3.5">

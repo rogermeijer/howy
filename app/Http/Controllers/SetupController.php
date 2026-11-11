@@ -6,6 +6,7 @@ use App\Actions\Accounts\ChangeKnowledgeLanguage;
 use App\Enums\Locale;
 use App\Enums\MailboxStatus;
 use App\Facades\Tenancy;
+use App\Http\Controllers\Concerns\PresentsGoLive;
 use App\Http\Controllers\Concerns\PresentsMailboxes;
 use App\Http\Requests\Settings\AccountUpdateRequest;
 use App\Http\Requests\Setup\KnowledgeLanguageChoiceRequest;
@@ -25,6 +26,7 @@ use Inertia\Response;
  */
 class SetupController extends Controller
 {
+    use PresentsGoLive;
     use PresentsMailboxes;
 
     public function start(): RedirectResponse
@@ -162,8 +164,9 @@ class SetupController extends Controller
             'mailbox' => $mailbox ? [
                 'emailAddress' => $mailbox->email_address,
                 'publicDomain' => $mailbox->isOnPublicDomain(),
-                'domainAccess' => $mailbox->domain_access->value,
+                'domainAccess' => $mailbox->domainAccess()->value,
             ] : null,
+            ...$this->goLiveProps(),
         ]);
     }
 

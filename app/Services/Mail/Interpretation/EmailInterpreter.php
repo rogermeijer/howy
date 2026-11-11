@@ -2,6 +2,7 @@
 
 namespace App\Services\Mail\Interpretation;
 
+use App\Enums\AnswerRating;
 use App\Enums\AttachmentDecision;
 use App\Enums\EmailIntent;
 use App\Enums\FactStatus;
@@ -10,12 +11,15 @@ use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
 use App\Enums\Locale;
+use App\Enums\MailLinkPurpose;
+use App\Enums\OutboundMailKind;
 use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
 use App\Models\DocumentVersion;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
 use App\Models\KnowledgeFact;
+use App\Models\OutboundMail;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
 use App\Services\Knowledge\Ai\Agents\QuestionAnswerer;
 use App\Services\Knowledge\Ai\AiGateway;
@@ -28,6 +32,7 @@ use App\Services\Knowledge\Search\Passage;
 use App\Services\Knowledge\Search\SearchQuery;
 use App\Services\Mail\MailAttachments;
 use App\Services\Mail\MailFingerprints;
+use App\Services\Mail\MailLinks;
 use App\Services\Mail\MailNovelty;
 use App\Services\Mail\MailReading;
 use App\Services\Mail\PreparedAttachments;
@@ -83,6 +88,7 @@ class EmailInterpreter
         private readonly FactReconciler $reconciler,
         private readonly ThreadDocumentWriter $threads,
         private readonly FactSources $sources,
+        private readonly MailLinks $links,
     ) {}
 
     public function interpret(Email $email): EmailInterpretation
@@ -358,7 +364,7 @@ class EmailInterpreter
         if (($response['answered'] ?? false) !== true || $answer === '') {
             $interpretation->outcome = InterpretationOutcome::NotFound;
             $interpretation->save();
-            $this->replier->reply($interpretation, $email, $this->composer->notFound($question, $locale));
+            $this->replier->reply($interpretation, $email, $this->composer->notFound($question, $locale), OutboundMailKind::NotFound);
 
             return;
         }
@@ -385,8 +391,31 @@ class EmailInterpreter
         ])->save();
 
         if ($sure) {
-            $this->replier->reply($interpretation, $email, $this->composer->answer($question, $answer, $citations, $gaps, $locale));
+            $this->replier->reply($interpretation, $email, $this->composer->answer($question, $answer, $citations, $gaps, $locale, $this->ratingLinks($interpretation, $email, $locale)));
         }
+    }
+
+    /**
+     * The links under an answer to rate it, for whom it goes to: each opens
+     * the page with that choice made, and saves nothing until it is sent.
+     *
+     * @return array{valuable: string, partly: string, outdated: string}|null
+     */
+    private function ratingLinks(EmailInterpretation $interpretation, Email $email, string $locale): ?array
+    {
+        $recipient = $this->replier->recipient($email);
+
+        if ($recipient === null) {
+            return null;
+        }
+
+        $url = fn (AnswerRating $choice): string => $this->links->url(MailLinkPurpose::Rate, $interpretation->id, $recipient, $locale, ['choice' => $choice->value]);
+
+        return [
+            'valuable' => $url(AnswerRating::Valuable),
+            'partly' => $url(AnswerRating::Partly),
+            'outdated' => $url(AnswerRating::Outdated),
+        ];
     }
 
     /**
@@ -466,7 +495,7 @@ class EmailInterpreter
         if ($interpretation->outcome === InterpretationOutcome::Conflict
             && $interpretation->mode === InterpretationMode::Addressed
             && $interpretation->sender_access->answers()) {
-            $this->replier->reply($interpretation, $email, $this->composer->conflict($judged, $this->conflictSources($judged), $locale));
+            $this->replier->reply($interpretation, $email, $this->composer->conflict($judged, $this->conflictSources($judged), $locale), OutboundMailKind::Conflict);
         }
     }
 
@@ -630,25 +659,34 @@ class EmailInterpreter
     }
 
     /**
-     * The message a mail replies to, as context: the stored message it names
-     * in In-Reply-To, else the text it quotes. When Howy told the thread what
-     * the knowledge base does not know, that comes along: a reply that fills
-     * the gap is exactly what should be learned.
+     * The message a mail replies to, as context: Howy's own mail when it
+     * replies to one (the mail log keeps what Howy wrote), else the stored
+     * message it names in In-Reply-To, else the text it quotes. When Howy told
+     * the thread what the knowledge base does not know, that comes along: a
+     * reply that fills the gap is exactly what should be learned.
      */
     private function earlier(Email $email, MailReading $novelty): ?string
     {
-        $previous = $email->in_reply_to === null ? null : Email::query()
+        $own = $email->outbound_mail_id === null ? null : OutboundMail::query()
+            ->with('email.interpretation')
+            ->find($email->outbound_mail_id);
+
+        $previous = $own !== null || $email->in_reply_to === null ? null : Email::query()
             ->with('interpretation')
             ->where('mailbox_id', $email->mailbox_id)
             ->where('message_id_header', $email->in_reply_to)
             ->first();
 
         // A quote not read before is history, given as a source instead.
-        $text = trim((string) ($previous !== null
-            ? ($previous->content_text ?? $previous->body_text)
-            : ($novelty->known[0]['text'] ?? null)));
+        $text = trim((string) match (true) {
+            $own !== null => $own->text,
+            $previous !== null => $previous->content_text ?? $previous->body_text,
+            default => $novelty->known[0]['text'] ?? null,
+        });
 
-        $gaps = $previous->interpretation->answer_gaps ?? $this->threadGaps($email);
+        $gaps = $own?->email?->interpretation->answer_gaps
+            ?? $previous?->interpretation->answer_gaps
+            ?? $this->threadGaps($email);
         $context = trim(($text !== '' ? Str::limit($text, (int) config('knowledge.mail.context_max_chars')) : '')
             .($gaps !== null ? "\n\n<missing>{$gaps}</missing>" : ''));
 

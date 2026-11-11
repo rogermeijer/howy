@@ -189,6 +189,23 @@ class GmailClient
     }
 
     /**
+     * The Message-ID a message carries, as Gmail stored it.
+     */
+    public function messageIdOf(string $id): ?string
+    {
+        /** @var list<array{name: string, value: string}> $headers */
+        $headers = $this->get('/messages/'.rawurlencode($id), ['format' => 'metadata', 'metadataHeaders' => 'Message-ID'])->json('payload.headers', []);
+
+        foreach ($headers as $header) {
+            if (strcasecmp($header['name'], 'Message-ID') === 0) {
+                return trim($header['value']);
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Revoke the grant at Google. Best effort: a token that is already dead is fine.
      */
     public function revoke(): void

@@ -7,9 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Mailboxes\MailboxRulesRequest;
 use App\Jobs\SyncGmailMailbox;
 use App\Models\Mailbox;
+use App\Services\Adoption\Welcomes;
 use App\Services\Gmail\MailboxConnector;
+use App\Services\Mailboxes\MailboxRuleEditor;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class MailboxController extends Controller
@@ -26,15 +27,27 @@ class MailboxController extends Controller
     }
 
     /**
-     * What Howy may do with each sender's mail on this mailbox, and whether it
-     * replies at all.
+     * What Howy may do with each sender's mail on this mailbox: what changed
+     * in the rules panel.
      */
-    public function updateRules(MailboxRulesRequest $request, Mailbox $mailbox): RedirectResponse
+    public function updateRules(MailboxRulesRequest $request, Mailbox $mailbox, MailboxRuleEditor $rules, Welcomes $welcomes): RedirectResponse
     {
-        DB::transaction(function () use ($request, $mailbox): void {
-            $mailbox->update(['domain_access' => $request->validated('domain_access')]);
-            $mailbox->syncSenders($request->senders());
-        });
+        /** @var string $domainAccess */
+        $domainAccess = $request->validated('domain_access');
+
+        $listed = $rules->apply($mailbox, $domainAccess, $request->senders(), $request->removed());
+
+        // Ticked, the admin says those new on the list are colleagues who get
+        // Howy mails, whatever their domain: a gmail.com address included.
+        // Welcomes::send() still leaves alone whoever unsubscribed.
+        if ($request->boolean('welcome_new')) {
+            foreach ($listed as $colleague) {
+                if ($colleague->welcomed_at === null) {
+                    $colleague->forceFill(['receives_mail' => true])->save();
+                    $welcomes->send($colleague);
+                }
+            }
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Mailbox rules saved.')]);
 

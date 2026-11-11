@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Email;
 use App\Models\EmailInterpretation;
+use App\Services\Mail\Interpretation\SenderFeedback;
 use App\Services\Mail\Interpretation\StatementReview;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,18 @@ class EmailStatementController extends Controller
     public function reject(Request $request, Email $email, int $statement, StatementReview $review): RedirectResponse
     {
         return $this->decide(fn () => $review->reject($this->interpretation($email), $statement, $request->user()), __('Kept out of the knowledge base.'));
+    }
+
+    /**
+     * The sender's request about a statement, dealt with.
+     */
+    public function handled(Email $email, int $statement, SenderFeedback $feedback): RedirectResponse
+    {
+        $feedback->handle($this->interpretation($email), $statement);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Marked as done.')]);
+
+        return back();
     }
 
     private function decide(callable $action, string $message): RedirectResponse

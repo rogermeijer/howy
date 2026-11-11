@@ -1,10 +1,13 @@
-import { AlertTriangle, Trash2, X } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { AlertTriangle, Trash2, UserRound, Users, X } from 'lucide-react';
+import { WithHowy } from '@/components/brand/howy-name';
 import {
     AccessMenuItems,
     useAccessLooks,
 } from '@/components/mailboxes/sender-access';
 import {
     DropdownMenu,
+    DropdownMenuCheckboxItem,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
@@ -13,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
+import colleagues from '@/routes/colleagues';
 import type { SenderAccess, SenderRule } from '@/types';
 
 /** A domain shows as @klant.nl, an address as itself. */
@@ -21,26 +25,36 @@ export const shownEntry = (entry: string): string =>
 
 /**
  * One sender on a mailbox's list, in the colour of what Howy may do with
- * their mail. Click it to change that or to take it off the list; read-only
- * without the handlers.
+ * their mail. Click it to change that or to take it off the list, to say
+ * whether a domain makes the people it lets in colleagues, or to open the
+ * colleague an address belongs to; read-only without the handlers.
  */
 export function SenderBadge({
     rule,
     error,
     onChange,
     onRemove,
+    onCreatesColleagues,
 }: {
     rule: SenderRule;
     error?: string;
     onChange?: (access: SenderAccess) => void;
     onRemove?: () => void;
+    onCreatesColleagues?: (on: boolean) => void;
 }) {
     const t = useTranslations();
     const look = useAccessLooks()[rule.access];
+    const isDomain = !rule.entry.includes('@');
 
     const text = (
         <>
             {error && <AlertTriangle className="size-3.5 shrink-0" />}
+            {isDomain && rule.createsColleagues && !error && (
+                <Users
+                    className="size-3.5 shrink-0"
+                    aria-label={t('Makes colleagues')}
+                />
+            )}
             <span
                 className={cn(
                     'truncate',
@@ -105,6 +119,44 @@ export function SenderBadge({
                         </p>
                     )}
                     <AccessMenuItems value={rule.access} onChange={onChange} />
+                    {isDomain && onCreatesColleagues && (
+                        <>
+                            <DropdownMenuSeparator className="mx-1.5 my-1 bg-cc-border" />
+                            <DropdownMenuCheckboxItem
+                                checked={rule.createsColleagues ?? false}
+                                onCheckedChange={onCreatesColleagues}
+                                onSelect={(event) => event.preventDefault()}
+                                className="items-start rounded-[10px] py-2 pr-2.5 text-[13.5px] focus:bg-cc-bg"
+                            >
+                                <span className="flex flex-col gap-0.5">
+                                    <span className="font-semibold">
+                                        {t('Makes colleagues')}
+                                    </span>
+                                    <span className="text-[12px] leading-snug text-cc-subtle">
+                                        <WithHowy
+                                            text={t(
+                                                'Whoever Howy reads here becomes a colleague and gets the Howy mails. For a subsidiary, say.',
+                                            )}
+                                        />
+                                    </span>
+                                </span>
+                            </DropdownMenuCheckboxItem>
+                        </>
+                    )}
+                    {!isDomain && rule.colleagueId && (
+                        <>
+                            <DropdownMenuSeparator className="mx-1.5 my-1 bg-cc-border" />
+                            <DropdownMenuItem
+                                asChild
+                                className="rounded-[10px] px-2.5 py-2 text-[13.5px] font-semibold focus:bg-cc-bg"
+                            >
+                                <Link href={colleagues.show(rule.colleagueId)}>
+                                    <UserRound />
+                                    {t('Open colleague')}
+                                </Link>
+                            </DropdownMenuItem>
+                        </>
+                    )}
                     <DropdownMenuSeparator className="mx-1.5 my-1 bg-cc-border" />
                     <DropdownMenuItem
                         onSelect={onRemove}

@@ -23,7 +23,7 @@ class EmailController extends Controller
     public function show(Request $request, Email $email, InterpretationPresenter $presenter, MailNovelty $novelty): Response
     {
         $thread = Email::query()
-            ->with('interpretation')
+            ->with(['interpretation', 'outboundMail'])
             ->where('mailbox_id', $email->mailbox_id)
             ->where('provider_thread_id', $email->provider_thread_id)
             ->latest('received_at')
@@ -62,6 +62,12 @@ class EmailController extends Controller
                 // Mail without HTML, or stored before extraction existed.
                 'contentText' => $item->content_text ?? $item->body_text,
                 'interpretation' => $item->interpretation !== null ? $presenter->full($item->interpretation) : null,
+                // A reply to one of Howy's own mails says to which.
+                'repliesTo' => $item->outboundMail !== null ? [
+                    'kind' => $item->outboundMail->kind->value,
+                    'label' => $item->outboundMail->kind->label(),
+                    'sentAt' => $item->outboundMail->sent_at?->toIso8601String(),
+                ] : null,
                 'excerpt' => Str::limit(Str::squish($item->content_text ?? $item->snippet ?? ''), 160),
                 'attachments' => $this->attachments($item, $versions),
                 'quotes' => array_map(

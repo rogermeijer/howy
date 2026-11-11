@@ -2,6 +2,9 @@
 
 namespace App\Mail;
 
+use App\Mail\Content\MailContent;
+use App\Mail\Content\MailRenderer;
+use App\Mail\Content\MailUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -26,16 +29,22 @@ class MailboxNeedsReconnecting extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
-        return new Envelope(
-            subject: __(':address is no longer connected to Howy', ['address' => $this->address]),
-        );
+        return new Envelope(subject: $this->mail()->subject);
     }
 
     public function content(): Content
     {
+        $rendered = app(MailRenderer::class)->render($this->mail());
+
         return new Content(
-            markdown: 'mail.mailbox-needs-reconnecting',
-            with: ['url' => route('settings')],
+            view: 'mail.rendered-html',
+            text: 'mail.rendered-text',
+            with: ['html' => $rendered->html, 'text' => $rendered->text],
         );
+    }
+
+    private function mail(): MailContent
+    {
+        return app(SystemMails::class)->mailboxNeedsReconnecting($this->address, $this->accountName, MailUrl::route('settings'));
     }
 }

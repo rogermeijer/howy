@@ -2,41 +2,38 @@
 
 namespace App\Services\Mail\Interpretation;
 
-use App\Enums\FingerprintUse;
+use App\Enums\OutboundMailKind;
+use App\Enums\OutboundMailStatus;
+use App\Enums\OutboundSkipReason;
 use App\Enums\ReplyStatus;
-use App\Exceptions\MailboxNeedsReauthException;
+use App\Mail\Content\RenderedMail;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
-use App\Services\Gmail\GmailClient;
 use App\Services\Gmail\GmailMessageParser;
-use App\Services\Mail\MailFingerprints;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
-use Illuminate\Support\Str;
-use Symfony\Component\Mime\Address;
-use Symfony\Component\Mime\Email as MimeEmail;
+use App\Services\Mail\HowyMailer;
 
 /**
  * Replies to a mail in its own thread, from the mailbox it came in on, to the
- * sender and only to whom the mailbox's send policy allows. A blocked or
- * failed reply is kept on the interpretation, so the answer is never lost.
+ * sender and only to whom the mailbox's rules allow, through HowyMailer like
+ * every mail Howy sends. A blocked, waiting or failed reply is kept on the
+ * interpretation, so the answer is never lost.
  */
 class ThreadReplier
 {
     public function __construct(
         private readonly GmailMessageParser $parser,
-        private readonly MailFingerprints $fingerprints,
+        private readonly HowyMailer $mailer,
     ) {}
 
     /**
      * Answer the sender (Reply-To when set, else From), with everyone else
      * the mail was addressed or copied to in CC, so they see Howy has it.
      */
-    public function reply(EmailInterpretation $interpretation, Email $email, ComposedReply $body): void
+    public function reply(EmailInterpretation $interpretation, Email $email, ComposedReply $body, OutboundMailKind $kind = OutboundMailKind::Answer): void
     {
         $recipient = $this->recipient($email);
 
-        $this->deliver($interpretation, $email, $recipient !== null ? [$recipient] : [], $body, $this->copiedOn($email, $recipient));
+        $this->deliver($interpretation, $email, $kind, $recipient, $body, $this->copiedOn($email, $recipient));
     }
 
     /**
@@ -60,52 +57,52 @@ class ThreadReplier
     }
 
     /**
-     * Send to every recipient the send policy allows, copying in those of
-     * $cc it allows too. With no recipient allowed the reply is kept,
-     * blocked, and nobody is copied; a retried job never sends it twice.
+     * Send to the recipient when the rules allow it, copying in those of $cc
+     * they allow too. Not allowed, the reply is kept, blocked, and nobody is
+     * copied; a retried job never sends it twice, and a reply that waits for
+     * its mailbox goes as it was written.
      *
-     * @param  list<string>  $recipients
      * @param  list<string>  $cc
      */
-    private function deliver(EmailInterpretation $interpretation, Email $email, array $recipients, ComposedReply $body, array $cc = []): void
+    private function deliver(EmailInterpretation $interpretation, Email $email, OutboundMailKind $kind, ?string $recipient, ComposedReply $body, array $cc = []): void
     {
-        if ($interpretation->reply_provider_message_id !== null) {
+        if ($interpretation->reply_provider_message_id !== null || $interpretation->reply_status === ReplyStatus::Waiting) {
             return;
         }
 
         $interpretation->reply_text = $body->text;
         $mailbox = $email->mailbox;
 
-        if ($mailbox === null || ! $mailbox->isActive()) {
-            $interpretation->reply_recipients = $recipients;
+        if ($mailbox === null) {
+            $interpretation->reply_recipients = $recipient !== null ? [$recipient] : [];
             $this->finish($interpretation, ReplyStatus::Failed, __('The mailbox is no longer connected.'));
 
             return;
         }
 
-        $allowed = array_values(array_filter($recipients, fn (string $recipient): bool => $mailbox->maySendTo($recipient)));
-        $copied = array_values(array_filter($cc, fn (string $address): bool => $mailbox->maySendTo($address)));
-        $interpretation->reply_recipients = $allowed !== [] ? [...$allowed, ...$copied] : $recipients;
+        $allowed = $recipient !== null && $mailbox->maySendTo($recipient);
+        $copied = $allowed ? array_values(array_filter($cc, fn (string $address): bool => $mailbox->maySendTo($address))) : [];
+        $interpretation->reply_recipients = array_values(array_filter([$recipient, ...$copied]));
 
-        if ($allowed === []) {
+        if ($recipient === null) {
             $this->finish($interpretation, ReplyStatus::Blocked);
 
             return;
         }
 
-        try {
-            $sent = GmailClient::for($mailbox)->sendMessage($this->compose($email, $mailbox->email_address, $allowed, $copied, $body), $email->provider_thread_id);
-        } catch (RequestException|ConnectionException|MailboxNeedsReauthException $exception) {
-            $this->finish($interpretation, ReplyStatus::Failed, Str::limit($exception->getMessage(), 500));
+        $outbound = $this->mailer->reply($email, $kind, $recipient, $copied, new RenderedMail('', $body->html, $body->text));
 
-            return;
-        }
-
-        $interpretation->fill(['reply_provider_message_id' => $sent['id'], 'replied_at' => now()]);
-        $this->finish($interpretation, ReplyStatus::Sent);
-
-        // Quoted back under the next reply, Howy's own words are not news.
-        $this->fingerprints->record($email, $body->text, FingerprintUse::Reply);
+        match ($outbound->status) {
+            OutboundMailStatus::Sent => $this->finish($interpretation->fill([
+                'reply_provider_message_id' => $outbound->provider_message_id,
+                'replied_at' => $outbound->sent_at,
+            ]), ReplyStatus::Sent),
+            OutboundMailStatus::Pending => $this->finish($interpretation, ReplyStatus::Waiting),
+            OutboundMailStatus::Skipped => $outbound->skip_reason === OutboundSkipReason::NoMailbox
+                ? $this->finish($interpretation, ReplyStatus::Failed, __('The mailbox is no longer connected.'))
+                : $this->finish($interpretation, ReplyStatus::Blocked),
+            OutboundMailStatus::Failed => $this->finish($interpretation, ReplyStatus::Failed, $outbound->error),
+        };
     }
 
     /**
@@ -117,54 +114,6 @@ class ThreadReplier
         $address = $replyTo !== null ? ($this->parser->addresses($replyTo)[0]['email'] ?? null) : null;
 
         return $address ?? $email->from_email;
-    }
-
-    /**
-     * @param  list<string>  $to
-     * @param  list<string>  $cc
-     */
-    private function compose(Email $email, string $from, array $to, array $cc, ComposedReply $body): string
-    {
-        $subject = trim((string) $email->subject);
-
-        $message = (new MimeEmail)
-            ->from(new Address($from))
-            ->to(...array_map(fn (string $address): Address => new Address($address), $to))
-            ->subject(preg_match('/^re:/i', $subject) === 1 ? $subject : trim('Re: '.$subject))
-            ->text($body->text)
-            ->html($body->html);
-
-        if ($cc !== []) {
-            $message->cc(...array_map(fn (string $address): Address => new Address($address), $cc));
-        }
-
-        // Inline, so the HTML's cid: references show the image in place.
-        foreach ($body->inline as $name => $path) {
-            $message->embedFromPath($path, $name);
-        }
-
-        if ($email->message_id_header !== null) {
-            $references = trim(($email->header('References') ?? '').' '.$email->message_id_header);
-            $message->getHeaders()->addIdHeader('In-Reply-To', $this->ids($email->message_id_header));
-            $message->getHeaders()->addIdHeader('References', $this->ids($references));
-        }
-
-        // Tells other systems (and Howy itself) not to answer this automatically.
-        $message->getHeaders()->addTextHeader('Auto-Submitted', 'auto-replied');
-
-        return $message->toString();
-    }
-
-    /**
-     * Message ids without their angle brackets, as Symfony wants them.
-     *
-     * @return list<string>
-     */
-    private function ids(string $header): array
-    {
-        preg_match_all('/<([^>]+)>/', $header, $matches);
-
-        return $matches[1] !== [] ? $matches[1] : [trim($header, '<> ')];
     }
 
     private function finish(EmailInterpretation $interpretation, ReplyStatus $status, ?string $error = null): void

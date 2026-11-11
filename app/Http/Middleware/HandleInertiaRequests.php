@@ -58,6 +58,9 @@ class HandleInertiaRequests extends Middleware
                 // A count, not the list: the switcher only needs to know there is
                 // something to switch to, and searches the accounts itself.
                 'accountCount' => $request->user()?->accounts()->count() ?? 0,
+                // An admin of the current account: what the top bar offers
+                // follows it. The server checks again on every admin route.
+                'isAccountAdmin' => Tenancy::check() && (bool) $request->user()?->isAdminOf(Tenancy::account()),
             ],
             // How much waits for approval, documents and mail alike: the
             // knowledge base's count in the top bar, for those who can act on it.
@@ -88,8 +91,17 @@ class HandleInertiaRequests extends Middleware
      */
     protected function translations(): array
     {
-        $locale = app()->getLocale();
+        return static::catalogue(app()->getLocale());
+    }
 
+    /**
+     * One locale's string catalogue: also for a page that is in another
+     * language than the request, such as one opened from a link in a mail.
+     *
+     * @return array<string, string>
+     */
+    public static function catalogue(string $locale): array
+    {
         return static::$translationCache[$locale] ??= Lang::getLoader()->load($locale, '*', '*');
     }
 }

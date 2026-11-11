@@ -113,6 +113,14 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
+        DevCommands::artisan('schedule:work', 'schedule');
+
+        // Live updates. With REVERB_HOST set to the site's own host, Reverb
+        // serves wss with the site's Herd or Valet certificate.
+        if (config('broadcasting.default') === 'reverb') {
+            DevCommands::artisan('reverb:start', 'reverb');
+        }
+
         $domain = config('services.ngrok.domain');
 
         if (! is_string($domain) || $domain === '') {

@@ -2,6 +2,9 @@
 
 namespace App\Mail;
 
+use App\Mail\Content\MailContent;
+use App\Mail\Content\MailRenderer;
+use App\Mail\Content\MailUrl;
 use App\Models\BetaAccessRequest;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -22,19 +25,22 @@ class BetaInvite extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
-        return new Envelope(
-            subject: __('Your invite to Howy'),
-        );
+        return new Envelope(subject: $this->mail()->subject);
     }
 
     public function content(): Content
     {
+        $rendered = app(MailRenderer::class)->render($this->mail());
+
         return new Content(
-            markdown: 'mail.beta-invite',
-            with: [
-                'code' => $this->invite->code,
-                'url' => route('register.invite', $this->invite->code),
-            ],
+            view: 'mail.rendered-html',
+            text: 'mail.rendered-text',
+            with: ['html' => $rendered->html, 'text' => $rendered->text],
         );
+    }
+
+    private function mail(): MailContent
+    {
+        return app(SystemMails::class)->betaInvite($this->invite->code, MailUrl::route('register.invite', $this->invite->code));
     }
 }

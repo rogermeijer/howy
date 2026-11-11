@@ -6,6 +6,7 @@ use App\Http\Middleware\RequireAccountAdmin;
 use App\Http\Middleware\RequireSetUpAccount;
 use App\Http\Middleware\RequireSuperAdmin;
 use App\Http\Middleware\RequireTenantContext;
+use App\Http\Middleware\ResolveTenantFromMailLink;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantContext;
 use Illuminate\Foundation\Application;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -32,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'account.admin' => RequireAccountAdmin::class,
             'set-up' => RequireSetUpAccount::class,
             'super-admin' => RequireSuperAdmin::class,
+            'mail-link' => ResolveTenantFromMailLink::class,
         ]);
 
         $middleware->web(append: [

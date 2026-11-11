@@ -57,6 +57,7 @@ class MailAttachmentTest extends TestCase
         Http::fake([
             GmailClient::BASE_URL.'/messages/*/attachments/*' => Http::response(['data' => GmailFixtures::encode(self::PDF), 'size' => strlen(self::PDF)]),
             GmailClient::BASE_URL.'/messages/send' => Http::response(['id' => 'reply-1', 'threadId' => 'thread-1']),
+            GmailClient::BASE_URL.'/messages/reply-1*' => Http::response(['id' => 'reply-1', 'payload' => ['headers' => []]]),
         ]);
 
         $this->account = Account::factory()->create(['locale' => 'nl']);

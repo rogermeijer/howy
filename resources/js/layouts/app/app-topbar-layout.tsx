@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { Bell, Search } from 'lucide-react';
+import { useAccountUpdates } from '@/hooks/use-account-updates';
 import { useTranslations } from '@/hooks/use-translations';
 import type { PropsWithChildren } from 'react';
 import { AccountSwitcher } from '@/components/account-switcher';
@@ -14,6 +15,7 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { inbox, knowledge } from '@/routes';
+import colleagues from '@/routes/colleagues';
 import knowledgeRoutes from '@/routes/knowledge';
 import type { Auth } from '@/types';
 
@@ -25,9 +27,12 @@ function TopBar() {
     }>().props;
     const awaitingApproval = knowledgeCounts?.awaitingApproval ?? 0;
 
+    // The count follows what comes to wait, wherever it comes from.
+    useAccountUpdates('approvals', ['knowledge']);
+
     // Titles are English source strings, translated where they are rendered.
     // The knowledge base counts what waits for approval, documents and mail
-    // alike; none, no badge.
+    // alike; none, no badge. Colleagues are for the account's admins.
     const navItems = [
         { title: 'Inbox', href: inbox(), badge: null },
         {
@@ -43,6 +48,9 @@ function TopBar() {
                       }
                     : null,
         },
+        ...(auth.isAccountAdmin
+            ? [{ title: 'Colleagues', href: colleagues.index(), badge: null }]
+            : []),
     ];
 
     const { isCurrentOrParentUrl } = useCurrentUrl();

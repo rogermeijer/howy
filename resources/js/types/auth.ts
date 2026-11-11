@@ -33,6 +33,8 @@ export type Auth = {
     account: Account | null;
     /** How many accounts the user belongs to, the current one included. */
     accountCount: number;
+    /** An admin of the current account. */
+    isAccountAdmin: boolean;
 };
 
 export type Passkey = {

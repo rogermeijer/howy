@@ -21,7 +21,7 @@ export type InterpretationOutcome =
 
 export type InterpretationMode = 'addressed' | 'copied';
 
-export type ReplyStatus = 'none' | 'sent' | 'blocked' | 'failed';
+export type ReplyStatus = 'none' | 'sent' | 'waiting' | 'blocked' | 'failed';
 
 export type InterpretationBrief = {
     status: InterpretationStatus;
@@ -30,7 +30,12 @@ export type InterpretationBrief = {
     intentLabel: string | null;
     outcome: InterpretationOutcome | null;
     outcomeLabel: string | null;
+    /** How whoever asked rated the answer. Mirrors App\Enums\AnswerRating. */
+    rating: AnswerRating | null;
+    ratingLabel: string | null;
 };
+
+export type AnswerRating = 'valuable' | 'partly' | 'outdated';
 
 export type InterpretationSource = {
     type: 'document' | 'email';
@@ -57,6 +62,15 @@ export type InterpretedStatement = {
     review: 'pending' | 'approved' | 'rejected' | null;
     reviewedBy: string | null;
     reviewedAt: string | null;
+    /** Taken back by whoever sent the mail. */
+    bySender: boolean;
+    /** What the sender asked about it, from the page linked in Saved! (04). */
+    senderRequest: {
+        choice: 'withdraw' | 'correct';
+        correction: string | null;
+        at: string;
+        handled: boolean;
+    } | null;
 };
 
 export type Interpretation = InterpretationBrief & {
@@ -80,6 +94,8 @@ export type Interpretation = InterpretationBrief & {
     replyText: string | null;
     replyRecipients: string[];
     repliedAt: string | null;
+    ratingNote: string | null;
+    ratedAt: string | null;
     error: string | null;
     processedAt: string | null;
 };

@@ -3,6 +3,8 @@
 use App\Http\Controllers\AccountSwitcherController;
 use App\Http\Controllers\Auth\RegistrationCodeController;
 use App\Http\Controllers\BetaAccessRequestController;
+use App\Http\Controllers\Colleagues\ColleagueController;
+use App\Http\Controllers\Colleagues\SentMailController;
 use App\Http\Controllers\CurrentAccountController;
 use App\Http\Controllers\EmailAttachmentController;
 use App\Http\Controllers\EmailController;
@@ -18,6 +20,10 @@ use App\Http\Controllers\Knowledge\KnowledgeController;
 use App\Http\Controllers\Knowledge\KnowledgeSearchController;
 use App\Http\Controllers\Knowledge\KnowledgeTopicController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\MailLinks\MailLinkController;
+use App\Http\Controllers\MailLinks\RateAnswerController;
+use App\Http\Controllers\MailLinks\ReviewContributionController;
+use App\Http\Controllers\MailLinks\UnsubscribeController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\Webhooks\GmailWebhookController;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -89,9 +95,27 @@ Route::middleware(['auth', 'verified', 'tenant', 'set-up'])->group(function () {
         Route::post('emails/{email}/statements/{statement}/reject', [EmailStatementController::class, 'reject'])
             ->whereNumber('statement')
             ->name('emails.statements.reject');
+        Route::post('emails/{email}/statements/{statement}/handled', [EmailStatementController::class, 'handled'])
+            ->whereNumber('statement')
+            ->name('emails.statements.handled');
         Route::post('emails/{email}/attachments/{attachment}', [EmailAttachmentController::class, 'store'])
             ->whereNumber('attachment')
             ->name('emails.attachments.store');
+    });
+
+    // The people who mail Howy: what it may do with their mail, where their
+    // Howy mails stand, and what they did. Admins only.
+    Route::middleware('account.admin')->prefix('colleagues')->name('colleagues.')->group(function () {
+        Route::get('/', [ColleagueController::class, 'index'])->name('index');
+        Route::post('/', [ColleagueController::class, 'store'])->name('store');
+        // Every mail Howy sent from the account's mailboxes: the mail log.
+        Route::get('sent', [SentMailController::class, 'index'])->name('sent');
+        Route::get('sent/{outboundMail}/mail', [SentMailController::class, 'mail'])->name('sent.mail');
+        Route::post('sent/{outboundMail}/resend', [SentMailController::class, 'resend'])->name('sent.resend');
+        Route::get('{colleague}', [ColleagueController::class, 'show'])->whereNumber('colleague')->name('show');
+        Route::patch('{colleague}', [ColleagueController::class, 'update'])->whereNumber('colleague')->name('update');
+        Route::put('{colleague}/mailboxes/{mailbox}', [ColleagueController::class, 'updateAccess'])->whereNumber('colleague')->name('access.update');
+        Route::post('{colleague}/welcome', [ColleagueController::class, 'welcome'])->whereNumber('colleague')->name('welcome');
     });
 
     Route::get('knowledge', [KnowledgeController::class, 'index'])->name('knowledge');
@@ -155,6 +179,30 @@ Route::middleware(['auth'])->group(function () {
 Route::post('webhooks/gmail', GmailWebhookController::class)
     ->withoutMiddleware([PreventRequestForgery::class])
     ->name('webhooks.gmail');
+
+// Links in Howy's mails, opened without logging in. The account comes from the
+// link itself, a token only this app makes (ResolveTenantFromMailLink).
+Route::prefix('m')->name('mail-links.')->middleware('throttle:60,1')->group(function () {
+    Route::middleware('mail-link:unsubscribe')->group(function () {
+        Route::get('unsubscribe/{token}', [UnsubscribeController::class, 'show'])->name('unsubscribe.show');
+        // A mail client's one-click unsubscribe comes without a session.
+        Route::post('unsubscribe/{token}', [UnsubscribeController::class, 'store'])
+            ->withoutMiddleware([PreventRequestForgery::class])
+            ->name('unsubscribe.store');
+    });
+
+    Route::middleware('mail-link:review')->group(function () {
+        Route::get('review/{token}', [ReviewContributionController::class, 'show'])->name('review.show');
+        Route::post('review/{token}', [ReviewContributionController::class, 'store'])->name('review.store');
+    });
+
+    Route::middleware('mail-link:rate')->group(function () {
+        Route::get('rate/{token}', [RateAnswerController::class, 'show'])->name('rate.show');
+        Route::post('rate/{token}', [RateAnswerController::class, 'store'])->name('rate.store');
+    });
+
+    Route::post('renew/{token}', [MailLinkController::class, 'renew'])->middleware('mail-link')->name('renew');
+});
 
 require __DIR__.'/settings.php';
 require __DIR__.'/admin.php';

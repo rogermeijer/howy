@@ -51,19 +51,35 @@ class StatementReview
 
     public function reject(EmailInterpretation $interpretation, int $index, User $reviewer): void
     {
-        $this->decide($interpretation, $index, $reviewer, function (array $statement): array {
-            if ($statement['fact_id'] !== null) {
-                KnowledgeFact::query()->whereKey($statement['fact_id'])->where('status', FactStatus::Proposed)->delete();
-            }
+        $this->decide($interpretation, $index, $reviewer, $this->rejection(...));
+    }
 
-            return [...$statement, 'fact_id' => null, 'review' => 'rejected'];
-        });
+    /**
+     * The sender takes back a statement still waiting, from the page linked in
+     * Saved! (04): rejected, by nobody in the account, and marked so.
+     */
+    public function rejectBySender(EmailInterpretation $interpretation, int $index): void
+    {
+        $this->decide($interpretation, $index, null, fn (array $statement): array => [...$this->rejection($statement), 'by_sender' => true]);
+    }
+
+    /**
+     * @param  Statement  $statement
+     * @return Statement
+     */
+    private function rejection(array $statement): array
+    {
+        if ($statement['fact_id'] !== null) {
+            KnowledgeFact::query()->whereKey($statement['fact_id'])->where('status', FactStatus::Proposed)->delete();
+        }
+
+        return [...$statement, 'fact_id' => null, 'review' => 'rejected'];
     }
 
     /**
      * @param  callable(Statement, Email): Statement  $decision
      */
-    private function decide(EmailInterpretation $interpretation, int $index, User $reviewer, callable $decision): void
+    private function decide(EmailInterpretation $interpretation, int $index, ?User $reviewer, callable $decision): void
     {
         $statements = $interpretation->statements ?? [];
         $statement = $statements[$index] ?? null;
@@ -75,13 +91,13 @@ class StatementReview
         DB::transaction(function () use ($interpretation, $statements, $statement, $index, $reviewer, $decision): void {
             $statements[$index] = [
                 ...$decision($statement, $interpretation->email),
-                'reviewed_by' => $reviewer->id,
+                'reviewed_by' => $reviewer?->id,
                 'reviewed_at' => now()->toIso8601String(),
             ];
 
             $interpretation->update([
                 'statements' => $statements,
-                'needs_review' => in_array('pending', array_column($statements, 'review'), true),
+                'needs_review' => $interpretation->waitsForReview($statements),
             ]);
         });
     }
