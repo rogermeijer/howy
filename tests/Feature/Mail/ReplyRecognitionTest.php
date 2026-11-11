@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\Gmail\StoreGmailMessage;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
 use App\Services\Mail\HowyMailer;
+use App\Services\Mail\MailReferences;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -68,6 +69,16 @@ class ReplyRecognitionTest extends TestCase
         $forged = preg_replace('/\.[a-f0-9]{16}@/', '.0123456789abcdef@', (string) $this->welcome->reference);
 
         $this->assertNull($this->store('m1', ['In-Reply-To' => (string) $forged])->outbound_mail_id);
+    }
+
+    public function test_a_reference_given_out_before_the_database_started_over_is_not_this_mail(): void
+    {
+        // Same id, same account, same key, signed all right: only the nonce
+        // tells them apart.
+        $earlier = app(MailReferences::class)->for($this->welcome, 'noordkade.nl');
+
+        $this->assertNotSame($this->welcome->reference, $earlier);
+        $this->assertNull($this->store('m1', ['In-Reply-To' => $earlier])->outbound_mail_id);
     }
 
     public function test_another_accounts_reference_is_not_recognised_here(): void

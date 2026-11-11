@@ -166,9 +166,13 @@ A waiting flow mail goes only in working time; a waiting reply goes at once, and
 `reply_status` `waiting` to `sent`. Whether a flow mail may go is checked again when it goes, so someone who
 unsubscribed meanwhile does not get it.
 
-**References.** A mail's `Message-ID` is `<howy.{id}.{signature}@{mailbox domain}>`, the signature an HMAC over
-the account and the mail with the app key (`MailReferences`). After sending, Howy asks Gmail which Message-ID
-the message carries and keeps it (`message_id_header`), in case Gmail put its own in. `ReplyRecognizer`, from
+**References.** A mail's `Message-ID` is `<howy.{id}.{nonce}.{signature}@{mailbox domain}>` (`MailReferences`).
+The nonce keeps it unique for good: a database started over under the same app key would otherwise hand out an
+id it gave out before, and Gmail silently drops a mail whose Message-ID the recipient already has (it shows as
+sent, and never arrives). The signature is an HMAC over the account, the mail and the nonce with the app key.
+After sending, Howy asks Gmail which Message-ID the message carries and keeps it (`message_id_header`): from a
+gmail.com mailbox Gmail puts its own in (`<…@mail.gmail.com>`), so there that one is what replies name.
+`ReplyRecognizer`, from
 `StoreGmailMessage`, links a mail that came in to the mail it replies to (`emails.outbound_mail_id`) by, in
 order: a signed reference in `In-Reply-To` or `References`; the Message-ID Gmail sent Howy's mail with; the
 thread of a flow mail, which starts a thread of its own. Only within the mailbox and the account. A reply is
@@ -196,8 +200,11 @@ closing a leaver's mailbox. Each can come back once confirmed.
   classic on Windows) and Apple Mail, light and dark: no paperclip, no "load remote content" prompt,
   readable, buttons easy to tap, a sensible text part.
 - With a connected test mailbox: send a flow mail and an answer, reply from Gmail, Outlook and Apple Mail, and
-  check on the mail page that each reply is recognised. Check in the log whether Gmail kept Howy's
-  `Message-ID` (`reference` equals `message_id_header`) or put its own in.
+  check on the mail page that each reply is recognised. From a gmail.com mailbox Gmail puts its own
+  `Message-ID` in (seen on 11 November 2026); check whether a Google Workspace mailbox on its own domain keeps
+  Howy's (`reference` equals `message_id_header`).
+- Delivery: send the welcome to addresses at Gmail, Outlook.com and a hosted mail server, and check it lands
+  in the inbox, not in spam or quarantine.
 
 ## Parked mails
 

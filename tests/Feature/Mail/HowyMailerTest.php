@@ -64,7 +64,7 @@ class HowyMailerTest extends TestCase
         $this->assertSame(OutboundMailStatus::Sent, $mail->status);
         $this->assertSame('sent-1', $mail->provider_message_id);
         $this->assertSame('thread-9', $mail->provider_thread_id);
-        $this->assertMatchesRegularExpression('/^<howy\.'.$mail->id.'\.[a-f0-9]{16}@noordkade\.nl>$/', (string) $mail->reference);
+        $this->assertMatchesRegularExpression('/^<howy\.'.$mail->id.'\.[a-z0-9]{10}\.[a-f0-9]{16}@noordkade\.nl>$/', (string) $mail->reference);
         // Gmail kept ours.
         $this->assertSame($mail->reference, $mail->message_id_header);
         $this->assertSame(1, $this->gmailSendCount());

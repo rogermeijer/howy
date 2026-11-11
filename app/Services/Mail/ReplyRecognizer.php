@@ -50,17 +50,19 @@ class ReplyRecognizer
 
     private function bySignedReference(string $named, Mailbox $mailbox): ?OutboundMail
     {
-        $ids = $this->references->idsIn($named, $mailbox->account_id);
+        $references = $this->references->namedIn($named, $mailbox->account_id);
 
-        if ($ids === []) {
+        if ($references === []) {
             return null;
         }
 
-        $mails = OutboundMail::query()->where('mailbox_id', $mailbox->id)->whereKey($ids)->get()->keyBy('id');
+        // The reference as it was given out, nonce and all: an id alone could
+        // be one handed out again after the database started over.
+        $mails = OutboundMail::query()->where('mailbox_id', $mailbox->id)->whereIn('reference', $references)->get()->keyBy('reference');
 
-        foreach ($ids as $id) {
-            if ($mails->has($id)) {
-                return $mails->get($id);
+        foreach ($references as $reference) {
+            if ($mails->has($reference)) {
+                return $mails->get($reference);
             }
         }
 
