@@ -27,6 +27,15 @@ class FlowMailComposer
         private readonly MailRenderer $renderer,
     ) {}
 
+    /**
+     * Whether this is a mail it writes: one of Howy's own mails to a colleague
+     * that needs nothing but the colleague.
+     */
+    public static function writes(OutboundMailKind $kind): bool
+    {
+        return in_array($kind, [OutboundMailKind::Welcome, OutboundMailKind::HowItWorks, OutboundMailKind::Nudge], true);
+    }
+
     public function compose(Colleague $colleague, OutboundMailKind $kind): RenderedMail
     {
         $home = $colleague->homeMailbox;

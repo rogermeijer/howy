@@ -1,3 +1,4 @@
+import { RotateCw } from 'lucide-react';
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { WithHowy } from '@/components/brand/howy-name';
@@ -31,6 +32,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import { ACCESSES } from '@/lib/mailbox-rules';
 import { index, update, welcome } from '@/routes/colleagues';
 import colleagueAccess from '@/routes/colleagues/access';
+import sentRoutes from '@/routes/colleagues/sent';
 import { show as showEmail } from '@/routes/emails';
 import type {
     ColleagueDetail,
@@ -50,6 +52,8 @@ type Props = {
     canWelcome: boolean;
     /** The kinds of Howy's own mails to them that are on their way. */
     onTheirWay: string[];
+    /** Per kind of Howy's own mail, the one to send again. */
+    resendable: Record<string, number>;
 };
 
 export default function Colleague({
@@ -60,6 +64,7 @@ export default function Colleague({
     mailboxes,
     canWelcome,
     onTheirWay,
+    resendable,
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
@@ -351,11 +356,52 @@ export default function Colleague({
                                         >
                                             {step.label}
                                         </span>
-                                        <span className="cc-caption shrink-0 whitespace-nowrap">
-                                            {date(step.at) ??
-                                                (onTheirWay.includes(step.kind)
+                                        <span className="flex shrink-0 items-center gap-2">
+                                            <span className="cc-caption whitespace-nowrap">
+                                                {onTheirWay.includes(step.kind)
                                                     ? t('On its way')
-                                                    : t('Not yet'))}
+                                                    : (date(step.at) ??
+                                                      t('Not yet'))}
+                                            </span>
+                                            {resendable[step.kind] !==
+                                                undefined &&
+                                                !onTheirWay.includes(
+                                                    step.kind,
+                                                ) && (
+                                                    <Form
+                                                        {...sentRoutes.resend.form(
+                                                            resendable[
+                                                                step.kind
+                                                            ],
+                                                        )}
+                                                        options={{
+                                                            preserveScroll: true,
+                                                        }}
+                                                    >
+                                                        {({ processing }) => (
+                                                            <Button
+                                                                type="submit"
+                                                                variant="outline"
+                                                                size="icon"
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                                title={t(
+                                                                    'Send again',
+                                                                )}
+                                                                aria-label={t(
+                                                                    'Send again: :mail',
+                                                                    {
+                                                                        mail: step.label,
+                                                                    },
+                                                                )}
+                                                                className="size-7 rounded-full border-cc-border-strong text-cc-subtle hover:text-cc-ink"
+                                                            >
+                                                                <RotateCw className="size-3.5" />
+                                                            </Button>
+                                                        )}
+                                                    </Form>
+                                                )}
                                         </span>
                                     </li>
                                 ))}

@@ -121,14 +121,17 @@ class SentMailPageTest extends TestCase
         $this->actingAs($this->admin)->get(route('colleagues.sent.mail', $theirs))->assertNotFound();
     }
 
-    public function test_one_of_howys_own_mails_can_be_sent_again_as_it_was(): void
+    public function test_one_of_howys_own_mails_is_sent_again_written_afresh(): void
     {
         Queue::fake();
-        $welcome = $this->mail(['kind' => OutboundMailKind::Welcome, 'subject' => 'Welkom bij Howy', 'html' => '<p>Hoi Anna</p>'], sent: true);
+        // As it went: a link nobody could open, since put right.
+        $welcome = $this->mail(['kind' => OutboundMailKind::Welcome, 'subject' => 'Welkom bij Howy', 'html' => '<a href="https://howyknows.test/privacy-policy">Privacy</a>'], sent: true);
 
         $this->actingAs($this->admin)
             ->get(route('colleagues.show', $this->anna))
-            ->assertInertia(fn (Assert $page) => $page->where('sent.0.canResend', true));
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('sent.0.canResend', true)
+                ->where('resendable', ['welcome' => $welcome->id]));
 
         $this->actingAs($this->admin)->post(route('colleagues.sent.resend', $welcome))->assertRedirect();
         // Clicked twice: the first is still on its way.
@@ -138,11 +141,18 @@ class SentMailPageTest extends TestCase
         $again = Tenancy::for($this->account, fn () => OutboundMail::query()->whereKeyNot($welcome->id)->sole());
         $this->assertSame(OutboundMailStatus::Pending, $again->status);
         $this->assertSame(OutboundMailKind::Welcome, $again->kind);
-        $this->assertSame('Welkom bij Howy', $again->subject);
-        $this->assertSame('<p>Hoi Anna</p>', $again->html);
         $this->assertSame($this->anna->id, $again->colleague_id);
+        $this->assertSame('anna@noordkade.nl', $again->recipient);
+        // Written as the welcome is written today, for Anna.
+        $this->assertStringContainsString('Hi Anna', $again->text);
+        $this->assertStringNotContainsString('howyknows.test', $again->html);
+        $this->assertStringContainsString(route('privacy-policy'), $again->html);
         $this->assertNull($again->reference);
-        $this->assertNull($again->provider_message_id);
+
+        // On its way, there is nothing to send again until it went.
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.show', $this->anna))
+            ->assertInertia(fn (Assert $page) => $page->where('onTheirWay', ['welcome']));
     }
 
     public function test_a_reply_or_a_mail_not_sent_is_not_sent_again(): void

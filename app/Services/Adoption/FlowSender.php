@@ -43,9 +43,10 @@ class FlowSender
     }
 
     /**
-     * The same mail to the same colleague once more, as it was written: for
-     * one that did not arrive. Logged at once and delivered by a job, like
-     * any other; one resend on its way at a time.
+     * The same kind of mail to the same colleague once more, for one that did
+     * not arrive: written afresh, so it says what that mail says now, with the
+     * links and access of today, from their home mailbox. Logged at once and
+     * delivered by a job, like any other; one on its way at a time.
      */
     public function resend(OutboundMail $mail): bool
     {
@@ -54,25 +55,27 @@ class FlowSender
         }
 
         return DB::transaction(function () use ($mail): bool {
-            $colleague = Colleague::query()->lockForUpdate()->find($mail->colleague_id);
+            $colleague = Colleague::query()->with(['homeMailbox', 'user'])->lockForUpdate()->find($mail->colleague_id);
 
             if ($colleague === null || $colleague->outboundMails()->where('kind', $mail->kind)->where('status', OutboundMailStatus::Pending)->exists()) {
                 return false;
             }
 
-            DeliverOutboundMail::dispatch($this->mailer->logAgain($mail)->id)->afterCommit();
+            $fresh = $this->mailer->logForColleague($colleague, $mail->kind, $this->composer->compose($colleague, $mail->kind), $mail->email);
+
+            DeliverOutboundMail::dispatch($fresh->id)->afterCommit();
 
             return true;
         });
     }
 
     /**
-     * One of Howy's own mails to a colleague that went, or failed: a reply in
-     * someone's thread is not sent twice.
+     * One of Howy's own mails to a colleague that went, or failed, and that
+     * Howy can write again: a reply in someone's thread is not sent twice.
      */
     public static function resendable(OutboundMail $mail): bool
     {
-        return $mail->kind->isFlow()
+        return FlowMailComposer::writes($mail->kind)
             && $mail->colleague_id !== null
             && in_array($mail->status, [OutboundMailStatus::Sent, OutboundMailStatus::Failed], true);
     }

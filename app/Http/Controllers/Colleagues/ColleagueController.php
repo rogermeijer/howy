@@ -16,6 +16,7 @@ use App\Models\Email;
 use App\Models\Mailbox;
 use App\Models\MailboxRule;
 use App\Models\OutboundMail;
+use App\Services\Adoption\FlowSender;
 use App\Services\Adoption\Welcomes;
 use App\Services\Colleagues\Colleagues;
 use App\Services\Mail\Interpretation\InterpretationPresenter;
@@ -101,6 +102,15 @@ class ColleagueController extends Controller
                     'receivedAt' => $email->received_at?->toIso8601String(),
                     'interpretation' => $email->interpretation !== null ? $presenter->brief($email->interpretation) : null,
                 ])
+                ->all(),
+            // Per kind of Howy's own mail, the latest that went or failed: the
+            // one to send again, written afresh.
+            'resendable' => $colleague->outboundMails()
+                ->latest('id')
+                ->get(['id', 'kind', 'status', 'colleague_id'])
+                ->filter(fn (OutboundMail $mail): bool => FlowSender::resendable($mail))
+                ->unique(fn (OutboundMail $mail): string => $mail->kind->value)
+                ->mapWithKeys(fn (OutboundMail $mail): array => [$mail->kind->value => $mail->id])
                 ->all(),
             // Howy's own mails to them that are on their way, not sent yet.
             'onTheirWay' => $colleague->outboundMails()

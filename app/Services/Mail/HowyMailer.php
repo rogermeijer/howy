@@ -75,18 +75,6 @@ class HowyMailer
     }
 
     /**
-     * The same mail once more, logged as not sent yet: what it says and to
-     * whom, with a Message-ID of its own when it goes.
-     */
-    public function logAgain(OutboundMail $mail): OutboundMail
-    {
-        $copy = $mail->replicate(['status', 'skip_reason', 'reference', 'message_id_header', 'provider_message_id', 'provider_thread_id', 'error', 'sent_at']);
-        $copy->forceFill(['status' => OutboundMailStatus::Pending])->save();
-
-        return $copy;
-    }
-
-    /**
      * A reply in the thread of a mail Howy read, to one recipient with others
      * copied in. Whom the rules let Howy write to is the caller's to choose;
      * a recipient they do not allow is skipped here all the same.
