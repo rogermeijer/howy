@@ -89,7 +89,7 @@ or ignore); everyone else is ignored. See "Sender rules" in [`knowledge-base.md`
     - Set `GOOGLE_PUBSUB_AUDIENCE` to that same URL. The webhook rejects the push unless the token is
       signed by Google, its `aud` equals this value exactly, and its `email` is the service account
       with `email_verified`.
-7. Run a queue worker and the scheduler (`php artisan schedule:work` locally).
+7. Run a queue worker and the scheduler. Locally, `composer dev` starts Horizon and `schedule:work`. On the server those are the Horizon daemon and the every-minute `schedule:run` cron (`docs/deployment.md`).
 
 Local development without a public URL works without steps 4 to 6. Leave `GOOGLE_PUBSUB_TOPIC` empty and
 new mail comes in through `mailboxes:poll`. To test real pushes, set `NGROK_DOMAIN` to your reserved

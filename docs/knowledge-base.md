@@ -347,7 +347,7 @@ links is split. AI-made folders are `review_status = new` until approved. Anythi
 
 **Local (macOS):** `brew install postgresql@18 pgvector poppler pandoc qpdf redis`, create the `cc` and
 `howy_testing` databases, set `QUEUE_CONNECTION=redis` and the `KNOWLEDGE_*` binary paths if your PHP processes
-do not see `/opt/homebrew/bin`. `composer dev` starts Horizon, which works the `default` and `knowledge` queues.
+do not see `/opt/homebrew/bin`. `composer dev` starts Horizon, which works the `default` and `knowledge` queues, and `schedule:work`, which runs the scheduler every minute.
 
 **Server (Ubuntu, Forge-like):** the full runbook is `docs/deployment.md`; in short:
 

@@ -113,6 +113,8 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
+        DevCommands::artisan('schedule:work', 'schedule');
+
         $domain = config('services.ngrok.domain');
 
         if (! is_string($domain) || $domain === '') {
