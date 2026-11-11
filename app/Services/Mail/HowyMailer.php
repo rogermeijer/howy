@@ -234,17 +234,17 @@ class HowyMailer
 
         $email = $outbound->email;
 
-        if ($outbound->kind->isReply() && $email !== null) {
-            $interpretation = $email->interpretation;
+        if ($outbound->kind->isReply() && $email?->interpretation?->reply_status === ReplyStatus::Waiting) {
+            $email->interpretation->forceFill([
+                'reply_status' => ReplyStatus::Sent,
+                'reply_provider_message_id' => $outbound->provider_message_id,
+                'replied_at' => $outbound->sent_at,
+            ])->save();
+        }
 
-            if ($interpretation !== null && $interpretation->reply_status === ReplyStatus::Waiting) {
-                $interpretation->forceFill([
-                    'reply_status' => ReplyStatus::Sent,
-                    'reply_provider_message_id' => $outbound->provider_message_id,
-                    'replied_at' => $outbound->sent_at,
-                ])->save();
-            }
-
+        // What Howy wrote back about a mail, the statements it took from it
+        // among them, quoted under a later reply is not news.
+        if ($email !== null && ($outbound->kind->isReply() || $outbound->kind === OutboundMailKind::FirstSave)) {
             $this->fingerprints->record($email, $outbound->text, FingerprintUse::Reply);
         }
     }

@@ -14,7 +14,7 @@ first contribution, a nudge, and later a weekly and monthly rhythm. They grew ou
 | 3    | `HowyMailer`, `OutboundMail` (mail log, pause queue, reply recognition)                                    | **Built**                    |
 | 4    | The account's Live switch, and 01                                                                          | **Built**                    |
 | 5    | 02 and 06                                                                                                  | **Built**                    |
-| 6    | 04                                                                                                         | Planned                      |
+| 6    | 04                                                                                                         | **Built**                    |
 | 7    | Links without login (rating 05, adjusting 04, unsubscribing)                                               | Planned                      |
 
 What is live on the branch: the existing mails (answers, not found, conflict, beta invite, mailbox needs
@@ -168,6 +168,16 @@ Each goes once (`explained_at`, `nudged_at`), to someone who still gets Howy mai
 day at most: after a pause the rest follows on the next working days. The colleague's page shows when each is
 planned. `HowyMailer::deliver()` takes a lock per mail, so the hourly command and a job that reach the same mail
 at once send it once.
+
+## Saved!
+
+The first mail after the welcome that Howy files something new from brings its sender a thanks (04,
+`AdoptionTriggers`, after `InterpretEmail`): to them alone, as a message of its own and never in the thread,
+where customers and suppliers often are. It shows up to three of the new statements (and how many more), the
+mail's subject, and that an admin looks it over first when it waits for approval. Howy's text is fingerprinted
+with the mail, so quoted under a reply it is not news. The mail that brought the welcome is day 0 and gets no
+thanks: the next contribution does. Once (`first_saved_at`), only while live, only to someone who gets Howy
+mails. The button to look it over without logging in comes with step 7; until then the mail has none.
 
 ## Sending and the mail log
 

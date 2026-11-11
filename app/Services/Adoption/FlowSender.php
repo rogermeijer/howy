@@ -6,6 +6,7 @@ use App\Enums\OutboundMailKind;
 use App\Enums\OutboundMailStatus;
 use App\Jobs\Adoption\DeliverOutboundMail;
 use App\Models\Colleague;
+use App\Models\Email;
 use App\Models\OutboundMail;
 use App\Services\Mail\HowyMailer;
 use Illuminate\Support\Facades\DB;
@@ -25,16 +26,19 @@ class FlowSender
         private readonly FlowMailComposer $composer,
     ) {}
 
-    public function send(Colleague $colleague, OutboundMailKind $kind): bool
+    /**
+     * @param  Email|null  $about  the mail it is about: the one a thanks for a first contribution thanks for
+     */
+    public function send(Colleague $colleague, OutboundMailKind $kind, ?Email $about = null): bool
     {
-        return DB::transaction(function () use ($colleague, $kind): bool {
+        return DB::transaction(function () use ($colleague, $kind, $about): bool {
             $colleague = Colleague::query()->with(['homeMailbox', 'user'])->lockForUpdate()->find($colleague->id);
 
             if ($colleague === null || $this->underway($colleague, $kind)) {
                 return false;
             }
 
-            $mail = $this->mailer->logForColleague($colleague, $kind, $this->composer->compose($colleague, $kind));
+            $mail = $this->mailer->logForColleague($colleague, $kind, $this->composer->compose($colleague, $kind, $about), $about);
 
             DeliverOutboundMail::dispatch($mail->id)->afterCommit();
 
@@ -61,7 +65,7 @@ class FlowSender
                 return false;
             }
 
-            $fresh = $this->mailer->logForColleague($colleague, $mail->kind, $this->composer->compose($colleague, $mail->kind), $mail->email);
+            $fresh = $this->mailer->logForColleague($colleague, $mail->kind, $this->composer->compose($colleague, $mail->kind, $mail->email), $mail->email);
 
             DeliverOutboundMail::dispatch($fresh->id)->afterCommit();
 
@@ -76,6 +80,7 @@ class FlowSender
     public static function resendable(OutboundMail $mail): bool
     {
         return FlowMailComposer::writes($mail->kind)
+            && ($mail->kind !== OutboundMailKind::FirstSave || $mail->email_id !== null)
             && $mail->colleague_id !== null
             && in_array($mail->status, [OutboundMailStatus::Sent, OutboundMailStatus::Failed], true);
     }

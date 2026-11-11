@@ -123,8 +123,9 @@ class FlowMails
 
     /**
      * @param  list<string>  $statements  what the mail added, as Howy wrote it down
+     * @param  string|null  $reviewUrl  the page to look it over on; none, no button
      */
-    public function firstSave(FlowRecipient $to, string $subject, array $statements, bool $needsReview, string $reviewUrl): MailContent
+    public function firstSave(FlowRecipient $to, string $subject, array $statements, bool $needsReview, ?string $reviewUrl): MailContent
     {
         $shown = array_slice($statements, 0, 3);
         $more = count($statements) - count($shown);
@@ -141,16 +142,19 @@ class FlowMails
             $to->account,
         )
             ->heading(__('Saved.'), $name !== null ? __('Thank you, :name!', ['name' => $name]) : __('Thank you!'))
-            ->paragraph(__('You copied me in for the first time. This is what I took from your email:'))
+            ->paragraph(__('Thank you for sharing. This is what I took from your email:'))
             ->callout('**"'.($subject !== '' ? $subject : __('(no subject)')).'"**', __('From your email'), items: $shown);
 
         if ($needsReview) {
             $mail->paragraph(__('An admin at :account takes a quick look before it goes into the knowledge base.', ['account' => $to->account]), muted: true);
         }
 
-        $mail->paragraph(__('**Something not right, or not meant to be shared?** Have a look via the button below. You stay in charge.'))
-            ->button(__('Review or adjust'), $reviewUrl)
-            ->paragraph(__('After this I won\'t confirm every Cc. Just keep copying me in.'));
+        if ($reviewUrl !== null) {
+            $mail->paragraph(__('**Something not right, or not meant to be shared?** Have a look via the button below. You stay in charge.'))
+                ->button(__('Review or adjust'), $reviewUrl);
+        }
+
+        $mail->paragraph(__('After this I won\'t confirm every Cc. Just keep copying me in.'));
 
         return $this->close($mail, $to, __('Talk soon,'));
     }
