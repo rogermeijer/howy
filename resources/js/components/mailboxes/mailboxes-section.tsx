@@ -57,6 +57,8 @@ type Props = {
     /** The account's name, as the explanation of a mailbox says whose it is. */
     company: string;
     facts: MailFacts;
+    /** Live, saving new addresses offers to welcome them. */
+    isLive?: boolean;
 };
 
 export function MailboxesSection({
@@ -66,6 +68,7 @@ export function MailboxesSection({
     publicDomains,
     company,
     facts,
+    isLive = false,
 }: Props) {
     const t = useTranslations();
     const [connecting, setConnecting] = useState(openConnect);
@@ -191,6 +194,7 @@ export function MailboxesSection({
                             mailbox={mailbox}
                             canManage={canManage}
                             publicDomains={publicDomains}
+                            isLive={isLive}
                             onImport={() => setImporting(mailbox.id)}
                             onDisconnect={() => setDisconnecting(mailbox)}
                         />
@@ -296,12 +300,14 @@ function MailboxRow({
     mailbox,
     canManage,
     publicDomains,
+    isLive,
     onImport,
     onDisconnect,
 }: {
     mailbox: Mailbox;
     canManage: boolean;
     publicDomains: string[];
+    isLive: boolean;
     onImport: () => void;
     onDisconnect: () => void;
 }) {
@@ -559,6 +565,7 @@ function MailboxRow({
                     reset={reset}
                     canManage={canManage}
                     publicDomains={publicDomains}
+                    isLive={isLive}
                 />
             )}
         </li>

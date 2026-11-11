@@ -48,6 +48,7 @@ type Props = {
     filters: Filters;
     total: number;
     mailboxes: MailboxOption[];
+    isLive: boolean;
 };
 
 const STATUSES: ColleagueStatus[] = [
@@ -66,6 +67,7 @@ export default function Colleagues({
     filters,
     total,
     mailboxes,
+    isLive,
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
@@ -323,6 +325,7 @@ export default function Colleagues({
                 open={adding}
                 onOpenChange={setAdding}
                 mailboxes={mailboxes}
+                isLive={isLive}
             />
         </>
     );

@@ -42,6 +42,8 @@ class ReplyRecognitionTest extends TestCase
         parent::setUp();
 
         $this->account = Account::factory()->create(['locale' => 'nl']);
+        // Live: Howy's own mails go.
+        $this->account->forceFill(['live_at' => now()])->save();
         $this->mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->create(['email_address' => 'howy@noordkade.nl']));
 
         $this->fakeGmailSend('sent-1', 'thread-welcome');

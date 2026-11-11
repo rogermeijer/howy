@@ -30,6 +30,8 @@ type Props = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     mailboxes: MailboxOption[];
+    /** Live, the welcome can go at once. */
+    isLive: boolean;
 };
 
 /**
@@ -37,10 +39,16 @@ type Props = {
  * mailbox their Howy mails come from, and whether a rule of their own
  * decides what Howy does with their mail or the rule for their domain.
  */
-export function AddColleagueDialog({ open, onOpenChange, mailboxes }: Props) {
+export function AddColleagueDialog({
+    open,
+    onOpenChange,
+    mailboxes,
+    isLive,
+}: Props) {
     const t = useTranslations();
     const looks = useAccessLooks();
     const [receivesMail, setReceivesMail] = useState(true);
+    const [sendWelcome, setSendWelcome] = useState(true);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,8 +106,8 @@ export function AddColleagueDialog({ open, onOpenChange, mailboxes }: Props) {
                                     <InputError message={errors.name} />
                                 </div>
 
-                                <div className="grid gap-5 sm:grid-cols-2">
-                                    <div className="grid content-start gap-2">
+                                <div className="grid gap-5">
+                                    <div className="grid min-w-0 content-start gap-2">
                                         <Label htmlFor="colleague-mailbox">
                                             {t('Mailbox')}
                                         </Label>
@@ -133,7 +141,7 @@ export function AddColleagueDialog({ open, onOpenChange, mailboxes }: Props) {
                                         />
                                     </div>
 
-                                    <div className="grid content-start gap-2">
+                                    <div className="grid min-w-0 content-start gap-2">
                                         <Label htmlFor="colleague-access">
                                             {t('What Howy does')}
                                         </Label>
@@ -193,6 +201,26 @@ export function AddColleagueDialog({ open, onOpenChange, mailboxes }: Props) {
                                         </span>
                                     </span>
                                 </label>
+
+                                {isLive && receivesMail && (
+                                    <label className="flex items-center gap-3 px-1">
+                                        <input
+                                            type="hidden"
+                                            name="send_welcome"
+                                            value={sendWelcome ? '1' : '0'}
+                                        />
+                                        <Checkbox
+                                            checked={sendWelcome}
+                                            onCheckedChange={(on) =>
+                                                setSendWelcome(on === true)
+                                            }
+                                            className="size-[18px] border-[1.5px] border-cc-border-strong bg-cc-panel"
+                                        />
+                                        <span className="text-[14px] font-medium">
+                                            {t('Send the welcome mail now')}
+                                        </span>
+                                    </label>
+                                )}
 
                                 <div className="flex justify-end gap-2.5">
                                     <DialogClose asChild>

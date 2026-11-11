@@ -29,7 +29,7 @@ import {
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
 import { ACCESSES } from '@/lib/mailbox-rules';
-import { index, update } from '@/routes/colleagues';
+import { index, update, welcome } from '@/routes/colleagues';
 import colleagueAccess from '@/routes/colleagues/access';
 import { show as showEmail } from '@/routes/emails';
 import type {
@@ -46,6 +46,8 @@ type Props = {
     emails: ColleagueEmail[];
     sent: SentMail[];
     mailboxes: MailboxOption[];
+    /** Live, and they may get the welcome but have not had it. */
+    canWelcome: boolean;
 };
 
 export default function Colleague({
@@ -54,6 +56,7 @@ export default function Colleague({
     emails,
     sent,
     mailboxes,
+    canWelcome,
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
@@ -342,6 +345,23 @@ export default function Colleague({
                                     </li>
                                 ))}
                             </ol>
+                            {canWelcome && (
+                                <Form
+                                    {...welcome.form(colleague.id)}
+                                    options={{ preserveScroll: true }}
+                                >
+                                    {({ processing }) => (
+                                        <Button
+                                            type="submit"
+                                            variant="outline"
+                                            className="h-10"
+                                            disabled={processing}
+                                        >
+                                            {t('Send the welcome mail now')}
+                                        </Button>
+                                    )}
+                                </Form>
+                            )}
                             {colleague.optedOutAt !== null && (
                                 <p className="cc-caption">
                                     {t('Unsubscribed on :date.', {

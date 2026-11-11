@@ -29,6 +29,7 @@ trait ColleagueValidationRules
             'email' => ['required', 'string', 'email', 'max:255', $unique],
             ...$this->colleagueRules(),
             'access' => $this->colleagueAccessRules(),
+            'send_welcome' => ['sometimes', 'boolean'],
         ];
     }
 

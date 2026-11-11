@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Mailboxes\MailboxRulesRequest;
 use App\Jobs\SyncGmailMailbox;
 use App\Models\Mailbox;
+use App\Services\Adoption\Welcomes;
 use App\Services\Gmail\MailboxConnector;
 use App\Services\Mailboxes\MailboxRuleEditor;
 use Illuminate\Http\RedirectResponse;
@@ -29,12 +30,19 @@ class MailboxController extends Controller
      * What Howy may do with each sender's mail on this mailbox: what changed
      * in the rules panel.
      */
-    public function updateRules(MailboxRulesRequest $request, Mailbox $mailbox, MailboxRuleEditor $rules): RedirectResponse
+    public function updateRules(MailboxRulesRequest $request, Mailbox $mailbox, MailboxRuleEditor $rules, Welcomes $welcomes): RedirectResponse
     {
         /** @var string $domainAccess */
         $domainAccess = $request->validated('domain_access');
 
-        $rules->apply($mailbox, $domainAccess, $request->senders(), $request->removed());
+        $made = $rules->apply($mailbox, $domainAccess, $request->senders(), $request->removed());
+
+        // Welcomes::send() leaves alone whoever may not get it, a customer say.
+        if ($request->boolean('welcome_new')) {
+            foreach ($made as $colleague) {
+                $welcomes->send($colleague);
+            }
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Mailbox rules saved.')]);
 

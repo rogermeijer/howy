@@ -12,14 +12,14 @@ first contribution, a nudge, and later a weekly and monthly rhythm. They grew ou
 | 1    | One mail frame, every mail designed (live, system and parked), preview at `/admin/mails`                   | **Built, design signed off** |
 | 2    | Colleagues and mailbox rules (`Colleague`, `MailboxRule`, replacing `mailbox_senders` and `domain_access`) | **Built**                    |
 | 3    | `HowyMailer`, `OutboundMail` (mail log, pause queue, reply recognition)                                    | **Built**                    |
-| 4    | The account's Live switch, and 01                                                                          | Planned                      |
+| 4    | The account's Live switch, and 01                                                                          | **Built**                    |
 | 5    | 02 and 06                                                                                                  | Planned                      |
 | 6    | 04                                                                                                         | Planned                      |
 | 7    | Links without login (rating 05, adjusting 04, unsubscribing)                                               | Planned                      |
 
-Nothing new is sent yet. What is live on the branch: the existing mails (answers, not found, conflict, beta
-invite, mailbox needs reconnecting, password reset, email verification) in the new frame and voice, and
-colleagues with their page.
+What is live on the branch: the existing mails (answers, not found, conflict, beta invite, mailbox needs
+reconnecting, password reset, email verification) in the new frame and voice, colleagues with their page, the
+mail log, and the welcome (01) once an account is live. The welcome has no unsubscribe link until step 7.
 
 ## Where it lives
 
@@ -123,6 +123,28 @@ Rules:
 | `ADOPTION_SEND_FROM_HOUR`              | 9       | Start of the sending window, account's local time  |
 | `ADOPTION_SEND_UNTIL_HOUR`             | 17      | End of the sending window                          |
 | `MAIL_LINK_HOURS`                      | 48      | How long a link in a mail works without logging in |
+
+## Live and the welcome
+
+`accounts.live_at` is the start signal (`Account::isLive()`), set by an account admin only: _Settings → Howy
+mails_ (`LiveController`), or at the end of setup. Every account starts not live. Going live shows who the
+welcome would go to now (`Welcomes::waiting()`: colleagues who get Howy mails, are not ignored by the rules of
+their home mailbox, and have not had it), all ticked; the welcome goes to those kept on the list at once, at
+any hour. Pausing (`live_at` null) holds Howy's own mails, also those already waiting for a mailbox, until it
+is live again. Answers never wait for it.
+
+After going live a colleague gets the welcome once (`Welcomes::send()`, then the `SendFlowMail` job):
+
+- with their first mail to Howy (`AdoptionTriggers::afterInterpretation()`, from `InterpretEmail`; never from
+  an import). That mail is their day 0;
+- when an admin adds them on the colleagues page ("Send the welcome mail now", on by default);
+- when an admin lists their address on a mailbox ("Send the welcome mail to new colleagues", on by default);
+  only those who get Howy mails, so a customer listed one by one gets nothing;
+- by hand, from their page, while they have not had it.
+
+`SendFlowMail` locks the colleague's row while it decides, so two first mails read at once send it once. The
+mail is written for them (`FlowMailComposer`): their first name, the access of their home mailbox, in a
+member's own language or the account's.
 
 ## Sending and the mail log
 

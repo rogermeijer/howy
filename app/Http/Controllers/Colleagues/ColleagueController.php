@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Colleagues;
 use App\Enums\EmailIntent;
 use App\Enums\InterpretationOutcome;
 use App\Enums\SenderAccess;
+use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Colleagues\ColleagueAccessRequest;
 use App\Http\Requests\Colleagues\StoreColleagueRequest;
@@ -14,6 +15,7 @@ use App\Models\Email;
 use App\Models\Mailbox;
 use App\Models\MailboxRule;
 use App\Models\OutboundMail;
+use App\Services\Adoption\Welcomes;
 use App\Services\Colleagues\Colleagues;
 use App\Services\Mail\Interpretation\InterpretationPresenter;
 use App\Services\Mailboxes\MailboxRuleEditor;
@@ -65,10 +67,12 @@ class ColleagueController extends Controller
             'filters' => ['q' => $search, 'status' => $status, 'access' => $access?->value],
             'total' => Colleague::query()->count(),
             'mailboxes' => $this->mailboxOptions($mailboxes),
+            // Live, adding someone offers to send them the welcome.
+            'isLive' => Tenancy::account()->isLive(),
         ]);
     }
 
-    public function show(Colleague $colleague, InterpretationPresenter $presenter): Response
+    public function show(Colleague $colleague, InterpretationPresenter $presenter, Welcomes $welcomes): Response
     {
         $colleague->loadCount($this->activity())->load('user:id,name,email');
         $mailboxes = $this->mailboxes();
@@ -106,6 +110,8 @@ class ColleagueController extends Controller
                 ->map(fn (OutboundMail $mail): array => SentMailController::present($mail))
                 ->all(),
             'mailboxes' => $this->mailboxOptions($mailboxes),
+            // The welcome by hand, for someone who may get it and has not.
+            'canWelcome' => Tenancy::account()->isLive() && $welcomes->mayReceive($colleague) && $welcomes->awaits($colleague),
         ]);
     }
 
@@ -113,7 +119,7 @@ class ColleagueController extends Controller
      * Someone who has not mailed Howy yet, added by hand: they get Howy's own
      * mails unless the admin says not.
      */
-    public function store(StoreColleagueRequest $request, Colleagues $colleagues, MailboxRuleEditor $rules): RedirectResponse
+    public function store(StoreColleagueRequest $request, Colleagues $colleagues, MailboxRuleEditor $rules, Welcomes $welcomes): RedirectResponse
     {
         $mailbox = Mailbox::query()->findOrFail($request->integer('home_mailbox_id'));
 
@@ -132,9 +138,25 @@ class ColleagueController extends Controller
             return $colleague;
         });
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __(':name is a colleague now.', ['name' => $colleague->displayName()])]);
+        $welcomed = $request->boolean('send_welcome') && $welcomes->send($colleague);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $welcomed
+            ? __(':name is a colleague now. The welcome mail is on its way.', ['name' => $colleague->displayName()])
+            : __(':name is a colleague now.', ['name' => $colleague->displayName()])]);
 
         return to_route('colleagues.show', $colleague);
+    }
+
+    /**
+     * The welcome, sent by hand: to someone who may get it and has not had it.
+     */
+    public function welcome(Colleague $colleague, Welcomes $welcomes): RedirectResponse
+    {
+        Inertia::flash('toast', $welcomes->send($colleague)
+            ? ['type' => 'success', 'message' => __('The welcome mail is on its way.')]
+            : ['type' => 'error', 'message' => __('Howy cannot send them the welcome now.')]);
+
+        return back();
     }
 
     public function update(UpdateColleagueRequest $request, Colleague $colleague): RedirectResponse

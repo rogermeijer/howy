@@ -106,6 +106,7 @@ Route::middleware(['auth', 'verified', 'tenant', 'set-up'])->group(function () {
         Route::get('{colleague}', [ColleagueController::class, 'show'])->whereNumber('colleague')->name('show');
         Route::patch('{colleague}', [ColleagueController::class, 'update'])->whereNumber('colleague')->name('update');
         Route::put('{colleague}/mailboxes/{mailbox}', [ColleagueController::class, 'updateAccess'])->whereNumber('colleague')->name('access.update');
+        Route::post('{colleague}/welcome', [ColleagueController::class, 'welcome'])->whereNumber('colleague')->name('welcome');
     });
 
     Route::get('knowledge', [KnowledgeController::class, 'index'])->name('knowledge');

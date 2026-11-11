@@ -6,6 +6,7 @@ use App\Enums\InterpretationStatus;
 use App\Facades\Tenancy;
 use App\Models\Email;
 use App\Models\EmailInterpretation;
+use App\Services\Adoption\AdoptionTriggers;
 use App\Services\Mail\Interpretation\EmailInterpreter;
 use App\Tenancy\Concerns\InteractsWithTenancy;
 use App\Tenancy\Contracts\TenantAware;
@@ -62,7 +63,7 @@ class InterpretEmail implements ShouldQueue, TenantAware
         ];
     }
 
-    public function handle(EmailInterpreter $interpreter): void
+    public function handle(EmailInterpreter $interpreter, AdoptionTriggers $triggers): void
     {
         $email = Email::query()->with('mailbox')->find($this->emailId);
 
@@ -78,6 +79,9 @@ class InterpretEmail implements ShouldQueue, TenantAware
         }
 
         $interpreter->interpret($email);
+
+        // What the mail sets off in the flow: a colleague's first mail brings the welcome.
+        $triggers->afterInterpretation($email);
     }
 
     /**

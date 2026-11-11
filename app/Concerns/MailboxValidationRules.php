@@ -45,6 +45,8 @@ trait MailboxValidationRules
             'sender_rules.*.creates_colleagues' => ['sometimes', 'boolean'],
             'removed_rules' => ['present', 'array', 'max:500'],
             'removed_rules.*' => ['string', 'max:255'],
+            // Welcome the colleagues an address on the list makes, when the account is live.
+            'welcome_new' => ['sometimes', 'boolean'],
         ];
     }
 

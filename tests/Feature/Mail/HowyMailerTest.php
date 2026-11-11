@@ -47,6 +47,8 @@ class HowyMailerTest extends TestCase
         Http::preventStrayRequests();
 
         $this->account = Account::factory()->create(['timezone' => 'Europe/Amsterdam']);
+        // Live: Howy's own mails go.
+        $this->account->forceFill(['live_at' => now()])->save();
         $this->mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->rules(senders: [
             'hr@noordkade.nl' => SenderAccess::Ignore,
         ])->create(['email_address' => 'howy@noordkade.nl']));

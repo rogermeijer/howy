@@ -30,6 +30,7 @@ use Illuminate\Support\Str;
  * do not let Howy write to. A mailbox that needs reconnecting holds every mail
  * as pending, and adoption:send sends it once the mailbox is back: there is no
  * other sender to fall back on. A disconnected mailbox sends nothing again.
+ * Howy's own mails also wait while the account is not live.
  */
 class HowyMailer
 {
@@ -118,7 +119,9 @@ class HowyMailer
             return $outbound;
         }
 
-        if ($mailbox === null || ! $mailbox->isActive()) {
+        // Paused: the mailbox needs reconnecting, or Howy's own mails wait
+        // for the account to be live again.
+        if ($mailbox === null || ! $mailbox->isActive() || ($outbound->kind->isFlow() && ! $outbound->account->isLive())) {
             return $outbound;
         }
 

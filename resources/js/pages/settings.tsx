@@ -6,9 +6,16 @@ import { Section } from '@/components/cc/section';
 import { LocaleFields } from '@/components/locale-fields';
 import { MailboxesSection } from '@/components/mailboxes/mailboxes-section';
 import { KnowledgeLanguageSection } from '@/components/settings/knowledge-language-section';
+import { LiveSection } from '@/components/settings/live-section';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/hooks/use-translations';
-import type { LocaleOption, Mailbox, MailFacts } from '@/types';
+import type {
+    LiveState,
+    LocaleOption,
+    Mailbox,
+    MailFacts,
+    WelcomeCandidate,
+} from '@/types';
 
 type Props = {
     account: {
@@ -27,6 +34,9 @@ type Props = {
     timezones: string[];
     publicDomains: string[];
     mailFacts: MailFacts;
+    live: LiveState;
+    /** Loaded when the dialog to go live opens. */
+    welcomeList?: WelcomeCandidate[];
 };
 
 export default function Settings({
@@ -39,6 +49,8 @@ export default function Settings({
     timezones,
     publicDomains,
     mailFacts,
+    live,
+    welcomeList,
 }: Props) {
     const t = useTranslations();
 
@@ -59,6 +71,13 @@ export default function Settings({
                     publicDomains={publicDomains}
                     company={account.name}
                     facts={mailFacts}
+                    isLive={live.since !== null}
+                />
+
+                <LiveSection
+                    live={live}
+                    candidates={welcomeList}
+                    canManage={canManageAccount}
                 />
 
                 <Section

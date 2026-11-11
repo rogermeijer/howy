@@ -6,6 +6,7 @@ use App\Actions\Accounts\ChangeKnowledgeLanguage;
 use App\Enums\Locale;
 use App\Enums\MailboxStatus;
 use App\Facades\Tenancy;
+use App\Http\Controllers\Concerns\PresentsGoLive;
 use App\Http\Controllers\Concerns\PresentsMailboxes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\AccountUpdateRequest;
@@ -20,6 +21,7 @@ use Inertia\Response;
 
 class AccountController extends Controller
 {
+    use PresentsGoLive;
     use PresentsMailboxes;
 
     /**
@@ -59,6 +61,7 @@ class AccountController extends Controller
             // A rule for one of these would let in everyone on it.
             'publicDomains' => config('mailboxes.public_domains'),
             'mailFacts' => $this->mailFacts(),
+            ...$this->goLiveProps(),
         ]);
     }
 

@@ -86,3 +86,14 @@ export type SentMail = {
     createdAt: string | null;
     sentAt: string | null;
 };
+
+/** Whether Howy sends its own mails to colleagues, and since when. */
+export type LiveState = { since: string | null };
+
+/** Someone the welcome would go to on going live. */
+export type WelcomeCandidate = {
+    id: number;
+    name: string | null;
+    email: string;
+    mailbox: string | null;
+};

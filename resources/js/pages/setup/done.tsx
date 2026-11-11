@@ -1,16 +1,17 @@
 import { Link, usePage } from '@inertiajs/react';
-import { ArrowRight, Check, Lock, Minus, Upload } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { ArrowRight, Check, Lock, Minus, Rocket, Upload } from 'lucide-react';
+import { type ReactNode, useState } from 'react';
 import { BRAND_NAME } from '@/components/brand/brand';
 import { Marker } from '@/components/brand/doodles';
 import { WithHowy } from '@/components/brand/howy-name';
 import { useAccessLooks } from '@/components/mailboxes/sender-access';
+import { GoLiveDialog } from '@/components/settings/go-live-dialog';
 import { SetupStep } from '@/components/setup/setup-step';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/hooks/use-translations';
 import { inbox, knowledge, settings } from '@/routes';
 import documentRoutes from '@/routes/knowledge/documents';
-import type { Auth, SenderAccess } from '@/types';
+import type { Auth, LiveState, SenderAccess, WelcomeCandidate } from '@/types';
 
 type Props = {
     account: {
@@ -24,6 +25,9 @@ type Props = {
         publicDomain: boolean;
         domainAccess: SenderAccess;
     } | null;
+    live: LiveState;
+    /** Loaded when the dialog to go live opens. */
+    welcomeList?: WelcomeCandidate[];
 };
 
 /**
@@ -31,8 +35,9 @@ type Props = {
  * mailbox that is CC'ing it; without one, a document, since the inbox has
  * nothing to show yet.
  */
-export default function Done({ account, mailbox }: Props) {
+export default function Done({ account, mailbox, live, welcomeList }: Props) {
     const t = useTranslations();
+    const [goingLive, setGoingLive] = useState(false);
     const looks = useAccessLooks();
     const { auth } = usePage<{ auth: Auth }>().props;
 
@@ -168,6 +173,51 @@ export default function Done({ account, mailbox }: Props) {
                     </Link>
                 </div>
             )}
+
+            {mailbox && (
+                <div className="flex flex-wrap items-center gap-4 rounded-xl border border-cc-border px-[18px] py-4">
+                    <span className="flex min-w-[220px] flex-1 flex-col gap-0.5">
+                        <span className="text-[15px] font-semibold">
+                            {live.since !== null ? (
+                                <WithHowy text={t('Howy is live')} />
+                            ) : (
+                                t('Ready for your colleagues?')
+                            )}
+                        </span>
+                        <span className="text-[13px] leading-[1.5] text-cc-muted">
+                            <WithHowy
+                                text={
+                                    live.since !== null
+                                        ? t(
+                                              'Colleagues get the welcome with their first mail to Howy, or when you add them.',
+                                          )
+                                        : t(
+                                              'Put Howy live and it welcomes your colleagues. Until then it answers questions, but sends nothing of its own.',
+                                          )
+                                }
+                            />
+                        </span>
+                    </span>
+                    {live.since === null && (
+                        <Button
+                            variant="outline"
+                            className="h-10"
+                            onClick={() => setGoingLive(true)}
+                        >
+                            <Rocket />
+                            <span>
+                                <WithHowy text={t('Put Howy live')} />
+                            </span>
+                        </Button>
+                    )}
+                </div>
+            )}
+
+            <GoLiveDialog
+                open={goingLive}
+                onOpenChange={setGoingLive}
+                candidates={welcomeList}
+            />
 
             <div className="flex flex-wrap items-center gap-3">
                 <Link

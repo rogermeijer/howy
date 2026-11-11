@@ -9,6 +9,7 @@ import { AccessPicker, AccessTag } from '@/components/mailboxes/sender-access';
 import { SenderGroups } from '@/components/mailboxes/sender-groups';
 import { SendersSheet } from '@/components/mailboxes/senders-sheet';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useTranslations } from '@/hooks/use-translations';
 import { type MailboxRules, rulesOf } from '@/lib/mailbox-rules';
 import type { Mailbox, SenderAccess } from '@/types';
@@ -81,6 +82,8 @@ type Props = {
     canManage: boolean;
     publicDomains: string[];
     id: string;
+    /** Live, new addresses can get the welcome as they are saved. */
+    isLive?: boolean;
 };
 
 /**
@@ -98,9 +101,20 @@ export function MailboxRulesPanel({
     canManage,
     publicDomains,
     id,
+    isLive = false,
 }: Props) {
     const t = useTranslations();
     const [sheet, setSheet] = useState<SenderAccess | 'all' | null>(null);
+    const [welcomeNew, setWelcomeNew] = useState(true);
+
+    // Addresses not saved before: whoever is new among them becomes a colleague.
+    const newcomers = draft.senders.filter(
+        (rule) =>
+            rule.entry.includes('@') &&
+            !rulesOf(mailbox).senders.some(
+                (saved) => saved.entry === rule.entry,
+            ),
+    ).length;
 
     const set = (rules: Partial<MailboxRules>) =>
         setDraft({ ...draft, ...rules });
@@ -219,6 +233,33 @@ export function MailboxRulesPanel({
                     }
                 />
             </Group>
+
+            {canManage && changes > 0 && isLive && newcomers > 0 && (
+                <label className="flex items-start gap-3 rounded-xl border border-cc-border px-3.5 py-3">
+                    <input
+                        type="hidden"
+                        name="welcome_new"
+                        value={welcomeNew ? '1' : '0'}
+                    />
+                    <Checkbox
+                        checked={welcomeNew}
+                        onCheckedChange={(on) => setWelcomeNew(on === true)}
+                        className="mt-0.5 size-[18px] border-[1.5px] border-cc-border-strong bg-cc-panel"
+                    />
+                    <span className="flex flex-col gap-0.5">
+                        <span className="text-[14px] font-semibold">
+                            {t('Send the welcome mail to new colleagues')}
+                        </span>
+                        <span className="cc-caption">
+                            <WithHowy
+                                text={t(
+                                    'Only to those who get Howy mails: people at your company, not a customer you list.',
+                                )}
+                            />
+                        </span>
+                    </span>
+                </label>
+            )}
 
             {canManage && changes > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-2xl bg-cc-ink py-2.5 pr-2.5 pl-4 text-cc-bg sm:rounded-full">
