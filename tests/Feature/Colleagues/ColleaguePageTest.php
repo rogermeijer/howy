@@ -117,6 +117,53 @@ class ColleaguePageTest extends TestCase
         $this->assertCount(6, $emails(['status' => 'whatever', 'access' => 'whatever']));
     }
 
+    public function test_a_disconnected_mailbox_is_not_offered_and_who_had_it_has_no_mailbox(): void
+    {
+        $old = Tenancy::for($this->account, fn () => Mailbox::factory()->disconnected()->create(['email_address' => 'oud@noordkade.nl']));
+        $anna = $this->colleague('anna@noordkade.nl', ['home_mailbox_id' => null]);
+        $this->colleague('jan@noordkade.nl');
+
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('withoutMailbox', 1)
+                ->where('mailboxes', [['id' => $this->mailbox->id, 'emailAddress' => 'kennis@noordkade.nl']]));
+
+        $statuses = fn (array $query): array => collect($this->actingAs($this->admin)
+            ->get(route('colleagues.index', $query))
+            ->viewData('page')['props']['colleagues']['data'])
+            ->pluck('status', 'email')
+            ->all();
+
+        $this->assertSame(['anna@noordkade.nl' => 'no_mailbox'], $statuses(['status' => 'no_mailbox']));
+        // Without a mailbox no rule applies to them, so no other filter finds them.
+        $this->assertSame(['jan@noordkade.nl' => 'not_welcomed'], $statuses(['status' => 'not_welcomed']));
+        $this->assertArrayNotHasKey('anna@noordkade.nl', $statuses(['status' => 'ignored']));
+        $this->assertArrayNotHasKey('anna@noordkade.nl', $statuses(['access' => 'ignore']));
+
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.show', $anna))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('colleague.status', 'no_mailbox')
+                ->where('colleague.homeMailbox', null)
+                ->where('mailboxes', [['id' => $this->mailbox->id, 'emailAddress' => 'kennis@noordkade.nl']])
+                ->has('access', 1)
+                ->where('access.0.mailboxId', $this->mailbox->id));
+
+        // Nor can it be chosen: nothing goes out from it.
+        $this->actingAs($this->admin)
+            ->patch(route('colleagues.update', $anna), ['home_mailbox_id' => $old->id])
+            ->assertSessionHasErrors('home_mailbox_id');
+        $this->actingAs($this->admin)
+            ->patch(route('colleagues.update', $anna), ['access' => [$old->id => 'learn']])
+            ->assertSessionHasErrors('access');
+
+        $this->actingAs($this->admin)
+            ->patch(route('colleagues.update', $anna), ['home_mailbox_id' => $this->mailbox->id])
+            ->assertSessionHasNoErrors();
+        $this->assertSame($this->mailbox->id, Tenancy::for($this->account, fn () => $anna->refresh()->home_mailbox_id));
+    }
+
     public function test_the_page_of_a_colleague_shows_their_access_per_mailbox_and_their_mail(): void
     {
         $support = Tenancy::for($this->account, fn () => Mailbox::factory()->rules(SenderAccess::Learn)->create(['email_address' => 'support@noordkade.nl']));

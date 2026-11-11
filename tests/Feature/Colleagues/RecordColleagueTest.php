@@ -62,6 +62,15 @@ class RecordColleagueTest extends TestCase
         });
     }
 
+    public function test_someone_whose_mailbox_was_disconnected_takes_the_one_they_mail_next(): void
+    {
+        $anna = Tenancy::for($this->account, fn () => Colleague::factory()->create(['email' => 'anna@noordkade.nl', 'home_mailbox_id' => null]));
+
+        $this->store('m1', 'Anna <anna@noordkade.nl>');
+
+        $this->assertSame($this->mailbox->id, Tenancy::for($this->account, fn () => $anna->refresh()->home_mailbox_id));
+    }
+
     public function test_only_a_domain_rule_that_creates_colleagues_makes_them(): void
     {
         $this->store('m1', 'Piet <piet@klant.nl>');

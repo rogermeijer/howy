@@ -73,8 +73,8 @@ trait ColleagueValidationRules
     }
 
     /**
-     * Their access per mailbox, keyed by mailbox: each one of this account's,
-     * each a rule of their own or "default".
+     * Their access per mailbox, keyed by mailbox: each one this account has
+     * connected, each a rule of their own or "default".
      *
      * @return array<string, array<int, ValidationRule|array<mixed>|string|Closure>>
      */
@@ -83,7 +83,7 @@ trait ColleagueValidationRules
         $ownMailboxes = function (string $attribute, mixed $value, Closure $fail): void {
             $ids = is_array($value) ? array_keys($value) : [];
 
-            if (Mailbox::query()->whereKey($ids)->count() !== count($ids)) {
+            if (Mailbox::query()->connected()->whereKey($ids)->count() !== count($ids)) {
                 $fail(__('Choose one of your mailboxes.'));
             }
         };
@@ -95,12 +95,13 @@ trait ColleagueValidationRules
     }
 
     /**
-     * One of this account's mailboxes: an id from elsewhere is not one.
+     * One of this account's mailboxes, still connected: an id from elsewhere
+     * is not one, and nothing goes out from a disconnected one.
      */
     private function ownMailbox(): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail): void {
-            if (! is_numeric($value) || ! Mailbox::query()->whereKey((int) $value)->exists()) {
+            if (! is_numeric($value) || ! Mailbox::query()->connected()->whereKey((int) $value)->exists()) {
                 $fail(__('Choose one of your mailboxes.'));
             }
         };

@@ -53,13 +53,15 @@ For nearly every account they work at the company, and they are who the flow mai
 - **Howy mails** (`receives_mail`, "Receives Howy mails") start on for colleagues at the company's domain (the
   mailbox's own, or the account's `domain`), for members, and for anyone added by hand; off for others listed
   one by one, such as a customer's address. Their home mailbox (`home_mailbox_id`) is the first they mailed: the
-  flow mails will come from there.
+  flow mails will come from there. Disconnecting that mailbox empties it: nothing of Howy's own reaches them
+  until an admin chooses another, or they mail a connected mailbox, which becomes their home.
 - **The page** (`/colleagues`, account admins, in the top bar): search, filter on where their Howy mails stand
   and on what Howy does with their mail on their home mailbox. A colleague's page leads with where their Howy
   mails stand: a bar through welcome, how it works, the reminder and the first contribution as the goal
   (`welcomed_at`, `explained_at`, `nudged_at`, `first_saved_at`; the reminder and the goal only for someone Howy
   learns from), with when the next one is planned and, above it, one sentence on what stops them or comes next
-  (unsubscribed, switched off, ignored, not live, the mailbox out). Their name (or their address while Howy has
+  (unsubscribed, switched off, no mailbox, ignored, not live, the mailbox out). Without a home mailbox they show
+  as "No mailbox", and the list says how many there are. Their name (or their address while Howy has
   none), the switch and the home mailbox are changed where they show. Below, in tabs: their access per mailbox
   (a rule of their own, or their domain's) and recent mail, all their mail, and the mail log.
 
@@ -115,7 +117,8 @@ Rules:
 - **Nothing before Live.** Answers to questions work regardless.
 - **The mailbox pauses everything.** When it needs reconnecting, flow mails and answers wait and go once it
   is connected again. There is no fallback to another sender. A mailbox an admin disconnected sends nothing
-  again: its mails are skipped.
+  again: what waited on it is skipped as it is disconnected (`no_mailbox`), and its colleagues lose it as their
+  home mailbox (`MailboxConnector::disconnect()`).
 - **Working days** are Monday to Friday in the account's timezone; public holidays are not counted yet.
   Scheduled mails go between `ADOPTION_SEND_FROM_HOUR` and `ADOPTION_SEND_UNTIL_HOUR`. A welcome sent by
   hand goes at once.

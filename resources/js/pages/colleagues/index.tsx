@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Search, UserPlus, Users } from 'lucide-react';
+import { AlertTriangle, Search, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { WithHowy } from '@/components/brand/howy-name';
 import { Pager } from '@/components/admin/pager';
@@ -53,6 +53,8 @@ type Props = {
     colleagues: Paginated<ColleagueRow>;
     filters: Filters;
     total: number;
+    /** How many have no mailbox for their Howy mails: theirs was disconnected. */
+    withoutMailbox: number;
     mailboxes: MailboxOption[];
     isLive: boolean;
 };
@@ -61,6 +63,7 @@ const STATUSES: ColleagueStatus[] = [
     'not_welcomed',
     'welcomed',
     'ignored',
+    'no_mailbox',
     'opted_out',
     'off',
 ];
@@ -72,6 +75,7 @@ export default function Colleagues({
     colleagues,
     filters,
     total,
+    withoutMailbox,
     mailboxes,
     isLive,
 }: Props) {
@@ -83,7 +87,7 @@ export default function Colleagues({
     const [adding, setAdding] = useState(false);
 
     // Someone new who mails Howy, or their latest mail, shows as it happens.
-    useAccountUpdates('mail', ['colleagues', 'total']);
+    useAccountUpdates('mail', ['colleagues', 'total', 'withoutMailbox']);
     const [query, setQuery] = useState(filters.q);
 
     const filter = (changes: Partial<Filters>) => {
@@ -234,6 +238,39 @@ export default function Colleagues({
                     )}
                 </div>
 
+                {withoutMailbox > 0 && filters.status !== 'no_mailbox' && (
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 rounded-xl bg-cc-pending-bg px-4 py-3 text-[13.5px] leading-[1.5] text-cc-pending-fg">
+                        <p className="flex min-w-0 flex-[1_1_420px] gap-2">
+                            <AlertTriangle className="mt-[3px] size-4 shrink-0" />
+                            <span>
+                                <WithHowy
+                                    text={
+                                        withoutMailbox === 1
+                                            ? t(
+                                                  '1 colleague has no mailbox for their Howy mails: theirs was disconnected. Choose another on their page, or Howy takes the one they mail next.',
+                                              )
+                                            : t(
+                                                  ':count colleagues have no mailbox for their Howy mails: theirs was disconnected. Choose another on their page, or Howy takes the one they mail next.',
+                                                  { count: withoutMailbox },
+                                              )
+                                    }
+                                />
+                            </span>
+                        </p>
+                        <Button
+                            variant="outline"
+                            className="h-9 shrink-0 bg-cc-panel px-3.5 text-[13px]"
+                            onClick={() => filter({ status: 'no_mailbox' })}
+                        >
+                            {withoutMailbox === 1
+                                ? t('Show them')
+                                : t('Show all :count', {
+                                      count: withoutMailbox,
+                                  })}
+                        </Button>
+                    </div>
+                )}
+
                 {colleagues.data.length === 0 ? (
                     <div className="cc-panel flex flex-col items-center gap-3 px-6 py-[72px] text-center">
                         <div className="flex size-14 items-center justify-center rounded-2xl bg-cc-raised text-cc-subtle">
@@ -306,37 +343,54 @@ export default function Colleagues({
 
                                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                                     {/* Where it comes from, on hover. */}
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <AccessTag
-                                                access={colleague.access}
-                                            />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <WithHowy
-                                                text={
-                                                    colleague.accessFrom ===
-                                                    'own'
-                                                        ? t('Their own rule')
-                                                        : colleague.accessFrom ===
-                                                            'domain'
-                                                          ? t(
-                                                                'Through the rule for :domain',
-                                                                {
-                                                                    domain:
-                                                                        colleague.email.split(
-                                                                            '@',
-                                                                        )[1] ??
-                                                                        '',
-                                                                },
-                                                            )
-                                                          : t(
-                                                                'No rule covers them, so Howy ignores their mail',
-                                                            )
-                                                }
-                                            />
-                                        </TooltipContent>
-                                    </Tooltip>
+                                    {colleague.homeMailbox === null ? (
+                                        // No mailbox, so no rule applies.
+                                        <>
+                                            <span
+                                                aria-hidden="true"
+                                                className="text-cc-faint"
+                                            >
+                                                –
+                                            </span>
+                                            <span className="sr-only">
+                                                {t('No mailbox')}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <AccessTag
+                                                    access={colleague.access}
+                                                />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <WithHowy
+                                                    text={
+                                                        colleague.accessFrom ===
+                                                        'own'
+                                                            ? t(
+                                                                  'Their own rule',
+                                                              )
+                                                            : colleague.accessFrom ===
+                                                                'domain'
+                                                              ? t(
+                                                                    'Through the rule for :domain',
+                                                                    {
+                                                                        domain:
+                                                                            colleague.email.split(
+                                                                                '@',
+                                                                            )[1] ??
+                                                                            '',
+                                                                    },
+                                                                )
+                                                              : t(
+                                                                    'No rule covers them, so Howy ignores their mail',
+                                                                )
+                                                    }
+                                                />
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
                                 </div>
 
                                 <div>

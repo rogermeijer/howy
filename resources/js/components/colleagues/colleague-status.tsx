@@ -13,6 +13,7 @@ export function useStatusLooks(): Record<
         not_welcomed: { label: t('Not welcomed yet'), tag: 'cc-tag-pending' },
         welcomed: { label: t('Welcomed'), tag: 'cc-tag-decision' },
         ignored: { label: t('Ignored'), tag: 'cc-tag-noise' },
+        no_mailbox: { label: t('No mailbox'), tag: 'cc-tag-pending' },
         opted_out: { label: t('Unsubscribed'), tag: 'cc-tag-noise' },
         off: { label: t('Howy mails off'), tag: 'cc-tag-noise' },
     };

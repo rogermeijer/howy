@@ -41,10 +41,11 @@ class ColleagueController extends Controller
 {
     /**
      * Where someone's Howy mails stand, as the list filters them: unsubscribed,
-     * switched off by an admin, ignored by the rules (so none go out), or else
-     * welcomed or not yet.
+     * switched off by an admin, without a mailbox to come from since theirs was
+     * disconnected, ignored by the rules (so none go out), or else welcomed or
+     * not yet.
      */
-    private const array STATUSES = ['not_welcomed', 'welcomed', 'ignored', 'opted_out', 'off'];
+    private const array STATUSES = ['not_welcomed', 'welcomed', 'ignored', 'no_mailbox', 'opted_out', 'off'];
 
     public function index(Request $request): Response
     {
@@ -70,6 +71,9 @@ class ColleagueController extends Controller
             'colleagues' => $colleagues,
             'filters' => ['q' => $search, 'status' => $status, 'access' => $access?->value],
             'total' => Colleague::query()->count(),
+            // Those whose mailbox was disconnected: nothing of Howy's own
+            // reaches them until they have one again.
+            'withoutMailbox' => Colleague::query()->whereNull('home_mailbox_id')->count(),
             'mailboxes' => $this->mailboxOptions($mailboxes),
             // Live, adding someone offers to send them the welcome.
             'isLive' => Tenancy::account()->isLive(),
@@ -258,7 +262,7 @@ class ColleagueController extends Controller
             'access' => $access->value,
             'accessFrom' => $rule === null ? 'none' : ($rule->colleague_id !== null ? 'own' : 'domain'),
             'receivesMail' => $colleague->receives_mail,
-            'status' => $this->status($colleague, $access),
+            'status' => $this->status($colleague, $home, $access),
             'welcomedAt' => $colleague->welcomed_at?->toIso8601String(),
             'lastMailAt' => $colleague->last_mail_at?->toIso8601String(),
             'emailsCount' => (int) $colleague->getAttribute('emails_count'),
@@ -267,11 +271,12 @@ class ColleagueController extends Controller
         ];
     }
 
-    private function status(Colleague $colleague, SenderAccess $access): string
+    private function status(Colleague $colleague, ?Mailbox $home, SenderAccess $access): string
     {
         return match (true) {
             $colleague->opted_out_at !== null => 'opted_out',
             ! $colleague->receives_mail => 'off',
+            $home === null => 'no_mailbox',
             $access === SenderAccess::Ignore => 'ignored',
             $colleague->welcomed_at === null => 'not_welcomed',
             default => 'welcomed',
@@ -299,6 +304,14 @@ class ColleagueController extends Controller
 
         $query->where('receives_mail', true);
 
+        if ($status === 'no_mailbox') {
+            $query->whereNull('home_mailbox_id');
+
+            return;
+        }
+
+        $query->whereNotNull('home_mailbox_id');
+
         if ($status === 'ignored') {
             $this->whereAccess($query, SenderAccess::Ignore);
 
@@ -312,12 +325,14 @@ class ColleagueController extends Controller
     /**
      * What Howy may do with their mail on their home mailbox, as
      * Mailbox::access() decides it: their own rule there, else the rule for
-     * their domain, else ignored.
+     * their domain, else ignored. Without a home mailbox, nothing applies.
      *
      * @param  Builder<Colleague>  $query
      */
     private function whereAccess(Builder $query, SenderAccess $access): void
     {
+        $query->whereNotNull('home_mailbox_id');
+
         $own = fn (Builder $rules): Builder => $rules->whereColumn('mailbox_rules.mailbox_id', 'colleagues.home_mailbox_id');
         $domain = fn (): Builder => MailboxRule::query()
             ->whereColumn('mailbox_rules.mailbox_id', 'colleagues.home_mailbox_id')
@@ -356,11 +371,13 @@ class ColleagueController extends Controller
     }
 
     /**
+     * The mailboxes Howy's own mails can come from: not the disconnected ones.
+     *
      * @return Collection<int, Mailbox>
      */
     private function mailboxes(): Collection
     {
-        return Mailbox::query()->with('rules.colleague')->orderBy('email_address')->get()->keyBy('id');
+        return Mailbox::query()->connected()->with('rules.colleague')->orderBy('email_address')->get()->keyBy('id');
     }
 
     /**

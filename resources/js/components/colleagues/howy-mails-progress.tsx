@@ -274,6 +274,7 @@ export function HowyMailsProgress({
         onTheirWay,
         canWelcome,
         isLive,
+        hasMailboxes: mailboxes.length > 0,
         mailboxDown,
         learns,
         mailbox,
@@ -600,6 +601,14 @@ function HomeMailboxPicker({
     const t = useTranslations();
     const current = colleague.homeMailbox ?? t('Choose a mailbox');
 
+    if (mailboxes.length === 0) {
+        return (
+            <span className="font-semibold text-cc-ink">
+                {colleague.homeMailbox ?? t('No mailbox')}
+            </span>
+        );
+    }
+
     if (mailboxes.length < 2 && colleague.homeMailbox !== null) {
         return <span className="font-semibold text-cc-ink">{current}</span>;
     }
@@ -659,6 +668,7 @@ function useSummary({
     onTheirWay,
     canWelcome,
     isLive,
+    hasMailboxes,
     mailboxDown,
     learns,
     mailbox,
@@ -671,6 +681,7 @@ function useSummary({
     onTheirWay: string[];
     canWelcome: boolean;
     isLive: boolean;
+    hasMailboxes: boolean;
     mailboxDown: boolean;
     learns: boolean;
     mailbox: string;
@@ -696,6 +707,19 @@ function useSummary({
             text: t(
                 'Howy sends them nothing of its own. Switch it back on and Howy picks up where it left off.',
             ),
+        };
+    }
+
+    if (colleague.homeMailbox === null) {
+        return {
+            title: t('No mailbox for their Howy mails'),
+            text: hasMailboxes
+                ? t(
+                      'The mailbox their Howy mails came from was disconnected, so Howy sends them nothing of its own. Choose another below, or Howy takes the one they mail next.',
+                  )
+                : t(
+                      'The mailbox their Howy mails came from was disconnected, so Howy sends them nothing of its own. Connect a mailbox in settings, and Howy takes the one they mail next.',
+                  ),
         };
     }
 

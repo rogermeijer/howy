@@ -35,7 +35,12 @@ export function ColleagueHeader({
 
     const badges = (
         <>
-            <AccessBadge colleague={colleague} access={access} />
+            {/* Without a mailbox, no rule says anything about them. */}
+            {colleague.homeMailbox === null ? (
+                <span className="cc-tag cc-tag-pending">{t('No mailbox')}</span>
+            ) : (
+                <AccessBadge colleague={colleague} access={access} />
+            )}
             {colleague.user !== null && (
                 <span className="cc-tag cc-tag-action">{t('Member')}</span>
             )}

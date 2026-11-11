@@ -9,6 +9,7 @@ use App\Enums\SenderAccess;
 use Database\Factories\MailboxFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -96,6 +97,18 @@ class Mailbox extends Model
     public function isActive(): bool
     {
         return $this->status === MailboxStatus::Active;
+    }
+
+    /**
+     * The mailboxes an account has: connected, or waiting to be reconnected.
+     * A disconnected one is only kept for the mail it brought in.
+     *
+     * @param  Builder<Mailbox>  $query
+     * @return Builder<Mailbox>
+     */
+    public function scopeConnected(Builder $query): Builder
+    {
+        return $query->where('status', '!=', MailboxStatus::Disconnected);
     }
 
     /**

@@ -6,6 +6,7 @@ export type ColleagueStatus =
     | 'not_welcomed'
     | 'welcomed'
     | 'ignored'
+    | 'no_mailbox'
     | 'opted_out'
     | 'off';
 

@@ -4,15 +4,20 @@ namespace App\Services\Gmail;
 
 use App\Enums\MailboxProvider;
 use App\Enums\MailboxStatus;
+use App\Enums\OutboundMailStatus;
+use App\Enums\OutboundSkipReason;
 use App\Enums\SenderAccess;
 use App\Exceptions\MailboxConnectedElsewhereException;
 use App\Jobs\StartGmailWatch;
+use App\Models\Colleague;
 use App\Models\Mailbox;
+use App\Models\OutboundMail;
 use App\Models\User;
 use App\Services\Colleagues\Colleagues;
 use App\Services\Mailboxes\MailboxRuleEditor;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Laravel\Socialite\Two\User as GoogleUser;
 use Throwable;
 
@@ -84,7 +89,10 @@ class MailboxConnector
 
     /**
      * Stop receiving mail and forget the credentials. Stored emails stay: the
-     * knowledge base links back to them.
+     * knowledge base links back to them. So do the rules, for when it is
+     * connected again. Nothing of Howy's own goes out from it any more: whoever
+     * had it as their home mailbox has none, until an admin chooses one or
+     * they mail another, and what waited on it is skipped.
      */
     public function disconnect(Mailbox $mailbox): void
     {
@@ -102,13 +110,26 @@ class MailboxConnector
             Bus::findBatch($mailbox->import_batch_id)?->cancel();
         }
 
-        $mailbox->forceFill([
-            'status' => MailboxStatus::Disconnected,
-            'access_token' => null,
-            'refresh_token' => null,
-            'token_expires_at' => null,
-            'watch_expires_at' => null,
-            'import_batch_id' => null,
-        ])->save();
+        DB::transaction(function () use ($mailbox): void {
+            $mailbox->forceFill([
+                'status' => MailboxStatus::Disconnected,
+                'access_token' => null,
+                'refresh_token' => null,
+                'token_expires_at' => null,
+                'watch_expires_at' => null,
+                'import_batch_id' => null,
+            ])->save();
+
+            Colleague::query()->where('home_mailbox_id', $mailbox->id)->update(['home_mailbox_id' => null]);
+
+            OutboundMail::query()
+                ->whereBelongsTo($mailbox)
+                ->where('status', OutboundMailStatus::Pending)
+                ->get()
+                ->each(fn (OutboundMail $mail) => $mail->forceFill([
+                    'status' => OutboundMailStatus::Skipped,
+                    'skip_reason' => OutboundSkipReason::NoMailbox,
+                ])->save());
+        });
     }
 }

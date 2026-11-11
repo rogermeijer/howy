@@ -31,7 +31,10 @@ searching the mailbox and picking messages.
 
 A refresh token that Google refuses flips the mailbox to `needs_reauth`. The settings page then offers
 **Reconnect**. Disconnecting stops the watch, revokes the grant and wipes the tokens. **Stored emails are
-kept**, because knowledge-base files link back to them.
+kept**, because knowledge-base files link back to them, and so are the mailbox's rules, for when it is
+connected again. A disconnected mailbox is no longer offered anywhere (`Mailbox::connected()`). What leaned
+on it lets go: colleagues who had it as their home mailbox have none, and Howy's mails waiting on it are
+skipped (see "The flow" and "Colleagues" in `docs/adoption-mails.md`).
 
 ## Import
 
