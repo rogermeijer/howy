@@ -2057,5 +2057,8 @@
     "Not sent yet": "Nog niet verstuurd",
     "On its way": "Onderweg",
     "The mailbox needs reconnecting.": "De mailbox moet opnieuw gekoppeld worden.",
-    "Howy is paused.": "Howy staat op pauze."
+    "Howy is paused.": "Howy staat op pauze.",
+    "Send again": "Opnieuw versturen",
+    "The mail is on its way again.": "De mail is opnieuw onderweg.",
+    "This mail cannot be sent again now.": "Deze mail kan nu niet opnieuw verstuurd worden."
 }

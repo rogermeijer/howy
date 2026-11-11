@@ -6,6 +6,7 @@ use App\Enums\OutboundMailKind;
 use App\Enums\OutboundMailStatus;
 use App\Jobs\Adoption\DeliverOutboundMail;
 use App\Models\Colleague;
+use App\Models\OutboundMail;
 use App\Services\Mail\HowyMailer;
 use Illuminate\Support\Facades\DB;
 
@@ -39,6 +40,41 @@ class FlowSender
 
             return true;
         });
+    }
+
+    /**
+     * The same mail to the same colleague once more, as it was written: for
+     * one that did not arrive. Logged at once and delivered by a job, like
+     * any other; one resend on its way at a time.
+     */
+    public function resend(OutboundMail $mail): bool
+    {
+        if (! self::resendable($mail)) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($mail): bool {
+            $colleague = Colleague::query()->lockForUpdate()->find($mail->colleague_id);
+
+            if ($colleague === null || $colleague->outboundMails()->where('kind', $mail->kind)->where('status', OutboundMailStatus::Pending)->exists()) {
+                return false;
+            }
+
+            DeliverOutboundMail::dispatch($this->mailer->logAgain($mail)->id)->afterCommit();
+
+            return true;
+        });
+    }
+
+    /**
+     * One of Howy's own mails to a colleague that went, or failed: a reply in
+     * someone's thread is not sent twice.
+     */
+    public static function resendable(OutboundMail $mail): bool
+    {
+        return $mail->kind->isFlow()
+            && $mail->colleague_id !== null
+            && in_array($mail->status, [OutboundMailStatus::Sent, OutboundMailStatus::Failed], true);
     }
 
     /**

@@ -83,6 +83,8 @@ export type SentMail = {
     emailId: number | null;
     /** The mails that came in as a reply to it. */
     replyIds: number[];
+    /** One of Howy's own mails to a colleague that went, or failed. */
+    canResend: boolean;
     createdAt: string | null;
     sentAt: string | null;
 };

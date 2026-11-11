@@ -6,6 +6,7 @@ use App\Enums\OutboundMailKind;
 use App\Enums\OutboundMailStatus;
 use App\Enums\OutboundSkipReason;
 use App\Facades\Tenancy;
+use App\Jobs\Adoption\DeliverOutboundMail;
 use App\Models\Account;
 use App\Models\Colleague;
 use App\Models\Email;
@@ -14,6 +15,7 @@ use App\Models\OutboundMail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -98,6 +100,64 @@ class SentMailPageTest extends TestCase
         $this->assertSame(['answer', 'nudge'], $kinds(['from' => '2026-11-09', 'until' => '2026-11-09']));
         // What is not a filter is no filter.
         $this->assertCount(3, $kinds(['kind' => 'whatever', 'from' => 'yesterday']));
+    }
+
+    public function test_a_mail_shows_as_its_recipient_got_it(): void
+    {
+        $mail = $this->mail(['kind' => OutboundMailKind::Welcome, 'html' => '<p>Hoi <strong>Anna</strong></p>'], sent: true);
+        $member = User::factory()->withAccount($this->account, isAdmin: false)->create();
+
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.sent.mail', $mail))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'text/html; charset=UTF-8')
+            ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
+            ->assertHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'")
+            ->assertSee('<p>Hoi <strong>Anna</strong></p>', escape: false);
+
+        $this->actingAs($member)->get(route('colleagues.sent.mail', $mail))->assertForbidden();
+
+        $theirs = Tenancy::for(Account::factory()->create(), fn () => OutboundMail::factory()->create());
+        $this->actingAs($this->admin)->get(route('colleagues.sent.mail', $theirs))->assertNotFound();
+    }
+
+    public function test_one_of_howys_own_mails_can_be_sent_again_as_it_was(): void
+    {
+        Queue::fake();
+        $welcome = $this->mail(['kind' => OutboundMailKind::Welcome, 'subject' => 'Welkom bij Howy', 'html' => '<p>Hoi Anna</p>'], sent: true);
+
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.show', $this->anna))
+            ->assertInertia(fn (Assert $page) => $page->where('sent.0.canResend', true));
+
+        $this->actingAs($this->admin)->post(route('colleagues.sent.resend', $welcome))->assertRedirect();
+        // Clicked twice: the first is still on its way.
+        $this->actingAs($this->admin)->post(route('colleagues.sent.resend', $welcome))->assertRedirect();
+
+        Queue::assertPushed(DeliverOutboundMail::class, 1);
+        $again = Tenancy::for($this->account, fn () => OutboundMail::query()->whereKeyNot($welcome->id)->sole());
+        $this->assertSame(OutboundMailStatus::Pending, $again->status);
+        $this->assertSame(OutboundMailKind::Welcome, $again->kind);
+        $this->assertSame('Welkom bij Howy', $again->subject);
+        $this->assertSame('<p>Hoi Anna</p>', $again->html);
+        $this->assertSame($this->anna->id, $again->colleague_id);
+        $this->assertNull($again->reference);
+        $this->assertNull($again->provider_message_id);
+    }
+
+    public function test_a_reply_or_a_mail_not_sent_is_not_sent_again(): void
+    {
+        Queue::fake();
+        $answer = $this->mail(['kind' => OutboundMailKind::Answer], sent: true);
+        $skipped = $this->mail(['kind' => OutboundMailKind::Welcome, 'status' => OutboundMailStatus::Skipped, 'skip_reason' => OutboundSkipReason::OptedOut]);
+        $theirs = Tenancy::for(Account::factory()->create(), fn () => OutboundMail::factory()->sent()->create());
+
+        $this->actingAs($this->admin)->post(route('colleagues.sent.resend', $answer))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('colleagues.sent.resend', $skipped))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('colleagues.sent.resend', $theirs))->assertNotFound();
+
+        Queue::assertNothingPushed();
+        $this->assertSame(2, Tenancy::for($this->account, fn () => OutboundMail::query()->count()));
     }
 
     public function test_another_accounts_mail_is_out_of_sight(): void

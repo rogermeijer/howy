@@ -1,11 +1,13 @@
-import { Link } from '@inertiajs/react';
-import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { Form, Link } from '@inertiajs/react';
+import { ChevronDown, RotateCw } from 'lucide-react';
+import { type SyntheticEvent, useState } from 'react';
 import { WithHowy } from '@/components/brand/howy-name';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { show as showColleague } from '@/routes/colleagues';
+import sentRoutes from '@/routes/colleagues/sent';
 import { show as showEmail } from '@/routes/emails';
 import type { SentMail, SentMailStatus } from '@/types';
 
@@ -165,11 +167,58 @@ function SentMailRow({
                             </>
                         )}
                     </dl>
-                    <div className="rounded-xl border-[1.5px] border-cc-border bg-cc-panel px-5 py-4 text-[14px] leading-[1.6] whitespace-pre-line">
-                        {mail.text}
-                    </div>
+                    <MailFrame mail={mail} />
+                    {mail.canResend && (
+                        <Form
+                            {...sentRoutes.resend.form(mail.id)}
+                            options={{ preserveScroll: true }}
+                            className="self-start"
+                        >
+                            {({ processing }) => (
+                                <Button
+                                    type="submit"
+                                    variant="outline"
+                                    className="h-10"
+                                    disabled={processing}
+                                >
+                                    <RotateCw />
+                                    {t('Send again')}
+                                </Button>
+                            )}
+                        </Form>
+                    )}
                 </div>
             )}
         </li>
+    );
+}
+
+/**
+ * The mail as its recipient got it: the stored HTML, in a frame that grows
+ * with it. Nothing in it runs; the frame only reads its height.
+ */
+function MailFrame({ mail }: { mail: SentMail }) {
+    const t = useTranslations();
+    const [height, setHeight] = useState(480);
+
+    const fit = (event: SyntheticEvent<HTMLIFrameElement>) => {
+        const document = event.currentTarget.contentDocument;
+
+        if (document) {
+            setHeight(document.documentElement.scrollHeight);
+        }
+    };
+
+    return (
+        <div className="overflow-hidden rounded-xl border-[1.5px] border-cc-border bg-cc-bg">
+            <iframe
+                title={mail.subject ?? t('(no subject)')}
+                src={sentRoutes.mail.url(mail.id)}
+                sandbox="allow-same-origin"
+                onLoad={fit}
+                style={{ height, colorScheme: 'light' }}
+                className="block w-full border-0"
+            />
+        </div>
     );
 }

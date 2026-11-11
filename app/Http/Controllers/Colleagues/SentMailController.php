@@ -8,11 +8,14 @@ use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
 use App\Models\Email;
 use App\Models\OutboundMail;
+use App\Services\Adoption\FlowSender;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Throwable;
 
 /**
@@ -59,6 +62,33 @@ class SentMailController extends Controller
     }
 
     /**
+     * A logged mail as its recipient got it: the HTML, for the log to show in
+     * a frame. Nothing in it runs or loads from elsewhere, and only this app
+     * may frame it.
+     */
+    public function mail(OutboundMail $outboundMail): HttpResponse
+    {
+        return response($outboundMail->html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'",
+            'X-Frame-Options' => 'SAMEORIGIN',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /**
+     * Send one of Howy's own mails to a colleague once more, as it was.
+     */
+    public function resend(OutboundMail $outboundMail, FlowSender $sender): RedirectResponse
+    {
+        Inertia::flash('toast', $sender->resend($outboundMail)
+            ? ['type' => 'success', 'message' => __('The mail is on its way again.')]
+            : ['type' => 'error', 'message' => __('This mail cannot be sent again now.')]);
+
+        return back();
+    }
+
+    /**
      * One logged mail as the mail log shows it, here and on a colleague's
      * page.
      *
@@ -81,6 +111,7 @@ class SentMailController extends Controller
             'text' => $mail->text,
             'emailId' => $mail->email_id,
             'replyIds' => $mail->replies->map(fn (Email $email): int => $email->id)->values()->all(),
+            'canResend' => FlowSender::resendable($mail),
             'createdAt' => $mail->created_at?->toIso8601String(),
             'sentAt' => $mail->sent_at?->toIso8601String(),
         ];

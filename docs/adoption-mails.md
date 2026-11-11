@@ -179,8 +179,11 @@ thread of a flow mail, which starts a thread of its own. Only within the mailbox
 read with what Howy wrote as its context, and the mail page says what it replies to.
 
 **The log** is the _Sent mails_ tab on the colleagues page (`/colleagues/sent`, account admins): filter on
-recipient, kind, status and period; open a mail to read it, see why it did not go and the replies it got. A
-colleague's page lists what Howy sent them.
+recipient, kind, status and period; open a mail to see it as its recipient got it (the stored HTML, in a frame
+nothing in which runs or loads from elsewhere), why it did not go, and the replies it got. A colleague's page
+lists what Howy sent them. One of Howy's own mails that went, or failed, can be sent again as it was ("Send
+again", `FlowSender::resend()`): a copy, logged at once, with a Message-ID of its own; one resend on its way at
+a time. Replies in someone's thread are never sent again.
 
 ## Privacy
 

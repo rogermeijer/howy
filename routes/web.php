@@ -103,6 +103,8 @@ Route::middleware(['auth', 'verified', 'tenant', 'set-up'])->group(function () {
         Route::post('/', [ColleagueController::class, 'store'])->name('store');
         // Every mail Howy sent from the account's mailboxes: the mail log.
         Route::get('sent', [SentMailController::class, 'index'])->name('sent');
+        Route::get('sent/{outboundMail}/mail', [SentMailController::class, 'mail'])->name('sent.mail');
+        Route::post('sent/{outboundMail}/resend', [SentMailController::class, 'resend'])->name('sent.resend');
         Route::get('{colleague}', [ColleagueController::class, 'show'])->whereNumber('colleague')->name('show');
         Route::patch('{colleague}', [ColleagueController::class, 'update'])->whereNumber('colleague')->name('update');
         Route::put('{colleague}/mailboxes/{mailbox}', [ColleagueController::class, 'updateAccess'])->whereNumber('colleague')->name('access.update');
