@@ -65,21 +65,27 @@ final class MailContent
     }
 
     /**
-     * Howy's two rules, Cc to save and To to ask, as far as this access allows.
+     * How Howy treats the two fields, as far as this access allows: in Cc it
+     * listens and learns without a word; in To it responds, and learns from
+     * what it is sent.
      */
     public function rules(SenderAccess $access, string $address): self
     {
-        $lines = [];
+        $cards = [];
 
         if ($access->learns()) {
-            $lines[] = __('Cc = save knowledge. Copy me in (:address) and I keep what matters.', ['address' => $address]);
+            $cards[] = ['field' => __('Cc'), 'title' => __('= I listen and learn'), 'text' => __('Copy me in and I learn from the email. I stay quiet: nobody on the thread hears from me.')];
         }
 
         if ($access->answers()) {
-            $lines[] = __('To = find knowledge. Email me (:address) your question and you get an answer.', ['address' => $address]);
+            $cards[] = ['field' => __('To'), 'title' => __('= I respond'), 'text' => $access->learns()
+                ? __('Email me directly. I reply when I know something relevant, and I learn from what you send.')
+                : __('Email me your question. I reply when I know something relevant.')];
         }
 
-        return $this->add('rules', ['learns' => $access->learns(), 'answers' => $access->answers(), 'address' => $address], $this->lines(null, $lines));
+        $lines = array_map(fn (array $card): string => $card['field'].' '.$card['title'].'. '.$card['text'], $cards);
+
+        return $this->add('rules', ['cards' => $cards, 'address' => $address], $this->lines(null, [...$lines, __('My address:').' '.$address]));
     }
 
     /**

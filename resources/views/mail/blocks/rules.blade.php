@@ -1,9 +1,4 @@
-@php
-    $rules = array_values(array_filter([
-        $block['learns'] ? ['field' => __('Cc'), 'title' => __('= save knowledge'), 'text' => __('Copy me in and I keep the information that matters.')] : null,
-        $block['answers'] ? ['field' => __('To'), 'title' => __('= find knowledge'), 'text' => __('Email me your question and you get an answer, with its source.')] : null,
-    ]));
-@endphp
+@php($rules = $block['cards'])
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 4px 0 12px;">
 <tr>
 @foreach ($rules as $index => $rule)

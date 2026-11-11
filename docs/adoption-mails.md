@@ -55,6 +55,10 @@ frame and voice.
 - **Always a text part**, from the same blocks.
 - **Only what the reader's access allows.** Someone Howy only learns from is never told to ask it something,
   and gets a note saying so; someone it only answers is never told to copy it in.
+- **Cc and To as Howy actually treats them.** In Cc, Howy listens and learns, and stays quiet: nobody on the
+  thread hears from it. In To, Howy responds when it knows something relevant, and learns from what it is
+  sent (telling the sender when that contradicts what it knows). The cards in `MailContent::rules()` and mail
+  02 say exactly this.
 
 ## The flow
 

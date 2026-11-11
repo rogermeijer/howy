@@ -47,19 +47,19 @@ class MailDesignTest extends TestCase
     public function test_the_welcome_says_only_what_the_access_allows(): void
     {
         $learns = $this->render(SenderAccess::Learn);
-        $this->assertStringContainsString('Cc = save knowledge', $learns->text);
-        $this->assertStringNotContainsString('To = find knowledge', $learns->text);
+        $this->assertStringContainsString('Cc = I listen and learn', $learns->text);
+        $this->assertStringNotContainsString('To = I respond', $learns->text);
         $this->assertStringContainsString('I don\'t answer your questions', $learns->text);
         $this->assertStringNotContainsString('Ask me your first question', $learns->text);
 
         $answers = $this->render(SenderAccess::Answer);
-        $this->assertStringContainsString('To = find knowledge', $answers->text);
-        $this->assertStringNotContainsString('Cc = save knowledge', $answers->text);
+        $this->assertStringContainsString('To = I respond', $answers->text);
+        $this->assertStringNotContainsString('Cc = I listen and learn', $answers->text);
         $this->assertStringContainsString('I don\'t keep anything from your emails', $answers->text);
 
         $both = $this->render(SenderAccess::LearnAndAnswer);
-        $this->assertStringContainsString('Cc = save knowledge', $both->text);
-        $this->assertStringContainsString('To = find knowledge', $both->text);
+        $this->assertStringContainsString('Cc = I listen and learn', $both->text);
+        $this->assertStringContainsString('To = I respond', $both->text);
         $this->assertStringNotContainsString('Good to know', $both->text);
         $this->assertStringContainsString('mailto:howy@noordkade.nl?subject=My%20first%20question', $both->html);
     }

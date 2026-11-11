@@ -73,7 +73,7 @@ class FlowMails
 
         if ($access->learns()) {
             $mail->subheading(__('Copy Howy in'), __('Saving knowledge'))
-                ->paragraph(__('Sending an email with information that matters for work at :account? Put me in Cc. I take out the knowledge, put it in the right place and keep it up to date. The more often you do it, the more complete the company\'s memory gets.', ['account' => $to->account]))
+                ->paragraph(__('Sending an email with information that matters for work at :account? Put me in Cc. I stay quiet, so nobody on the thread hears from me, but I take out the knowledge, put it in the right place and keep it up to date. The more often you do it, the more complete the company\'s memory gets.', ['account' => $to->account]))
                 ->mockup([
                     ['label' => __('To'), 'value' => 'sanne@supplier.example'],
                     ['label' => __('Cc'), 'value' => $to->address, 'marked' => true],
@@ -90,8 +90,14 @@ class FlowMails
         }
 
         if ($access->answers()) {
-            $mail->subheading(__('Ask Howy in the To field'), __('Finding knowledge'))
-                ->paragraph(__('Want to know something? Just email me, with me in the To field. Ask it the way you\'d ask a colleague. I look up the answer and show you where it comes from.'))
+            $mail->subheading(__('Put Howy in the To field'), $access->learns() ? __('Asking and sharing') : __('Finding knowledge'))
+                ->paragraph(__('Want to know something? Just email me, with me in the To field. Ask it the way you\'d ask a colleague. I reply when I know something relevant, and show you where it comes from.'));
+
+            if ($access->learns()) {
+                $mail->paragraph(__('Sending me information directly works too: I learn from it, and I let you know when it contradicts what I already know.'));
+            }
+
+            $mail
                 ->mockup([
                     ['label' => __('To'), 'value' => $to->address, 'marked' => true],
                     ['label' => __('Subject'), 'value' => __('Payment terms 2027')],
