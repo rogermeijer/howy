@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { index as accounts } from '@/routes/admin/accounts';
 import { index as ai } from '@/routes/admin/ai';
 import { index as beta } from '@/routes/admin/beta';
+import { index as mails } from '@/routes/admin/mails';
 import { index as users } from '@/routes/admin/users';
 
 type Props = {
@@ -36,6 +37,7 @@ export function AdminShell({
         { label: t('Users'), href: users() },
         { label: t('Private beta'), href: beta() },
         { label: t('AI usage'), href: ai() },
+        { label: t('Mails'), href: mails() },
     ];
 
     return (

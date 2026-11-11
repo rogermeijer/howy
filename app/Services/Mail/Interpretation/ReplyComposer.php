@@ -4,6 +4,7 @@ namespace App\Services\Mail\Interpretation;
 
 use App\Enums\Locale;
 use App\Models\EmailInterpretation;
+use Illuminate\Support\Str;
 use Illuminate\Support\Traits\Localizable;
 
 /**
@@ -20,20 +21,15 @@ class ReplyComposer
     use Localizable;
 
     /**
-     * The wordmark, embedded in every mail: mail clients load no web fonts and
-     * show no SVG, and an embedded image shows even where remote images are
-     * blocked. Rendered at 3× from Plus Jakarta Sans 800; shown at 83×27.
-     */
-    private const string LOGO = 'howy-logo.png';
-
-    /**
-     * An answer to the sender, from the knowledge base.
+     * An answer to the sender, from the knowledge base. With rating links, it
+     * asks in one click whether the answer helped.
      *
      * @param  list<Citation>  $citations
+     * @param  array{valuable: string, partly: string, outdated: string}|null  $ratingLinks
      */
-    public function answer(string $question, string $answer, array $citations, ?string $gaps, string $locale): ComposedReply
+    public function answer(string $question, string $answer, array $citations, ?string $gaps, string $locale, ?array $ratingLinks = null): ComposedReply
     {
-        return $this->withLocale($locale, function () use ($question, $answer, $citations, $gaps): ComposedReply {
+        return $this->withLocale($locale, function () use ($question, $answer, $citations, $gaps, $ratingLinks): ComposedReply {
             $lines = [$this->line(__('You asked: ":question"', ['question' => trim($question)])), '', trim($answer)];
 
             if ($gaps !== null) {
@@ -42,14 +38,36 @@ class ReplyComposer
             }
 
             array_push($lines, ...$this->sourceLines($citations));
+
+            $rating = $ratingLinks === null ? null : [
+                'question' => $this->line(__('Was this valuable?')),
+                'choices' => [
+                    ['label' => $this->line(__('Yes')), 'url' => $ratingLinks['valuable']],
+                    ['label' => $this->line(__('Not quite')), 'url' => $ratingLinks['partly']],
+                    ['label' => $this->line(__('Outdated')), 'url' => $ratingLinks['outdated']],
+                ],
+                'note' => $this->line(__('One click. That way I learn what is right, and the colleague who shared this gets the credit.')),
+            ];
+
+            if ($rating !== null) {
+                $lines[] = '';
+                $lines[] = $rating['question'];
+
+                foreach ($rating['choices'] as $choice) {
+                    $lines[] = '- '.$choice['label'].': '.$choice['url'];
+                }
+            }
+
             $lines[] = '';
             $lines[] = $this->line(__('Is something not right, or do you know more? Just reply to this email.'));
 
             return $this->compose('mail.cc.answer', $lines, [
                 'question' => trim($question),
                 'answer' => trim($answer),
+                'preheader' => Str::limit(trim($answer), 140),
                 'gaps' => $gaps,
                 'sources' => $this->sources($citations),
+                'rating' => $rating,
             ]);
         });
     }
@@ -148,9 +166,7 @@ class ReplyComposer
     {
         $text = implode("\n", [...$lines, '', '-- ', $this->line(__('Howy knowledge base'))])."\n";
 
-        return new ComposedReply($text, view($view, ['logo' => 'cid:'.self::LOGO, ...$data])->render(), [
-            self::LOGO => resource_path('images/mail/howy-logo@3x.png'),
-        ]);
+        return new ComposedReply($text, view($view, $data)->render());
     }
 
     /**

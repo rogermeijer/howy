@@ -187,7 +187,7 @@ export default function AdminAiUsage({
                         />
                     </div>
                     <div className="grid gap-1.5">
-                        <Label htmlFor="to">{t('To')}</Label>
+                        <Label htmlFor="to">{t('Until')}</Label>
                         <DatePickerField
                             id="to"
                             name="to"

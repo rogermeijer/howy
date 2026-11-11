@@ -138,11 +138,6 @@ class ThreadReplier
             $message->cc(...array_map(fn (string $address): Address => new Address($address), $cc));
         }
 
-        // Inline, so the HTML's cid: references show the image in place.
-        foreach ($body->inline as $name => $path) {
-            $message->embedFromPath($path, $name);
-        }
-
         if ($email->message_id_header !== null) {
             $references = trim(($email->header('References') ?? '').' '.$email->message_id_header);
             $message->getHeaders()->addIdHeader('In-Reply-To', $this->ids($email->message_id_header));

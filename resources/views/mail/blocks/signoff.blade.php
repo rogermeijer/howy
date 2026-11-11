@@ -1,0 +1,1 @@
+<p class="hm-ink" style="margin: 28px 0 0; font-size: 16px; line-height: 26px; color: #0d1b1e;">{{ $block['greeting'] }}<br><strong style="font-weight: 800;">Howy</strong>@if ($block['line'] ?? null)<br><span class="hm-muted" style="font-size: 14px; color: #55636a;">{{ $block['line'] }}</span>@endif</p>

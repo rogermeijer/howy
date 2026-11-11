@@ -244,10 +244,10 @@ class InterpretEmailTest extends TestCase
                 && str_contains($raw, 'Content-Type: text/html')
                 && str_contains($raw, 'Antwoord uit de kennisbank')
                 && str_contains($raw, 'Je vroeg')
-                // The wordmark rides along as an inline image, referenced by cid.
-                && str_contains($raw, 'Content-Type: multipart/related')
-                && preg_match('/Content-Type: image\/png; name=howy-logo\.png.*?Content-Disposition: inline/s', $raw) === 1
-                && preg_match('/<img src=3D"cid:[^"]+@symfony"|<img src="cid:[^"]+@symfony"/', $raw) === 1;
+                // The wordmark is type, so the reply carries no image or attachment.
+                && ! str_contains($raw, 'multipart/related')
+                && ! str_contains($raw, 'Content-Disposition')
+                && ! str_contains($raw, 'cid:');
         });
 
         $this->assertTrue(Tenancy::for($this->account, fn () => AiUsageRecord::query()->where('step', 'mail_classify')->where('subject_type', 'email')->exists()));

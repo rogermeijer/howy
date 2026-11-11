@@ -5,9 +5,16 @@ namespace App\Providers;
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Facades\Tenancy;
+use App\Mail\Content\MailContent;
+use App\Mail\Content\MailRenderer;
+use App\Mail\SystemMails;
 use App\Models\BetaAccessRequest;
+use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -33,7 +40,43 @@ class FortifyServiceProvider extends ServiceProvider
     {
         $this->configureActions();
         $this->configureViews();
+        $this->configureMail();
         $this->configureRateLimiting();
+    }
+
+    /**
+     * The password reset and verification mails, in Howy's frame and voice
+     * instead of the framework's.
+     */
+    private function configureMail(): void
+    {
+        ResetPassword::toMailUsing(function (mixed $notifiable, string $token): MailMessage {
+            $user = $notifiable instanceof User ? $notifiable : null;
+            $email = (string) $user?->getEmailForPasswordReset();
+            $broker = (string) config('auth.defaults.passwords');
+
+            return $this->mailMessage(app(SystemMails::class)->resetPassword(
+                $user?->name,
+                $email,
+                url(route('password.reset', ['token' => $token, 'email' => $email], false)),
+                (int) config("auth.passwords.{$broker}.expire"),
+            ));
+        });
+
+        VerifyEmail::toMailUsing(function (mixed $notifiable, string $url): MailMessage {
+            $user = $notifiable instanceof User ? $notifiable : null;
+
+            return $this->mailMessage(app(SystemMails::class)->verifyEmail($user?->name, (string) $user?->getEmailForVerification(), $url));
+        });
+    }
+
+    private function mailMessage(MailContent $content): MailMessage
+    {
+        $rendered = app(MailRenderer::class)->render($content);
+
+        return (new MailMessage)
+            ->subject($rendered->subject)
+            ->view(['html' => 'mail.rendered-html', 'text' => 'mail.rendered-text'], ['html' => $rendered->html, 'text' => $rendered->text]);
     }
 
     /**

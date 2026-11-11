@@ -133,3 +133,20 @@ export type AiFilters = {
     thread: string | null;
     batch: string | null;
 };
+
+export type MailPreviewGroup = 'flow' | 'reply' | 'system' | 'parked';
+
+export type MailPreviewItem = {
+    key: string;
+    group: MailPreviewGroup;
+    title: string;
+    access: boolean;
+};
+
+export type MailPreviewAccess = 'learn_answer' | 'learn' | 'answer';
+
+export type MailPreviewChoice = {
+    mail: string;
+    locale: string;
+    access: MailPreviewAccess;
+};

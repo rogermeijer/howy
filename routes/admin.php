@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\AccountMemberController;
 use App\Http\Controllers\Admin\AiUsageController;
 use App\Http\Controllers\Admin\BetaAccessController;
+use App\Http\Controllers\Admin\MailPreviewController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,4 +29,7 @@ Route::middleware(['auth', 'verified', 'super-admin'])->prefix('admin')->name('a
 
     Route::get('ai', [AiUsageController::class, 'index'])->name('ai.index');
     Route::get('ai/{call}', [AiUsageController::class, 'show'])->whereNumber('call')->name('ai.show');
+
+    Route::get('mails', [MailPreviewController::class, 'index'])->name('mails.index');
+    Route::post('mails/test', [MailPreviewController::class, 'send'])->name('mails.send');
 });
