@@ -192,9 +192,19 @@ class ColleagueController extends Controller
         return back();
     }
 
-    public function update(UpdateColleagueRequest $request, Colleague $colleague): RedirectResponse
+    /**
+     * Their name, the switch or home mailbox, and what Howy does with their
+     * mail per mailbox: each from where it shows, or together from the dialog.
+     */
+    public function update(UpdateColleagueRequest $request, Colleague $colleague, MailboxRuleEditor $rules): RedirectResponse
     {
-        $colleague->update($request->validated());
+        DB::transaction(function () use ($request, $colleague, $rules): void {
+            $colleague->update($request->colleague());
+
+            foreach ($request->accessPerMailbox() as $mailbox => $access) {
+                $rules->setFor(Mailbox::query()->findOrFail($mailbox), $colleague, $access);
+            }
+        });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Saved.')]);
 

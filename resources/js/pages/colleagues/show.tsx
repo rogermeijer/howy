@@ -1,31 +1,15 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { Head, Link } from '@inertiajs/react';
+import { type ReactNode, useState } from 'react';
 import { WithHowy } from '@/components/brand/howy-name';
-import { Section } from '@/components/cc/section';
 import { ColleagueHeader } from '@/components/colleagues/colleague-header';
 import { useActivityLine } from '@/components/colleagues/colleague-status';
 import { HowyMailsProgress } from '@/components/colleagues/howy-mails-progress';
 import { SentMailList } from '@/components/colleagues/sent-mail-list';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
-import { shownEntry } from '@/components/mailboxes/sender-badge';
-import {
-    AccessTag,
-    useAccessLooks,
-} from '@/components/mailboxes/sender-access';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { useAccountUpdates } from '@/hooks/use-account-updates';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
-import { ACCESSES } from '@/lib/mailbox-rules';
 import { cn } from '@/lib/utils';
-import colleagueAccess from '@/routes/colleagues/access';
 import { show as showEmail } from '@/routes/emails';
 import type {
     ColleagueDetail,
@@ -54,7 +38,7 @@ type Props = {
     followUpDays: { how_it_works: number; nudge: number };
 };
 
-type Tab = 'overview' | 'activity' | 'log';
+type Tab = 'activity' | 'log';
 
 /** Howy's own mails, as against its answers. */
 const FLOW_KINDS = ['welcome', 'how_it_works', 'first_save', 'nudge'];
@@ -75,7 +59,7 @@ export default function Colleague({
 }: Props) {
     const t = useTranslations();
     const activity = useActivityLine();
-    const [tab, setTab] = useState<Tab>('overview');
+    const [tab, setTab] = useState<Tab>('activity');
 
     // A mail that goes, or is held back, moves the bar and the log along.
     useAccountUpdates('sent-mails', [
@@ -90,7 +74,6 @@ export default function Colleague({
     useAccountUpdates('mail', ['colleague', 'emails', 'planned']);
 
     const tabs: { key: Tab; label: string; count: number | null }[] = [
-        { key: 'overview', label: t('Overview'), count: null },
         { key: 'activity', label: t('Activity'), count: colleague.emailsCount },
         { key: 'log', label: t('Mail log'), count: sent.length },
     ];
@@ -100,7 +83,7 @@ export default function Colleague({
             <Head title={colleague.name ?? colleague.email} />
 
             <div className="flex flex-col gap-7">
-                <ColleagueHeader colleague={colleague} />
+                <ColleagueHeader colleague={colleague} access={access} />
 
                 <HowyMailsProgress
                     colleague={colleague}
@@ -158,65 +141,15 @@ export default function Colleague({
                         role="tabpanel"
                         aria-labelledby={`colleague-tab-${tab}`}
                     >
-                        {tab === 'overview' && (
-                            <div className="grid items-start gap-7 xl:grid-cols-2">
-                                <Section
-                                    title={t('What Howy does with their mail')}
-                                    description={
-                                        <WithHowy
-                                            text={t(
-                                                'Per mailbox: a rule of their own, or the rule for their domain.',
-                                            )}
-                                        />
-                                    }
-                                >
-                                    {access.length === 0 ? (
-                                        <p className="cc-caption">
-                                            {t('No mailbox is connected yet.')}
-                                        </p>
-                                    ) : (
-                                        <ul className="flex flex-col divide-y divide-cc-border">
-                                            {access.map((item) => (
-                                                <MailboxAccessRow
-                                                    key={item.mailboxId}
-                                                    colleagueId={colleague.id}
-                                                    item={item}
-                                                />
-                                            ))}
-                                        </ul>
-                                    )}
-                                </Section>
-
-                                <Section
-                                    title={t('Recent activity')}
-                                    description={activity(colleague)}
-                                    action={
-                                        emails.length > 3 && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setTab('activity')
-                                                }
-                                                className="inline-flex h-9 cursor-pointer items-center gap-1.5 text-[13px] font-semibold text-cc-ink"
-                                            >
-                                                {t('All mails')}
-                                                <ArrowRight className="size-[15px]" />
-                                            </button>
-                                        )
-                                    }
-                                >
-                                    <EmailList emails={emails.slice(0, 3)} />
-                                </Section>
-                            </div>
-                        )}
-
                         {tab === 'activity' && (
-                            <Section
+                            <ListPanel
                                 title={t('Their mails to Howy')}
                                 description={activity(colleague)}
                             >
-                                <EmailList emails={emails} />
-                            </Section>
+                                <div className="px-6 py-3">
+                                    <EmailList emails={emails} />
+                                </div>
+                            </ListPanel>
                         )}
 
                         {tab === 'log' && <MailLog sent={sent} />}
@@ -290,7 +223,7 @@ function MailLog({ sent }: { sent: SentMail[] }) {
     );
 
     return (
-        <Section
+        <ListPanel
             title={t('Mail log')}
             description={
                 <WithHowy
@@ -317,10 +250,9 @@ function MailLog({ sent }: { sent: SentMail[] }) {
                     </div>
                 )
             }
-            className="pb-2 lg:pb-3"
         >
             {shown.length === 0 ? (
-                <p className="cc-caption pb-4">
+                <p className="cc-caption px-6 py-5">
                     <WithHowy
                         text={
                             sent.length === 0
@@ -330,91 +262,41 @@ function MailLog({ sent }: { sent: SentMail[] }) {
                     />
                 </p>
             ) : (
-                <div className="-mx-6 lg:-mx-8">
-                    <SentMailList mails={shown} showRecipient={false} />
-                </div>
+                <SentMailList mails={shown} showRecipient={false} />
             )}
-        </Section>
+        </ListPanel>
     );
 }
 
 /**
- * Their access on one mailbox: what it comes to, why, and a choice between
- * following the domain's rule and one of their own.
+ * A list in a panel, under a header on an off-white band, so the header never
+ * reads as one of the rows.
  */
-function MailboxAccessRow({
-    colleagueId,
-    item,
+function ListPanel({
+    title,
+    description,
+    action,
+    children,
 }: {
-    colleagueId: number;
-    item: ColleagueMailboxAccess;
+    title: string;
+    description?: ReactNode;
+    action?: ReactNode;
+    children: ReactNode;
 }) {
-    const t = useTranslations();
-    const looks = useAccessLooks();
-
-    const because =
-        item.own !== null
-            ? t('Their own rule')
-            : item.domain !== null
-              ? t('Through the rule for :domain', {
-                    domain: shownEntry(item.domain.domain),
-                })
-              : t('No rule covers them, so Howy ignores their mail');
-
-    const set = (value: string) =>
-        router.put(
-            colleagueAccess.update.url({
-                colleague: colleagueId,
-                mailbox: item.mailboxId,
-            }),
-            { access: value },
-            { preserveScroll: true, preserveState: true },
-        );
-
     return (
-        <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3.5 first:pt-0 last:pb-0">
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-[14.5px] font-medium">
-                        {item.emailAddress}
-                    </span>
-                    {item.status !== 'active' && (
-                        <span className="cc-tag cc-tag-noise shrink-0">
-                            {t('Not connected')}
-                        </span>
+        <section className="cc-panel overflow-hidden">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-cc-border bg-cc-bg/70 px-6 py-5">
+                <div className="flex flex-col gap-1">
+                    <h2 className="text-[17px] leading-tight font-semibold tracking-[-0.01em]">
+                        {title}
+                    </h2>
+                    {description && (
+                        <p className="cc-caption max-w-prose">{description}</p>
                     )}
-                </span>
-                <span className="flex flex-wrap items-center gap-2">
-                    <AccessTag access={item.access} />
-                    <span className="text-[12.5px] text-cc-subtle">
-                        {because}
-                    </span>
-                </span>
+                </div>
+                {action}
             </div>
-            <Select value={item.own ?? 'default'} onValueChange={set}>
-                <SelectTrigger
-                    aria-label={t('What Howy does on :mailbox', {
-                        mailbox: item.emailAddress,
-                    })}
-                    className="h-10 w-full sm:w-[230px]"
-                >
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="default">
-                        {item.domain !== null
-                            ? t('Follow :domain', {
-                                  domain: shownEntry(item.domain.domain),
-                              })
-                            : t('Follow the mailbox rules')}
-                    </SelectItem>
-                    {ACCESSES.map((access) => (
-                        <SelectItem key={access} value={access}>
-                            {looks[access].label}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-        </li>
+            {children}
+        </section>
     );
 }

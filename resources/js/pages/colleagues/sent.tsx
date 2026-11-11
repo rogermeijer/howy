@@ -6,6 +6,7 @@ import { Pager } from '@/components/admin/pager';
 import { PageHeader } from '@/components/cc/page-header';
 import { ColleagueTabs } from '@/components/colleagues/colleague-tabs';
 import { SentMailList } from '@/components/colleagues/sent-mail-list';
+import { DatePickerField } from '@/components/date-picker-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -156,26 +157,18 @@ export default function SentMails({ mails, filters, kinds, statuses }: Props) {
                     <div className="flex flex-wrap items-center gap-2.5">
                         <label className="flex items-center gap-2 text-[13px] text-cc-subtle">
                             {t('From')}
-                            <Input
-                                type="date"
-                                value={filters.from ?? ''}
-                                onChange={(event) =>
-                                    filter({ from: event.target.value || null })
-                                }
-                                className="h-11 w-[150px] bg-cc-panel"
+                            <DatePickerField
+                                defaultValue={filters.from ?? undefined}
+                                onChange={(value) => filter({ from: value })}
+                                className="h-11 w-[170px] bg-cc-panel"
                             />
                         </label>
                         <label className="flex items-center gap-2 text-[13px] text-cc-subtle">
                             {t('Until')}
-                            <Input
-                                type="date"
-                                value={filters.until ?? ''}
-                                onChange={(event) =>
-                                    filter({
-                                        until: event.target.value || null,
-                                    })
-                                }
-                                className="h-11 w-[150px] bg-cc-panel"
+                            <DatePickerField
+                                defaultValue={filters.until ?? undefined}
+                                onChange={(value) => filter({ until: value })}
+                                className="h-11 w-[170px] bg-cc-panel"
                             />
                         </label>
                     </div>

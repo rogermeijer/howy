@@ -19,16 +19,26 @@ import type { LocalizationProps } from '@/types';
 const locales = { en: enUS, nl } as const;
 
 type Props = {
-    id: string;
-    name: string;
+    id?: string;
+    /** Submitted with its form as `Y-m-d`. */
+    name?: string;
     defaultValue?: string;
+    /** Outside a form: told the day picked as `Y-m-d`, or null once cleared. */
+    onChange?: (value: string | null) => void;
     className?: string;
 };
 
 /**
- * A form field that submits `Y-m-d` and opens a calendar popover to pick the day.
+ * A field that opens a calendar popover to pick the day: submitted as `Y-m-d`
+ * with a form, or passed on as it changes, with a way to clear it.
  */
-export function DatePickerField({ id, name, defaultValue, className }: Props) {
+export function DatePickerField({
+    id,
+    name,
+    defaultValue,
+    onChange,
+    className,
+}: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
     const { locale } = usePage<LocalizationProps>().props;
@@ -56,9 +66,21 @@ export function DatePickerField({ id, name, defaultValue, className }: Props) {
         }
     };
 
+    const pick = (date: Date | undefined) => {
+        setSelected(date);
+        setIso(date ? toIsoDate(date) : '');
+        onChange?.(date ? toIsoDate(date) : null);
+
+        if (date) {
+            setOpen(false);
+        }
+    };
+
     return (
         <>
-            <input type="hidden" name={name} value={iso} />
+            {name !== undefined && (
+                <input type="hidden" name={name} value={iso} />
+            )}
             <Popover open={open} onOpenChange={onOpenChange}>
                 <PopoverTrigger asChild>
                     <Button
@@ -88,17 +110,24 @@ export function DatePickerField({ id, name, defaultValue, className }: Props) {
                         month={month}
                         onMonthChange={setMonth}
                         selected={selected}
-                        onSelect={(date) => {
-                            setSelected(date);
-                            if (date) {
-                                setIso(toIsoDate(date));
-                                setOpen(false);
-                            } else {
-                                setIso('');
-                            }
-                        }}
+                        onSelect={pick}
                         locale={calendarLocale}
                     />
+                    {onChange !== undefined && selected && (
+                        <div className="border-t border-cc-border px-3 py-2">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className="h-9 px-3 text-[13px] text-cc-subtle hover:text-cc-ink"
+                                onClick={() => {
+                                    pick(undefined);
+                                    setOpen(false);
+                                }}
+                            >
+                                {t('Clear')}
+                            </Button>
+                        </div>
+                    )}
                 </PopoverContent>
             </Popover>
         </>

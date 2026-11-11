@@ -6,6 +6,7 @@ import {
     MessageSquareReply,
     X,
 } from 'lucide-react';
+import type { ComponentProps } from 'react';
 import { WithHowy } from '@/components/brand/howy-name';
 import {
     DropdownMenu,
@@ -85,14 +86,15 @@ export function useAccessLooks(): Record<SenderAccess, AccessLook> {
 export function AccessTag({
     access,
     className,
-}: {
-    access: SenderAccess;
-    className?: string;
-}) {
+    ...props
+}: { access: SenderAccess } & ComponentProps<'span'>) {
     const look = useAccessLooks()[access];
 
+    // The rest of the props pass on, so a tooltip can hang on the tag.
     return (
-        <span className={cn('cc-tag', look.tag, className)}>{look.label}</span>
+        <span {...props} className={cn('cc-tag', look.tag, className)}>
+            {look.label}
+        </span>
     );
 }
 

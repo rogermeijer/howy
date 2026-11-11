@@ -254,6 +254,42 @@ class ColleaguePageTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->where('isLive', true));
     }
 
+    public function test_the_dialog_saves_the_name_and_access_per_mailbox_together(): void
+    {
+        $support = Tenancy::for($this->account, fn () => Mailbox::factory()->create(['email_address' => 'support@noordkade.nl']));
+        $theirs = Tenancy::for(Account::factory()->create(), fn () => Mailbox::factory()->create(['email_address' => 'kennis@elders.nl']));
+        $anna = $this->colleague('anna@noordkade.nl');
+
+        $this->actingAs($this->admin)
+            ->patch(route('colleagues.update', $anna), [
+                'name' => 'Anna de Boer',
+                'access' => [$this->mailbox->id => 'learn', $support->id => 'default'],
+            ])
+            ->assertSessionHasNoErrors();
+
+        Tenancy::for($this->account, function () use ($anna, $support): void {
+            $this->assertSame('Anna de Boer', $anna->refresh()->name);
+            $this->assertSame(SenderAccess::Learn, $this->mailbox->refresh()->ruleFor('anna@noordkade.nl')?->access);
+            $this->assertNull(MailboxRule::query()->where('mailbox_id', $support->id)->where('colleague_id', $anna->id)->first());
+        });
+
+        // Back to their domain's rule; never a rule on another account's mailbox.
+        $this->actingAs($this->admin)
+            ->patch(route('colleagues.update', $anna), ['access' => [$this->mailbox->id => 'default']])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)
+            ->patch(route('colleagues.update', $anna), ['access' => [$theirs->id => 'learn']])
+            ->assertSessionHasErrors('access');
+        $this->actingAs($this->admin)
+            ->patch(route('colleagues.update', $anna), ['access' => [$this->mailbox->id => 'sometimes']])
+            ->assertSessionHasErrors("access.{$this->mailbox->id}");
+
+        Tenancy::for($this->account, fn () => $this->assertNull(
+            MailboxRule::query()->where('mailbox_id', $this->mailbox->id)->where('colleague_id', $anna->id)->first(),
+        ));
+        $this->assertSame(0, Tenancy::withoutTenancy(fn () => MailboxRule::query()->where('mailbox_id', $theirs->id)->whereNotNull('colleague_id')->count()));
+    }
+
     public function test_access_per_mailbox_is_a_rule_of_their_own_or_none(): void
     {
         $anna = $this->colleague('anna@noordkade.nl');

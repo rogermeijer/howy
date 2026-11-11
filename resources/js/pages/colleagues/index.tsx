@@ -18,6 +18,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -273,31 +278,65 @@ export default function Colleagues({
                                     'flex flex-col gap-2 border-b border-cc-border px-6 py-4 transition-colors last:border-b-0 hover:bg-cc-bg',
                                 )}
                             >
-                                <div className="flex min-w-0 flex-col gap-0.5">
-                                    <span className="flex min-w-0 items-center gap-2">
+                                {/* One line, so every row is as high: the
+                                    address of someone with a name on hover. */}
+                                <div className="flex min-w-0 items-center gap-2">
+                                    {colleague.name !== null ? (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="truncate text-[15px] font-medium">
+                                                    {colleague.name}
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                {colleague.email}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    ) : (
                                         <span className="truncate text-[15px] font-medium">
-                                            {colleague.name ?? colleague.email}
-                                        </span>
-                                        {colleague.isMember && (
-                                            <span className="cc-tag cc-tag-action shrink-0">
-                                                {t('Member')}
-                                            </span>
-                                        )}
-                                    </span>
-                                    {colleague.name !== null && (
-                                        <span className="truncate text-[13.5px] text-cc-subtle">
                                             {colleague.email}
+                                        </span>
+                                    )}
+                                    {colleague.isMember && (
+                                        <span className="cc-tag cc-tag-action shrink-0">
+                                            {t('Member')}
                                         </span>
                                     )}
                                 </div>
 
                                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                                    <AccessTag access={colleague.access} />
-                                    {colleague.accessFrom === 'own' && (
-                                        <span className="text-[12.5px] text-cc-subtle">
-                                            {t('own rule')}
-                                        </span>
-                                    )}
+                                    {/* Where it comes from, on hover. */}
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <AccessTag
+                                                access={colleague.access}
+                                            />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <WithHowy
+                                                text={
+                                                    colleague.accessFrom ===
+                                                    'own'
+                                                        ? t('Their own rule')
+                                                        : colleague.accessFrom ===
+                                                            'domain'
+                                                          ? t(
+                                                                'Through the rule for :domain',
+                                                                {
+                                                                    domain:
+                                                                        colleague.email.split(
+                                                                            '@',
+                                                                        )[1] ??
+                                                                        '',
+                                                                },
+                                                            )
+                                                          : t(
+                                                                'No rule covers them, so Howy ignores their mail',
+                                                            )
+                                                }
+                                            />
+                                        </TooltipContent>
+                                    </Tooltip>
                                 </div>
 
                                 <div>
@@ -307,7 +346,16 @@ export default function Colleagues({
                                 </div>
 
                                 <div className="text-[13.5px] text-cc-muted">
-                                    {activity(colleague)}
+                                    {colleague.emailsCount === 0 ? (
+                                        <>
+                                            <span aria-hidden="true">–</span>
+                                            <span className="sr-only">
+                                                {activity(colleague)}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        activity(colleague)
+                                    )}
                                 </div>
 
                                 <div className="cc-caption lg:text-right">

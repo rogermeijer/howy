@@ -1,26 +1,45 @@
-import { Form, Link, router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { WithHowy } from '@/components/brand/howy-name';
-import InputError from '@/components/input-error';
+import { EditColleagueDialog } from '@/components/colleagues/edit-colleague-dialog';
+import { shownEntry } from '@/components/mailboxes/sender-badge';
+import { AccessTag } from '@/components/mailboxes/sender-access';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 import { index, update } from '@/routes/colleagues';
-import type { ColleagueDetail } from '@/types';
+import type { ColleagueDetail, ColleagueMailboxAccess } from '@/types';
 
 /**
- * Who they are: their name, or their address while Howy knows no name, with
- * the name to add or change in place, and whether they get Howy's own mails.
+ * Who they are and what Howy does with their mail: their name, or their
+ * address while Howy knows no name, the access on their mailbox with where it
+ * comes from on hover, and whether they get Howy's own mails. Name and access
+ * change together in a dialog.
  */
-export function ColleagueHeader({ colleague }: { colleague: ColleagueDetail }) {
+export function ColleagueHeader({
+    colleague,
+    access,
+}: {
+    colleague: ColleagueDetail;
+    access: ColleagueMailboxAccess[];
+}) {
     const t = useTranslations();
     const [editing, setEditing] = useState(false);
     const title = colleague.name ?? colleague.email;
 
-    const member = colleague.user !== null && (
-        <span className="cc-tag cc-tag-action">{t('Member')}</span>
+    const badges = (
+        <>
+            <AccessBadge colleague={colleague} access={access} />
+            {colleague.user !== null && (
+                <span className="cc-tag cc-tag-action">{t('Member')}</span>
+            )}
+        </>
     );
 
     return (
@@ -39,95 +58,108 @@ export function ColleagueHeader({ colleague }: { colleague: ColleagueDetail }) {
                     </span>
                 </div>
 
-                {editing ? (
-                    <Form
-                        {...update.form(colleague.id)}
-                        options={{ preserveScroll: true, preserveState: true }}
-                        onSuccess={() => setEditing(false)}
-                        className="flex flex-col gap-2.5"
-                    >
-                        {({ processing, errors }) => (
-                            <>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <Input
-                                        name="name"
-                                        defaultValue={colleague.name ?? ''}
-                                        aria-label={t('Name')}
-                                        placeholder={t('First and last name')}
-                                        autoFocus
-                                        className="h-[52px] w-[360px] max-w-full border-cc-ink text-[22px] font-bold tracking-[-0.02em] md:text-[22px]"
-                                    />
-                                    <Button
-                                        type="submit"
-                                        className="h-11 px-[18px]"
-                                        disabled={processing}
-                                    >
-                                        {t('Save')}
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        className="h-11 text-cc-subtle"
-                                        onClick={() => setEditing(false)}
-                                    >
-                                        {t('Cancel')}
-                                    </Button>
-                                </div>
-                                <InputError message={errors.name} />
-                                <p className="cc-body text-cc-subtle">
-                                    {colleague.email}
-                                </p>
-                            </>
-                        )}
-                    </Form>
-                ) : (
-                    <>
-                        <div className="flex flex-wrap items-center gap-2.5">
-                            <h1 className="cc-title min-w-0 [overflow-wrap:anywhere]">
-                                {title}
-                            </h1>
-                            {colleague.name !== null && (
+                <h1 className="cc-title min-w-0 [overflow-wrap:anywhere]">
+                    {title}
+                </h1>
+
+                {colleague.name !== null ? (
+                    <div className="cc-body flex flex-wrap items-center gap-x-2 gap-y-1 text-cc-subtle">
+                        {colleague.email}
+                        {badges}
+                        {/* Rarely needed once there is a name: quiet, on hover. */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
                                 <Button
                                     type="button"
-                                    variant="outline"
+                                    variant="ghost"
                                     size="icon"
                                     onClick={() => setEditing(true)}
-                                    title={t('Change the name')}
-                                    aria-label={t('Change the name')}
-                                    className="size-9 rounded-full border-[1.5px] border-cc-border-strong text-cc-subtle hover:text-cc-ink"
+                                    aria-label={t('Edit colleague')}
+                                    className="size-7 rounded-full text-cc-faint hover:bg-cc-raised hover:text-cc-ink"
                                 >
-                                    <Pencil className="size-[15px]" />
+                                    <Pencil className="size-3.5" />
                                 </Button>
-                            )}
-                        </div>
-                        {colleague.name !== null ? (
-                            <div className="cc-body flex flex-wrap items-center gap-2 text-cc-subtle">
-                                {colleague.email}
-                                {member}
-                            </div>
-                        ) : (
-                            <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setEditing(true)}
-                                    className="h-10 rounded-full border-[1.5px] border-cc-border-strong pr-3.5 pl-3 text-[13.5px] font-semibold"
-                                >
-                                    <Plus className="size-[15px]" />
-                                    {t('Add a name')}
-                                </Button>
-                                <span className="cc-caption">
-                                    {t('No name known yet.')}
-                                </span>
-                                {member}
-                            </div>
-                        )}
-                    </>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {t('Edit colleague')}
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                ) : (
+                    <div className="cc-body flex flex-wrap items-center gap-x-2 gap-y-1 text-cc-subtle">
+                        {badges}
+                        {/* Where the edit sits once there is a name, with words. */}
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setEditing(true)}
+                            className="h-7 gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-cc-subtle hover:bg-cc-raised hover:text-cc-ink has-[>svg]:px-2.5"
+                        >
+                            <Plus className="size-3.5" />
+                            {t('Add a name')}
+                        </Button>
+                    </div>
                 )}
             </div>
 
             <ReceivesMailSwitch colleague={colleague} />
+
+            <EditColleagueDialog
+                colleague={colleague}
+                access={access}
+                open={editing}
+                onOpenChange={setEditing}
+            />
         </div>
+    );
+}
+
+/**
+ * What Howy does with their mail on their home mailbox, and on hover where
+ * that comes from: per mailbox, when there is more than one.
+ */
+function AccessBadge({
+    colleague,
+    access,
+}: {
+    colleague: ColleagueDetail;
+    access: ColleagueMailboxAccess[];
+}) {
+    const t = useTranslations();
+
+    const because = (item: ColleagueMailboxAccess) =>
+        item.own !== null
+            ? t('Their own rule')
+            : item.domain !== null
+              ? t('Through the rule for :domain', {
+                    domain: shownEntry(item.domain.domain),
+                })
+              : t('No rule covers them, so Howy ignores their mail');
+
+    if (access.length === 0) {
+        return <AccessTag access={colleague.access} />;
+    }
+
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <AccessTag access={colleague.access} />
+            </TooltipTrigger>
+            <TooltipContent>
+                {access.length === 1 ? (
+                    <WithHowy text={because(access[0])} />
+                ) : (
+                    <ul className="flex flex-col gap-0.5">
+                        {access.map((item) => (
+                            <li key={item.mailboxId}>
+                                {item.emailAddress}:{' '}
+                                <WithHowy text={because(item)} />
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </TooltipContent>
+        </Tooltip>
     );
 }
 

@@ -73,6 +73,28 @@ trait ColleagueValidationRules
     }
 
     /**
+     * Their access per mailbox, keyed by mailbox: each one of this account's,
+     * each a rule of their own or "default".
+     *
+     * @return array<string, array<int, ValidationRule|array<mixed>|string|Closure>>
+     */
+    protected function colleagueAccessPerMailboxRules(): array
+    {
+        $ownMailboxes = function (string $attribute, mixed $value, Closure $fail): void {
+            $ids = is_array($value) ? array_keys($value) : [];
+
+            if (Mailbox::query()->whereKey($ids)->count() !== count($ids)) {
+                $fail(__('Choose one of your mailboxes.'));
+            }
+        };
+
+        return [
+            'access' => ['sometimes', 'array', $ownMailboxes],
+            'access.*' => $this->colleagueAccessRules(),
+        ];
+    }
+
+    /**
      * One of this account's mailboxes: an id from elsewhere is not one.
      */
     private function ownMailbox(): Closure
