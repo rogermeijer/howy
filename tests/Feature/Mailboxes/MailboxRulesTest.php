@@ -5,9 +5,13 @@ namespace Tests\Feature\Mailboxes;
 use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
 use App\Models\Account;
+use App\Models\Colleague;
 use App\Models\Mailbox;
-use App\Models\MailboxSender;
+use App\Models\MailboxRule;
 use App\Models\User;
+use App\Services\Mailboxes\MailboxRuleEditor;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -48,20 +52,28 @@ class MailboxRulesTest extends TestCase
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
-        $this->mailbox->refresh();
-
-        $this->assertSame(SenderAccess::Learn, $this->mailbox->domain_access);
+        $this->assertSame(SenderAccess::Learn, Tenancy::for($this->account, fn () => $this->mailbox->refresh()->domainAccess()));
         $this->assertSame([
             ['entry' => 'klant.nl', 'access' => 'learn_answer'],
             ['entry' => 'noreply@klant.nl', 'access' => 'ignore'],
             ['entry' => 'jan@noordkade.nl', 'access' => 'answer'],
         ], $this->senders());
+
+        // An address is a colleague's own rule. Only one at the company gets
+        // Howy's own mails from the start.
+        Tenancy::for($this->account, function (): void {
+            $this->assertSame(
+                ['jan@noordkade.nl' => true, 'noreply@klant.nl' => false],
+                Colleague::query()->orderBy('email')->pluck('receives_mail', 'email')->all(),
+            );
+            $this->assertSame($this->mailbox->id, Colleague::query()->where('email', 'jan@noordkade.nl')->sole()->home_mailbox_id);
+        });
     }
 
     public function test_a_sender_that_stays_keeps_its_row(): void
     {
         $this->listSenders(['klant.nl' => SenderAccess::LearnAndAnswer, 'jan@noordkade.nl' => SenderAccess::Learn]);
-        $klant = Tenancy::for($this->account, fn () => MailboxSender::query()->where('entry', 'klant.nl')->sole());
+        $klant = Tenancy::for($this->account, fn () => MailboxRule::query()->where('domain', 'klant.nl')->sole());
 
         $this->actingAs($this->admin)
             ->patch(route('mailboxes.rules.update', $this->mailbox), [
@@ -70,63 +82,144 @@ class MailboxRulesTest extends TestCase
                     ['entry' => 'anna@haarlem.nl', 'access' => 'learn'],
                     ['entry' => 'klant.nl', 'access' => 'answer'],
                 ],
+                'removed_rules' => ['Jan@Noordkade.nl'],
             ])
             ->assertSessionHasNoErrors();
 
-        // Changed, it is the same sender; a new one comes after those listed.
+        // Changed, it is the same rule; a new one comes after the rest.
         $this->assertSame([
             ['entry' => 'klant.nl', 'access' => 'answer'],
             ['entry' => 'anna@haarlem.nl', 'access' => 'learn'],
         ], $this->senders());
-        $this->assertTrue(Tenancy::for($this->account, fn () => MailboxSender::query()->whereKey($klant->id)->exists()));
+        $this->assertTrue(Tenancy::for($this->account, fn () => MailboxRule::query()->whereKey($klant->id)->exists()));
+
+        // Without a rule of their own they are still a colleague, under the
+        // rule for their domain.
+        Tenancy::for($this->account, fn () => $this->assertTrue(Colleague::query()->where('email', 'jan@noordkade.nl')->exists()));
+        $this->assertSame(SenderAccess::LearnAndAnswer, Tenancy::for($this->account, fn () => $this->mailbox->refresh()->access('jan@noordkade.nl')));
+    }
+
+    public function test_saving_leaves_alone_what_it_was_not_told_about(): void
+    {
+        $this->listSenders(['klant.nl' => SenderAccess::Learn]);
+
+        // Another admin, or the colleagues page, added one since the page loaded.
+        $this->actingAs($this->admin)
+            ->patch(route('mailboxes.rules.update', $this->mailbox), [
+                'domain_access' => 'learn_answer',
+                'sender_rules' => [['entry' => 'anna@haarlem.nl', 'access' => 'learn']],
+                'removed_rules' => ['someone@elsewhere.nl'],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame([
+            ['entry' => 'klant.nl', 'access' => 'learn'],
+            ['entry' => 'anna@haarlem.nl', 'access' => 'learn'],
+        ], $this->senders());
+    }
+
+    public function test_a_domain_rule_says_whether_it_creates_colleagues(): void
+    {
+        $creates = fn (string $domain): bool => Tenancy::for($this->account, fn () => MailboxRule::query()->where('domain', $domain)->sole()->creates_colleagues);
+        $save = fn (array $rule) => $this->actingAs($this->admin)
+            ->patch(route('mailboxes.rules.update', $this->mailbox), ['domain_access' => 'learn_answer', 'sender_rules' => [$rule]])
+            ->assertSessionHasNoErrors();
+
+        // Another domain does not, until an admin says it does.
+        $save(['entry' => 'dochter.nl', 'access' => 'learn_answer']);
+        $this->assertFalse($creates('dochter.nl'));
+
+        $save(['entry' => 'dochter.nl', 'access' => 'learn_answer', 'creates_colleagues' => '1']);
+        $this->assertTrue($creates('dochter.nl'));
+
+        // Not said, it stays as it was.
+        $save(['entry' => 'dochter.nl', 'access' => 'learn']);
+        $this->assertTrue($creates('dochter.nl'));
+
+        $save(['entry' => 'dochter.nl', 'access' => 'learn', 'creates_colleagues' => '0']);
+        $this->assertFalse($creates('dochter.nl'));
+
+        // The own domain always does.
+        $this->assertTrue($creates('noordkade.nl'));
+    }
+
+    public function test_who_mails_a_mailbox_and_becomes_a_colleague(): void
+    {
+        $this->listSenders([
+            'klant.nl' => SenderAccess::LearnAndAnswer,
+            'dochter.nl' => SenderAccess::LearnAndAnswer,
+            'hr@noordkade.nl' => SenderAccess::Ignore,
+            'roger@gmail.com' => SenderAccess::Learn,
+        ]);
+        Tenancy::for($this->account, fn () => app(MailboxRuleEditor::class)->setForDomain($this->mailbox, 'dochter.nl', SenderAccess::LearnAndAnswer, createsColleagues: true));
+        Tenancy::for($this->account, function (): void {
+            $mailbox = $this->mailbox->refresh();
+
+            $this->assertTrue($mailbox->createsColleague('jan@noordkade.nl'));
+            $this->assertTrue($mailbox->createsColleague('piet@dochter.nl'));
+            $this->assertTrue($mailbox->createsColleague('roger@gmail.com'));
+            $this->assertFalse($mailbox->createsColleague('piet@klant.nl'));
+            $this->assertFalse($mailbox->createsColleague('hr@noordkade.nl'));
+            $this->assertFalse($mailbox->createsColleague('iemand@elders.nl'));
+        });
+    }
+
+    public function test_a_rule_is_for_a_colleague_or_a_domain_never_both(): void
+    {
+        $colleague = Tenancy::for($this->account, fn () => Colleague::factory()->create());
+
+        $this->expectException(QueryException::class);
+
+        Tenancy::for($this->account, fn () => MailboxRule::query()->create([
+            'mailbox_id' => $this->mailbox->id,
+            'colleague_id' => $colleague->id,
+            'domain' => 'klant.nl',
+            'access' => SenderAccess::Learn,
+        ]));
     }
 
     public function test_another_accounts_senders_are_out_of_sight(): void
     {
         $other = Account::factory()->create();
-        $theirs = Tenancy::for($other, function (): MailboxSender {
-            $mailbox = Mailbox::factory()->rules(senders: ['klant.nl' => SenderAccess::Learn])->create(['email_address' => 'kennis@elders.nl']);
+        [$theirs, $theirColleague] = Tenancy::for($other, function (): array {
+            $mailbox = Mailbox::factory()->rules(senders: ['klant.nl' => SenderAccess::Learn, 'jan@noordkade.nl' => SenderAccess::Learn])->create(['email_address' => 'kennis@elders.nl']);
 
-            return $mailbox->senders()->sole();
+            return [$mailbox->rules()->where('domain', 'klant.nl')->sole(), Colleague::query()->sole()];
         });
         $this->listSenders(['haarlem.nl' => SenderAccess::Answer]);
 
-        Tenancy::for($this->account, function () use ($theirs): void {
-            $this->assertSame(['haarlem.nl'], MailboxSender::query()->pluck('entry')->all());
-            $this->assertNull(MailboxSender::query()->find($theirs->id));
+        Tenancy::for($this->account, function () use ($theirs, $theirColleague): void {
+            $this->assertEqualsCanonicalizing(['noordkade.nl', 'haarlem.nl'], MailboxRule::query()->pluck('domain')->all());
+            $this->assertNull(MailboxRule::query()->find($theirs->id));
+            $this->assertNull(Colleague::query()->find($theirColleague->id));
         });
 
         $this->actingAs($this->admin)
             ->get(route('settings'))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('mailboxes', 1)
-                ->where('mailboxes.0.senderRules', [['entry' => 'haarlem.nl', 'access' => 'answer']]));
+                ->where('mailboxes.0.senderRules', [['entry' => 'haarlem.nl', 'access' => 'answer', 'createsColleagues' => false, 'colleagueId' => null]]));
 
-        // Saving this account's rules leaves the other account's alone.
+        // The same address here is a colleague of this account's own, and
+        // saving this account's rules leaves the other account's alone.
         $this->actingAs($this->admin)
-            ->patch(route('mailboxes.rules.update', $this->mailbox), ['domain_access' => 'learn_answer'])
+            ->patch(route('mailboxes.rules.update', $this->mailbox), [
+                'domain_access' => 'learn_answer',
+                'sender_rules' => [['entry' => 'jan@noordkade.nl', 'access' => 'answer']],
+                'removed_rules' => ['klant.nl'],
+            ])
             ->assertSessionHasNoErrors();
 
         $this->assertSame('learn', Tenancy::for($other, fn () => $theirs->refresh()->access->value));
+        $this->assertSame(2, Tenancy::withoutTenancy(fn () => Colleague::query()->where('email', 'jan@noordkade.nl')->count()));
     }
 
-    public function test_an_empty_list_posts_nothing_and_clears_the_senders(): void
+    public function test_a_mailbox_without_rules_reads_no_one(): void
     {
-        $this->listSenders(['klant.nl' => SenderAccess::Learn]);
+        $mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->make(['email_address' => 'kennis@noordkade.nl'])->setRelation('rules', new Collection));
 
-        $this->actingAs($this->admin)
-            ->patch(route('mailboxes.rules.update', $this->mailbox), ['domain_access' => 'learn_answer'])
-            ->assertSessionHasNoErrors();
-
-        $this->assertSame([], $this->senders());
-    }
-
-    public function test_a_new_mailbox_learns_from_and_answers_its_own_domain_only(): void
-    {
-        $mailbox = new Mailbox;
-
-        $this->assertSame(SenderAccess::LearnAndAnswer, $mailbox->domain_access);
-        $this->assertCount(0, $mailbox->senders);
+        $this->assertSame(SenderAccess::Ignore, $mailbox->domainAccess());
+        $this->assertSame(SenderAccess::Ignore, $mailbox->access('jan@noordkade.nl'));
     }
 
     public function test_rules_are_addresses_or_domains_with_a_known_access(): void
@@ -150,7 +243,7 @@ class MailboxRulesTest extends TestCase
             ->patch(route('mailboxes.rules.update', $this->mailbox), ['domain_access' => 'sometimes'])
             ->assertSessionHasErrors('domain_access');
 
-        $this->assertSame(SenderAccess::LearnAndAnswer, $this->mailbox->refresh()->domain_access);
+        $this->assertSame(SenderAccess::LearnAndAnswer, Tenancy::for($this->account, fn () => $this->mailbox->refresh()->domainAccess()));
     }
 
     public function test_a_public_domain_is_listed_address_by_address(): void
@@ -181,18 +274,22 @@ class MailboxRulesTest extends TestCase
         $outsider = User::factory()->withAccount()->create();
         $this->actingAs($outsider)->patch(route('mailboxes.rules.update', $this->mailbox), $payload)->assertNotFound();
 
-        $this->assertSame(SenderAccess::LearnAndAnswer, $this->mailbox->refresh()->domain_access);
+        $this->assertSame(SenderAccess::LearnAndAnswer, Tenancy::for($this->account, fn () => $this->mailbox->refresh()->domainAccess()));
     }
 
     public function test_the_settings_page_shows_the_rules(): void
     {
-        $this->listSenders(['haarlem.nl' => SenderAccess::Learn]);
+        $this->listSenders(['haarlem.nl' => SenderAccess::Learn, 'jan@klant.nl' => SenderAccess::Answer]);
+        $jan = Tenancy::for($this->account, fn () => Colleague::query()->where('email', 'jan@klant.nl')->sole());
 
         $this->actingAs($this->admin)
             ->get(route('settings'))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('mailboxes.0.domainAccess', 'learn_answer')
-                ->where('mailboxes.0.senderRules', [['entry' => 'haarlem.nl', 'access' => 'learn']])
+                ->where('mailboxes.0.senderRules', [
+                    ['entry' => 'haarlem.nl', 'access' => 'learn', 'createsColleagues' => false, 'colleagueId' => null],
+                    ['entry' => 'jan@klant.nl', 'access' => 'answer', 'createsColleagues' => false, 'colleagueId' => $jan->id],
+                ])
                 ->where('mailboxes.0.domain', 'noordkade.nl')
                 ->where('mailboxes.0.publicDomain', false)
                 ->where('publicDomains', config('mailboxes.public_domains')));
@@ -272,7 +369,7 @@ class MailboxRulesTest extends TestCase
      */
     private function listSenders(array $senders): void
     {
-        Tenancy::for($this->account, fn () => $this->mailbox->syncSenders(array_map(
+        Tenancy::for($this->account, fn () => app(MailboxRuleEditor::class)->apply($this->mailbox, SenderAccess::LearnAndAnswer, array_map(
             fn (string $entry, SenderAccess $access): array => ['entry' => $entry, 'access' => $access],
             array_keys($senders),
             array_values($senders),
@@ -280,12 +377,15 @@ class MailboxRulesTest extends TestCase
     }
 
     /**
+     * The rules besides the one for the mailbox's own domain, oldest first.
+     *
      * @return list<array{entry: string, access: string}>
      */
     private function senders(): array
     {
-        return Tenancy::for($this->account, fn () => $this->mailbox->senders()->oldest('id')->get()
-            ->map(fn (MailboxSender $sender): array => ['entry' => $sender->entry, 'access' => $sender->access->value])
+        return Tenancy::for($this->account, fn () => $this->mailbox->rules()->with('colleague')->oldest('id')->get()
+            ->reject(fn (MailboxRule $rule): bool => $rule->domain === 'noordkade.nl')
+            ->map(fn (MailboxRule $rule): array => ['entry' => $rule->entry(), 'access' => $rule->access->value])
             ->values()
             ->all());
     }

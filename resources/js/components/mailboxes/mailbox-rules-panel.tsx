@@ -18,26 +18,35 @@ import type { Mailbox, SenderAccess } from '@/types';
  * access, and every sender added, removed or set to something else.
  */
 function changesBetween(saved: MailboxRules, draft: MailboxRules): number {
-    const before = new Map(
-        saved.senders.map((rule) => [rule.entry, rule.access]),
-    );
-    const after = new Map(
-        draft.senders.map((rule) => [rule.entry, rule.access]),
-    );
+    const before = new Map(saved.senders.map((rule) => [rule.entry, rule]));
     let changes =
         !saved.publicDomain && saved.domainAccess !== draft.domainAccess
             ? 1
             : 0;
 
-    for (const [entry, access] of after) {
-        changes += before.get(entry) === access ? 0 : 1;
+    for (const rule of draft.senders) {
+        const was = before.get(rule.entry);
+
+        changes +=
+            was?.access === rule.access &&
+            Boolean(was.createsColleagues) === Boolean(rule.createsColleagues)
+                ? 0
+                : 1;
     }
 
-    for (const entry of before.keys()) {
-        changes += after.has(entry) ? 0 : 1;
-    }
+    return changes + removedFrom(saved, draft).length;
+}
 
-    return changes;
+/**
+ * The senders saved but no longer in the draft. Only these are removed on
+ * saving: a rule added elsewhere since the page loaded stays.
+ */
+function removedFrom(saved: MailboxRules, draft: MailboxRules): string[] {
+    return saved.senders
+        .filter(
+            (rule) => !draft.senders.some((kept) => kept.entry === rule.entry),
+        )
+        .map((rule) => rule.entry);
 }
 
 /**
@@ -279,8 +288,30 @@ export function MailboxRulesPanel({
                                         name={`sender_rules[${index}][access]`}
                                         value={rule.access}
                                     />
+                                    {rule.createsColleagues !== undefined &&
+                                        !rule.entry.includes('@') && (
+                                            <input
+                                                type="hidden"
+                                                name={`sender_rules[${index}][creates_colleagues]`}
+                                                value={
+                                                    rule.createsColleagues
+                                                        ? '1'
+                                                        : '0'
+                                                }
+                                            />
+                                        )}
                                 </span>
                             ))}
+                            {removedFrom(rulesOf(mailbox), draft).map(
+                                (entry, index) => (
+                                    <input
+                                        key={entry}
+                                        type="hidden"
+                                        name={`removed_rules[${index}]`}
+                                        value={entry}
+                                    />
+                                ),
+                            )}
                             {body(errors, processing)}
                         </>
                     )}

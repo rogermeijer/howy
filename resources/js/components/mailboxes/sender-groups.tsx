@@ -86,6 +86,21 @@ export function SenderGroups({
                                                 ),
                                             ))
                                     }
+                                    onCreatesColleagues={
+                                        onChange &&
+                                        ((on) =>
+                                            onChange(
+                                                senders.map((other, at) =>
+                                                    at === index
+                                                        ? {
+                                                              ...other,
+                                                              createsColleagues:
+                                                                  on,
+                                                          }
+                                                        : other,
+                                                ),
+                                            ))
+                                    }
                                 />
                             ))}
                             {group.length > SHOWN && (

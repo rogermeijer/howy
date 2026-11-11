@@ -63,7 +63,7 @@ export function SenderAddField({
                 next.push({ entry, access });
                 added++;
             } else if (next[index].access !== access) {
-                next[index] = { entry, access };
+                next[index] = { ...next[index], access };
                 moved++;
             }
         }

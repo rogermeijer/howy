@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * A shared mailbox (support@, kennis@…) the account has connected.
@@ -23,10 +22,10 @@ use Illuminate\Support\Facades\DB;
  * It belongs to the account, not to the person who connected it:
  * connected_by_user_id only records who authorised it with Google.
  *
- * What Howy may do with a sender's mail (SenderAccess) comes from the first of:
- * the address among its senders, its domain among its senders, and
- * domain_access for the mailbox's own domain (not on a public one such as
- * gmail.com). Everyone else is ignored.
+ * What Howy may do with a sender's mail (SenderAccess) comes from its rules:
+ * the sender's own rule as a colleague, else the rule for their domain (the
+ * mailbox's own domain among them, except on a public one such as gmail.com).
+ * Everyone else is ignored. MailboxRuleEditor writes them.
  *
  * @property int $id
  * @property int $account_id
@@ -45,21 +44,20 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $last_error
  * @property string|null $import_batch_id
  * @property Carbon|null $import_offer_answered_at
- * @property SenderAccess $domain_access
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Account $account
  * @property-read User|null $connectedBy
  * @property-read Collection<int, Email> $emails
  * @property-read int|null $emails_count
- * @property-read Collection<int, MailboxSender> $senders
- * @property-read int|null $senders_count
+ * @property-read Collection<int, MailboxRule> $rules
+ * @property-read int|null $rules_count
  */
 #[Fillable([
     'connected_by_user_id', 'provider', 'email_address', 'provider_user_id',
     'access_token', 'refresh_token', 'token_expires_at', 'status', 'history_id',
     'watch_expires_at', 'last_synced_at', 'last_message_at', 'last_error',
-    'import_batch_id', 'import_offer_answered_at', 'domain_access',
+    'import_batch_id', 'import_offer_answered_at',
 ])]
 #[Hidden(['access_token', 'refresh_token'])]
 class Mailbox extends Model
@@ -68,16 +66,6 @@ class Mailbox extends Model
 
     /** @use HasFactory<MailboxFactory> */
     use HasFactory;
-
-    /**
-     * Mirrors the column defaults, so a new mailbox knows its policy before it
-     * is read back.
-     *
-     * @var array<string, mixed>
-     */
-    protected $attributes = [
-        'domain_access' => 'learn_answer',
-    ];
 
     /**
      * @return BelongsTo<User, $this>
@@ -96,14 +84,13 @@ class Mailbox extends Model
     }
 
     /**
-     * The addresses and domains listed on this mailbox, each with what Howy
-     * may do with their mail.
+     * What Howy may do with mail here, per colleague and per domain.
      *
-     * @return HasMany<MailboxSender, $this>
+     * @return HasMany<MailboxRule, $this>
      */
-    public function senders(): HasMany
+    public function rules(): HasMany
     {
-        return $this->hasMany(MailboxSender::class);
+        return $this->hasMany(MailboxRule::class);
     }
 
     public function isActive(): bool
@@ -121,8 +108,8 @@ class Mailbox extends Model
 
     /**
      * Whether anyone can have an address on the mailbox's domain (gmail.com…):
-     * then "the same domain" means everyone, so domain_access does not count
-     * and its senders are listed one by one.
+     * then "the same domain" means everyone, so there is no rule for it and
+     * its senders are listed one by one.
      */
     public function isOnPublicDomain(): bool
     {
@@ -138,29 +125,70 @@ class Mailbox extends Model
     }
 
     /**
-     * What Howy may do with mail from this address: the address on the list,
-     * else its domain on the list, else the mailbox's own domain; anyone else
-     * is ignored. An address beats its domain, so one address inside an
-     * organisation can be ignored while the rest is read.
+     * The rule that decides for this address: the one for its colleague, else
+     * the one for its domain. A colleague's rule beats their domain's, so one
+     * person inside an organisation can be ignored while the rest is read.
      */
-    public function access(string $address): SenderAccess
+    public function ruleFor(string $address): ?MailboxRule
     {
         $address = strtolower(trim($address));
 
         if (! str_contains($address, '@')) {
-            return SenderAccess::Ignore;
+            return null;
         }
 
+        $this->loadMissing('rules.colleague');
         $domain = self::domainOf($address);
-        $listed = $this->senders->firstWhere('entry', $address) ?? $this->senders->firstWhere('entry', $domain);
 
-        if ($listed !== null) {
-            return $listed->access;
+        return $this->rules->first(fn (MailboxRule $rule): bool => $rule->colleague?->email === $address)
+            ?? $this->rules->first(fn (MailboxRule $rule): bool => $rule->domain === $domain);
+    }
+
+    /**
+     * What Howy may do with mail from this address; anyone no rule covers is
+     * ignored.
+     */
+    public function access(string $address): SenderAccess
+    {
+        return $this->ruleFor($address)->access ?? SenderAccess::Ignore;
+    }
+
+    /**
+     * The rule for the mailbox's own domain, for its colleagues. None on a
+     * public domain.
+     */
+    public function ownDomainRule(): ?MailboxRule
+    {
+        if ($this->isOnPublicDomain()) {
+            return null;
         }
 
-        return $domain === $this->domain() && ! $this->isOnPublicDomain()
-            ? $this->domain_access
-            : SenderAccess::Ignore;
+        $this->loadMissing('rules');
+
+        return $this->rules->first(fn (MailboxRule $rule): bool => $rule->domain === $this->domain());
+    }
+
+    /**
+     * What Howy may do with mail from the mailbox's own domain: nothing on a
+     * public domain, or once its rule is gone.
+     */
+    public function domainAccess(): SenderAccess
+    {
+        return $this->ownDomainRule()->access ?? SenderAccess::Ignore;
+    }
+
+    /**
+     * Whether mail from this address makes its sender a colleague: someone
+     * Howy reads, with a rule of their own or let in by a domain rule that
+     * creates colleagues.
+     */
+    public function createsColleague(string $address): bool
+    {
+        $rule = $this->ruleFor($address);
+
+        return $rule !== null
+            && $rule->access !== SenderAccess::Ignore
+            && ($rule->domain === null || $rule->creates_colleagues);
     }
 
     /**
@@ -181,30 +209,6 @@ class Mailbox extends Model
     }
 
     /**
-     * List exactly these senders. One already listed keeps its row, with the
-     * access given here; one not given goes; a new one is added, in the order
-     * given, after the rest.
-     *
-     * @param  list<array{entry: string, access: SenderAccess|string}>  $senders
-     */
-    public function syncSenders(array $senders): void
-    {
-        DB::transaction(function () use ($senders): void {
-            $listed = $this->senders()->get()->keyBy('entry');
-
-            $this->senders()->whereNotIn('entry', array_column($senders, 'entry'))->delete();
-
-            foreach ($senders as $sender) {
-                ($listed->get($sender['entry']) ?? $this->senders()->make(['entry' => $sender['entry']]))
-                    ->fill(['access' => $sender['access']])
-                    ->save();
-            }
-        });
-
-        $this->unsetRelation('senders');
-    }
-
-    /**
      * Once, for a mailbox that never imported anything: offer to import older
      * mail. Turned down, or an import made, it is not offered again.
      */
@@ -213,7 +217,7 @@ class Mailbox extends Model
         return $this->isActive() && $this->import_batch_id === null && $this->import_offer_answered_at === null;
     }
 
-    private static function domainOf(string $address): string
+    public static function domainOf(string $address): string
     {
         return strtolower(substr(strrchr($address, '@') ?: '', 1));
     }
@@ -226,7 +230,6 @@ class Mailbox extends Model
         return [
             'provider' => MailboxProvider::class,
             'status' => MailboxStatus::class,
-            'domain_access' => SenderAccess::class,
             'import_offer_answered_at' => 'datetime',
             'access_token' => 'encrypted',
             'refresh_token' => 'encrypted',

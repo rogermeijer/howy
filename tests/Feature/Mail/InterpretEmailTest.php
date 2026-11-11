@@ -29,6 +29,7 @@ use App\Services\Knowledge\Search\KnowledgeSearch;
 use App\Services\Knowledge\Search\SearchQuery;
 use App\Services\Mail\Interpretation\EmailEligibility;
 use App\Services\Mail\Interpretation\InterpretationPresenter;
+use App\Services\Mailboxes\MailboxRuleEditor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -716,11 +717,15 @@ class InterpretEmailTest extends TestCase
      */
     private function listSenders(array $senders): void
     {
-        Tenancy::for($this->account, fn () => $this->mailbox->syncSenders(array_map(
-            fn (string $entry, SenderAccess $access): array => ['entry' => $entry, 'access' => $access],
-            array_keys($senders),
-            array_values($senders),
-        )));
+        Tenancy::for($this->account, function () use ($senders): void {
+            $this->mailbox->rules()->delete();
+
+            app(MailboxRuleEditor::class)->apply($this->mailbox, SenderAccess::LearnAndAnswer, array_map(
+                fn (string $entry, SenderAccess $access): array => ['entry' => $entry, 'access' => $access],
+                array_keys($senders),
+                array_values($senders),
+            ));
+        });
     }
 
     private function interpret(Email $email, bool $force = false): EmailInterpretation

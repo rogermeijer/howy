@@ -4,15 +4,15 @@ namespace Database\Factories;
 
 use App\Enums\SenderAccess;
 use App\Models\Mailbox;
-use App\Models\MailboxSender;
+use App\Models\MailboxRule;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
  * account_id is deliberately absent: BelongsToAccount fills it from the context.
  *
- * @extends Factory<MailboxSender>
+ * @extends Factory<MailboxRule>
  */
-class MailboxSenderFactory extends Factory
+class MailboxRuleFactory extends Factory
 {
     /**
      * @return array<string, mixed>
@@ -21,8 +21,9 @@ class MailboxSenderFactory extends Factory
     {
         return [
             'mailbox_id' => Mailbox::factory(),
-            'entry' => fake()->unique()->safeEmail(),
+            'domain' => fake()->unique()->domainName(),
             'access' => SenderAccess::LearnAndAnswer,
+            'creates_colleagues' => false,
         ];
     }
 }

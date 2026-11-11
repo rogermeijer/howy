@@ -58,6 +58,9 @@ class HandleInertiaRequests extends Middleware
                 // A count, not the list: the switcher only needs to know there is
                 // something to switch to, and searches the accounts itself.
                 'accountCount' => $request->user()?->accounts()->count() ?? 0,
+                // An admin of the current account: what the top bar offers
+                // follows it. The server checks again on every admin route.
+                'isAccountAdmin' => Tenancy::check() && (bool) $request->user()?->isAdminOf(Tenancy::account()),
             ],
             // How much waits for approval, documents and mail alike: the
             // knowledge base's count in the top bar, for those who can act on it.

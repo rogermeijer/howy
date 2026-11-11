@@ -7,8 +7,9 @@ use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
 use App\Jobs\StartGmailWatch;
 use App\Models\Account;
+use App\Models\Colleague;
 use App\Models\Mailbox;
-use App\Models\MailboxSender;
+use App\Models\MailboxRule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -75,8 +76,11 @@ class ConnectGmailTest extends TestCase
 
         $this->assertSame('support@noordkade.nl', $mailbox->email_address);
         $this->assertSame(MailboxStatus::Active, $mailbox->status);
-        $this->assertSame(SenderAccess::LearnAndAnswer, $mailbox->domain_access);
-        $this->assertCount(0, Tenancy::for($this->account, fn () => $mailbox->senders));
+        // Its own domain learned from and answered, its people colleagues.
+        Tenancy::for($this->account, function () use ($mailbox): void {
+            $this->assertSame([['entry' => 'noordkade.nl', 'access' => 'learn_answer']], $this->senders($mailbox));
+            $this->assertTrue($mailbox->ownDomainRule()?->creates_colleagues);
+        });
         $this->assertSame('access-token', $mailbox->access_token);
         $this->assertSame('refresh-token', $mailbox->refresh_token);
         $this->assertSame($this->admin->id, $mailbox->connected_by_user_id);
@@ -100,6 +104,12 @@ class ConnectGmailTest extends TestCase
             $this->assertSame([['entry' => mb_strtolower($this->admin->email), 'access' => 'learn_answer']], $this->senders($mailbox));
             $this->assertTrue($mailbox->accepts($this->admin->email));
             $this->assertFalse($mailbox->accepts('someone.else@gmail.com'));
+
+            // Whoever connected it is a colleague, and as a member gets Howy's own mails.
+            $colleague = Colleague::query()->sole();
+            $this->assertSame($this->admin->id, $colleague->user_id);
+            $this->assertSame($mailbox->id, $colleague->home_mailbox_id);
+            $this->assertTrue($colleague->receives_mail);
         });
     }
 
@@ -263,8 +273,8 @@ class ConnectGmailTest extends TestCase
      */
     private function senders(Mailbox $mailbox): array
     {
-        return $mailbox->senders()->oldest('id')->get()
-            ->map(fn (MailboxSender $sender): array => ['entry' => $sender->entry, 'access' => $sender->access->value])
+        return $mailbox->rules()->with('colleague')->oldest('id')->get()
+            ->map(fn (MailboxRule $rule): array => ['entry' => $rule->entry(), 'access' => $rule->access->value])
             ->values()
             ->all();
     }

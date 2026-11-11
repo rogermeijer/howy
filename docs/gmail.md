@@ -21,7 +21,9 @@ searching the mailbox and picking messages.
     - always answers 204, so Pub/Sub does not retry.
 4. **Sync.** `SyncGmailMailbox` pages through `users.history.list` from the stored history id, fetches each
    new message with `format=full` and stores it through `StoreGmailMessage`. That upserts on
-   `(account, mailbox, message id)`, so redelivery is harmless.
+   `(account, mailbox, message id)`, so redelivery is harmless, and keeps up with the sender as a colleague
+   (`Colleagues::record()`: made when the rule that lets them in creates colleagues, never from an import;
+   `emails.colleague_id`, `last_mail_at`).
     - If the history id has aged out (a 404 from Gmail), it catches up on the last day instead and
       restarts from the current id.
 5. **Poll.** `mailboxes:poll` runs every 5 minutes as a safety net. Locally, where Google cannot reach
@@ -46,8 +48,8 @@ There is no imports table.
 ## Sending
 
 Howy replies in the thread with `gmail.send`, and only to senders the mailbox's rules let it answer. Each
-mailbox has `domain_access` for its own domain and its listed senders in `mailbox_senders` (per address or
-domain: learn, answer, both or ignore); everyone else is ignored. See "Sender rules" in [`knowledge-base.md`](knowledge-base.md).
+mailbox has rules in `mailbox_rules`, per colleague or per domain, its own domain among them (learn, answer, both
+or ignore); everyone else is ignored. See "Sender rules" in [`knowledge-base.md`](knowledge-base.md).
 
 ## One-time Google Cloud setup
 

@@ -8,8 +8,8 @@ use App\Http\Requests\Mailboxes\MailboxRulesRequest;
 use App\Jobs\SyncGmailMailbox;
 use App\Models\Mailbox;
 use App\Services\Gmail\MailboxConnector;
+use App\Services\Mailboxes\MailboxRuleEditor;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class MailboxController extends Controller
@@ -26,15 +26,15 @@ class MailboxController extends Controller
     }
 
     /**
-     * What Howy may do with each sender's mail on this mailbox, and whether it
-     * replies at all.
+     * What Howy may do with each sender's mail on this mailbox: what changed
+     * in the rules panel.
      */
-    public function updateRules(MailboxRulesRequest $request, Mailbox $mailbox): RedirectResponse
+    public function updateRules(MailboxRulesRequest $request, Mailbox $mailbox, MailboxRuleEditor $rules): RedirectResponse
     {
-        DB::transaction(function () use ($request, $mailbox): void {
-            $mailbox->update(['domain_access' => $request->validated('domain_access')]);
-            $mailbox->syncSenders($request->senders());
-        });
+        /** @var string $domainAccess */
+        $domainAccess = $request->validated('domain_access');
+
+        $rules->apply($mailbox, $domainAccess, $request->senders(), $request->removed());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Mailbox rules saved.')]);
 

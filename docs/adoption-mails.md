@@ -7,19 +7,19 @@ first contribution, a nudge, and later a weekly and monthly rhythm. They grew ou
 
 ## Status
 
-| Step | What                                                                                                       | State                                  |
-| ---- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| 1    | One mail frame, every mail designed (live, system and parked), preview at `/admin/mails`                   | **Built, waiting for design sign-off** |
-| 2    | Colleagues and mailbox rules (`Colleague`, `MailboxRule`, replacing `mailbox_senders` and `domain_access`) | Planned                                |
-| 3    | `HowyMailer`, `OutboundMail` (mail log, pause queue, reply recognition)                                    | Planned                                |
-| 4    | The account's Live switch, and 01                                                                          | Planned                                |
-| 5    | 02 and 06                                                                                                  | Planned                                |
-| 6    | 04                                                                                                         | Planned                                |
-| 7    | Links without login (rating 05, adjusting 04, unsubscribing)                                               | Planned                                |
+| Step | What                                                                                                       | State                        |
+| ---- | ---------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| 1    | One mail frame, every mail designed (live, system and parked), preview at `/admin/mails`                   | **Built, design signed off** |
+| 2    | Colleagues and mailbox rules (`Colleague`, `MailboxRule`, replacing `mailbox_senders` and `domain_access`) | **Built**                    |
+| 3    | `HowyMailer`, `OutboundMail` (mail log, pause queue, reply recognition)                                    | Planned                      |
+| 4    | The account's Live switch, and 01                                                                          | Planned                      |
+| 5    | 02 and 06                                                                                                  | Planned                      |
+| 6    | 04                                                                                                         | Planned                      |
+| 7    | Links without login (rating 05, adjusting 04, unsubscribing)                                               | Planned                      |
 
-Until step 1 is signed off nothing new is sent. What is live on the branch: the existing mails (answers, not
-found, conflict, beta invite, mailbox needs reconnecting, password reset, email verification) in the new
-frame and voice.
+Nothing new is sent yet. What is live on the branch: the existing mails (answers, not found, conflict, beta
+invite, mailbox needs reconnecting, password reset, email verification) in the new frame and voice, and
+colleagues with their page.
 
 ## Where it lives
 
@@ -37,6 +37,34 @@ frame and voice.
 - `App\Mail\Previews\MailPreviews` and `/admin/mails` (super-admins): every mail with sample data, per
   language, per kind of access, light or dark, as HTML or text, with a test send to yourself.
 - `config/adoption.php`: every interval, from the environment.
+
+## Colleagues
+
+A colleague (`App\Models\Colleague`, table `colleagues`) is someone who mails Howy, one per address per account.
+For nearly every account they work at the company, and they are who the flow mails are for. Most never log in;
+`user_id` links one who is also a member of the account.
+
+- **Made** when an admin lists their address on a mailbox (a rule of their own), when their mail comes in (push
+  or poll, never an import) and the domain rule that lets them in creates colleagues (the own domain always;
+  another domain when an admin switches it on), or by hand on the colleagues page. Someone the rules ignore is
+  never made one, except by a rule of their own that says ignore.
+- **Kept up** by `Colleagues::record()` from `StoreGmailMessage`: `emails.colleague_id`, `first_seen_at`,
+  `last_mail_at`, the name when it was empty, the member with that address.
+- **Howy mails** (`receives_mail`, "Receives Howy mails") start on for colleagues at the company's domain (the
+  mailbox's own, or the account's `domain`), for members, and for anyone added by hand; off for others listed
+  one by one, such as a customer's address. Their home mailbox (`home_mailbox_id`) is the first they mailed: the
+  flow mails will come from there.
+- **The page** (`/colleagues`, account admins, in the top bar): search, filter on where their Howy mails stand
+  and on what Howy does with their mail on their home mailbox, and per person their access per mailbox (a rule
+  of their own, or their domain's), their mail, and the steps of their flow (`welcomed_at`, `explained_at`,
+  `first_saved_at`, `nudged_at`, `opted_out_at`; nothing sets those until step 4).
+
+What Howy may do with mail is the mailbox's rules, now per colleague or per domain; see "Sender rules" in
+[`knowledge-base.md`](knowledge-base.md).
+
+**After deploying step 2**, once: `php artisan colleagues:backfill`. It makes colleagues from the mail stored so
+far by the same rules, oldest first, and links each mail to its sender. It only reads mail not linked yet, so it
+is safe to run again.
 
 ## Design rules
 

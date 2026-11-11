@@ -162,7 +162,7 @@ class SetupController extends Controller
             'mailbox' => $mailbox ? [
                 'emailAddress' => $mailbox->email_address,
                 'publicDomain' => $mailbox->isOnPublicDomain(),
-                'domainAccess' => $mailbox->domain_access->value,
+                'domainAccess' => $mailbox->domainAccess()->value,
             ] : null,
         ]);
     }

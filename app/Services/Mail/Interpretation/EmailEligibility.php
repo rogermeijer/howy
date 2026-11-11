@@ -86,13 +86,21 @@ class EmailEligibility
     }
 
     /**
+     * Written by a person other than the mailbox itself: not by a machine,
+     * and not one of Howy's own mails.
+     */
+    public function fromPerson(Email $email, Mailbox $mailbox): bool
+    {
+        return ! $this->automated($email)
+            && strtolower((string) $email->from_email) !== strtolower($mailbox->email_address);
+    }
+
+    /**
      * Live mail from a person other than the mailbox itself.
      */
     private function considered(Email $email, Mailbox $mailbox): bool
     {
-        return $email->source !== EmailSource::Import
-            && ! $this->automated($email)
-            && strtolower((string) $email->from_email) !== strtolower($mailbox->email_address);
+        return $email->source !== EmailSource::Import && $this->fromPerson($email, $mailbox);
     }
 
     /**

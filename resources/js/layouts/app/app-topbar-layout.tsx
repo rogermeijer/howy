@@ -14,6 +14,7 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { inbox, knowledge } from '@/routes';
+import colleagues from '@/routes/colleagues';
 import knowledgeRoutes from '@/routes/knowledge';
 import type { Auth } from '@/types';
 
@@ -27,7 +28,7 @@ function TopBar() {
 
     // Titles are English source strings, translated where they are rendered.
     // The knowledge base counts what waits for approval, documents and mail
-    // alike; none, no badge.
+    // alike; none, no badge. Colleagues are for the account's admins.
     const navItems = [
         { title: 'Inbox', href: inbox(), badge: null },
         {
@@ -43,6 +44,9 @@ function TopBar() {
                       }
                     : null,
         },
+        ...(auth.isAccountAdmin
+            ? [{ title: 'Colleagues', href: colleagues.index(), badge: null }]
+            : []),
     ];
 
     const { isCurrentOrParentUrl } = useCurrentUrl();

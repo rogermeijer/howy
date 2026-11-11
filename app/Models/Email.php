@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $account_id
  * @property int|null $mailbox_id
+ * @property int|null $colleague_id who sent it, when they are a colleague
  * @property string $provider_message_id
  * @property string|null $provider_thread_id
  * @property string|null $message_id_header
@@ -56,6 +57,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Account $account
  * @property-read Mailbox|null $mailbox
+ * @property-read Colleague|null $colleague
  * @property-read EmailInterpretation|null $interpretation
  */
 #[Fillable([
@@ -77,6 +79,14 @@ class Email extends Model
     public function mailbox(): BelongsTo
     {
         return $this->belongsTo(Mailbox::class);
+    }
+
+    /**
+     * @return BelongsTo<Colleague, $this>
+     */
+    public function colleague(): BelongsTo
+    {
+        return $this->belongsTo(Colleague::class);
     }
 
     /**
