@@ -21,7 +21,11 @@ class ColleagueMigrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const string MIGRATION = 'database/migrations/2026_11_11_100000_create_colleagues_and_mailbox_rules.php';
+    /** This one, and the later ones that hang on colleagues. */
+    private const array MIGRATIONS = [
+        'database/migrations/2026_11_11_100000_create_colleagues_and_mailbox_rules.php',
+        'database/migrations/2026_11_12_100000_create_outbound_mails_table.php',
+    ];
 
     public function test_senders_and_the_own_domain_become_rules_with_the_same_access(): void
     {
@@ -38,7 +42,7 @@ class ColleagueMigrationTest extends TestCase
             Mailbox::factory()->rules(senders: ['roger@gmail.com' => SenderAccess::LearnAndAnswer])->create(['email_address' => 'howy@gmail.com']),
         ]);
 
-        $this->artisan('migrate:rollback', ['--path' => self::MIGRATION])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--path' => self::MIGRATIONS])->assertSuccessful();
 
         // As it was: support@ ignored its own domain, but listed it too, and
         // the listed row went first.
@@ -51,7 +55,7 @@ class ColleagueMigrationTest extends TestCase
         $this->assertSame('learn', DB::table('mailboxes')->where('id', $kennis->id)->value('domain_access'));
         $this->assertSame(3, DB::table('mailbox_senders')->where('mailbox_id', $kennis->id)->count());
 
-        $this->artisan('migrate', ['--path' => self::MIGRATION])->assertSuccessful();
+        $this->artisan('migrate', ['--path' => self::MIGRATIONS])->assertSuccessful();
 
         Tenancy::for($account, function () use ($kennis, $support, $gmail): void {
             $access = fn (Mailbox $mailbox, string $address): SenderAccess => Mailbox::query()->findOrFail($mailbox->id)->access($address);

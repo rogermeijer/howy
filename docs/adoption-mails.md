@@ -11,7 +11,7 @@ first contribution, a nudge, and later a weekly and monthly rhythm. They grew ou
 | ---- | ---------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | 1    | One mail frame, every mail designed (live, system and parked), preview at `/admin/mails`                   | **Built, design signed off** |
 | 2    | Colleagues and mailbox rules (`Colleague`, `MailboxRule`, replacing `mailbox_senders` and `domain_access`) | **Built**                    |
-| 3    | `HowyMailer`, `OutboundMail` (mail log, pause queue, reply recognition)                                    | Planned                      |
+| 3    | `HowyMailer`, `OutboundMail` (mail log, pause queue, reply recognition)                                    | **Built**                    |
 | 4    | The account's Live switch, and 01                                                                          | Planned                      |
 | 5    | 02 and 06                                                                                                  | Planned                      |
 | 6    | 04                                                                                                         | Planned                      |
@@ -105,15 +105,16 @@ the account's Live switch is the start signal.
 Rules:
 
 - **Nothing before Live.** Answers to questions work regardless.
-- **The mailbox pauses everything.** When it is not active, flow mails wait and go once it is connected
-  again. There is no fallback to another sender.
+- **The mailbox pauses everything.** When it needs reconnecting, flow mails and answers wait and go once it
+  is connected again. There is no fallback to another sender. A mailbox an admin disconnected sends nothing
+  again: its mails are skipped.
 - **Working days** are Monday to Friday in the account's timezone; public holidays are not counted yet.
   Scheduled mails go between `ADOPTION_SEND_FROM_HOUR` and `ADOPTION_SEND_UNTIL_HOUR`. A welcome sent by
   hand goes at once.
 - **Unsubscribing stops flow mails, never answers.** A colleague can also be switched off by an admin
   ("Receives Howy mails").
-- **Every mail Howy sends carries a signed reference** in its `Message-ID` (and `References`), so a reply to
-  it is recognised as a reply to Howy (step 3). Later this lets Howy answer questions about Howy itself.
+- **Every mail Howy sends carries a signed reference** in its `Message-ID`, so a reply to it is recognised as a
+  reply to Howy. Later this lets Howy answer questions about Howy itself. See "Sending and the mail log".
 
 | Variable                               | Default | Meaning                                            |
 | -------------------------------------- | ------- | -------------------------------------------------- |
@@ -122,6 +123,36 @@ Rules:
 | `ADOPTION_SEND_FROM_HOUR`              | 9       | Start of the sending window, account's local time  |
 | `ADOPTION_SEND_UNTIL_HOUR`             | 17      | End of the sending window                          |
 | `MAIL_LINK_HOURS`                      | 48      | How long a link in a mail works without logging in |
+
+## Sending and the mail log
+
+`App\Services\Mail\HowyMailer` is the one place Howy sends from a mailbox: the flow mails
+(`toColleague()`, from the colleague's home mailbox, a message of its own) and the replies in a thread
+(`reply()`, which `ThreadReplier` uses for answers, not-found and conflict replies). Every mail is first logged
+as an `OutboundMail` (`outbound_mails`), with everything needed to send it later, and then:
+
+| Status    | When                                                                                                    |
+| --------- | ------------------------------------------------------------------------------------------------------- |
+| `sent`    | Gmail took it. A flow mail sets the colleague's step (`welcomed_at`, `explained_at`, …).                |
+| `pending` | The mailbox needs reconnecting. `adoption:send` (hourly) sends it once the mailbox is back.             |
+| `skipped` | It may not go: unsubscribed, Howy mails off, ignored by the rules, not allowed to write to, no mailbox. |
+| `failed`  | Gmail refused it; the error is kept.                                                                    |
+
+A waiting flow mail goes only in working time; a waiting reply goes at once, and its interpretation moves from
+`reply_status` `waiting` to `sent`. Whether a flow mail may go is checked again when it goes, so someone who
+unsubscribed meanwhile does not get it.
+
+**References.** A mail's `Message-ID` is `<howy.{id}.{signature}@{mailbox domain}>`, the signature an HMAC over
+the account and the mail with the app key (`MailReferences`). After sending, Howy asks Gmail which Message-ID
+the message carries and keeps it (`message_id_header`), in case Gmail put its own in. `ReplyRecognizer`, from
+`StoreGmailMessage`, links a mail that came in to the mail it replies to (`emails.outbound_mail_id`) by, in
+order: a signed reference in `In-Reply-To` or `References`; the Message-ID Gmail sent Howy's mail with; the
+thread of a flow mail, which starts a thread of its own. Only within the mailbox and the account. A reply is
+read with what Howy wrote as its context, and the mail page says what it replies to.
+
+**The log** is the _Sent mails_ tab on the colleagues page (`/colleagues/sent`, account admins): filter on
+recipient, kind, status and period; open a mail to read it, see why it did not go and the replies it got. A
+colleague's page lists what Howy sent them.
 
 ## Privacy
 
@@ -140,8 +171,9 @@ closing a leaver's mailbox. Each can come back once confirmed.
 - Send each mail to yourself from `/admin/mails` and look at it in Gmail (web, iOS, Android), Outlook (new and
   classic on Windows) and Apple Mail, light and dark: no paperclip, no "load remote content" prompt,
   readable, buttons easy to tap, a sensible text part.
-- Spike for step 3: send through the Gmail API with our own `Message-ID` and `References`, reply from Gmail,
-  Outlook and Apple Mail, and check what comes back in `In-Reply-To` and `References`.
+- With a connected test mailbox: send a flow mail and an answer, reply from Gmail, Outlook and Apple Mail, and
+  check on the mail page that each reply is recognised. Check in the log whether Gmail kept Howy's
+  `Message-ID` (`reference` equals `message_id_header`) or put its own in.
 
 ## Parked mails
 

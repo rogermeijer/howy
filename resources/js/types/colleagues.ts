@@ -60,3 +60,29 @@ export type ColleagueEmail = {
 };
 
 export type MailboxOption = { id: number; emailAddress: string };
+
+/** Mirrors App\Enums\OutboundMailStatus. */
+export type SentMailStatus = 'pending' | 'sent' | 'skipped' | 'failed';
+
+/** A mail Howy sent, or meant to. Mirrors SentMailController::present(). */
+export type SentMail = {
+    id: number;
+    recipient: string;
+    cc: string[];
+    colleague: { id: number; name: string } | null;
+    mailbox: string | null;
+    kind: string;
+    kindLabel: string;
+    status: SentMailStatus;
+    statusLabel: string;
+    /** Why it did not go: the skip reason, or the error. */
+    reason: string | null;
+    subject: string | null;
+    text: string;
+    /** The mail it answers, or is about. */
+    emailId: number | null;
+    /** The mails that came in as a reply to it. */
+    replyIds: number[];
+    createdAt: string | null;
+    sentAt: string | null;
+};

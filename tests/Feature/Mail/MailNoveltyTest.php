@@ -15,14 +15,13 @@ use App\Models\EmailFingerprint;
 use App\Models\EmailInterpretation;
 use App\Models\KnowledgeFact;
 use App\Models\Mailbox;
-use App\Services\Gmail\GmailClient;
 use App\Services\Gmail\StoreGmailMessage;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
 use App\Services\Mail\Interpretation\InterpretationPresenter;
 use App\Services\Mail\MailFingerprints;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Prompts\AgentPrompt;
+use Tests\Concerns\FakesGmailSending;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\Fixtures\GmailFixtures;
 use Tests\TestCase;
@@ -34,6 +33,7 @@ use Tests\TestCase;
  */
 class MailNoveltyTest extends TestCase
 {
+    use FakesGmailSending;
     use FakesKnowledgeAi, RefreshDatabase;
 
     private const string POLICY = 'Vanaf 1 januari hebben medewerkers recht op 26 vakantiedagen per jaar, ook parttimers naar rato.';
@@ -51,7 +51,7 @@ class MailNoveltyTest extends TestCase
         $this->account = Account::factory()->create(['locale' => 'nl']);
         $this->mailbox = Tenancy::for($this->account, fn () => Mailbox::factory()->rules(senders: ['haarlem.nl' => SenderAccess::LearnAndAnswer])->create(['email_address' => 'kennis@noordkade.nl']));
 
-        Http::fake([GmailClient::BASE_URL.'/messages/send' => Http::response(['id' => 'reply-1', 'threadId' => 'thread-1'])]);
+        $this->fakeGmailSend();
         $this->fakeKnowledgeAi();
         $this->fakeMailAi(['intent' => 'information', 'statements' => []]);
     }

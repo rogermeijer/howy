@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
-import { ChevronLeft, Paperclip, Quote } from 'lucide-react';
+import { ChevronLeft, Paperclip, Quote, Reply } from 'lucide-react';
+import { WithHowy } from '@/components/brand/howy-name';
 import { Fragment, useState } from 'react';
 import { AttachmentChip } from '@/components/mail/attachment-chip';
 import { CcReply, hasCcReply } from '@/components/mail/cc-reply';
@@ -35,6 +36,8 @@ type Message = {
     attachments: MailAttachment[];
     quotes: QuotedMessage[];
     interpretation: Interpretation | null;
+    /** The mail of Howy's this one replies to. */
+    repliesTo: { kind: string; label: string; sentAt: string | null } | null;
 };
 
 type Props = {
@@ -323,6 +326,18 @@ function OpenMessage({
             </button>
 
             <div className="flex flex-col gap-3.5 px-7 pb-6 sm:pl-[82px]">
+                {message.repliesTo && (
+                    <p className="flex items-center gap-2 text-[13px] text-cc-subtle">
+                        <Reply className="size-3.5 shrink-0" />
+                        <span>
+                            <WithHowy
+                                text={t('A reply to Howy’s mail: :mail', {
+                                    mail: message.repliesTo.label,
+                                })}
+                            />
+                        </span>
+                    </p>
+                )}
                 {selectable && message.interpretation && (
                     <button
                         type="button"

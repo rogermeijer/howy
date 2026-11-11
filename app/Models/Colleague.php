@@ -45,6 +45,8 @@ use Illuminate\Support\Carbon;
  * @property-read int|null $rules_count
  * @property-read Collection<int, Email> $emails
  * @property-read int|null $emails_count
+ * @property-read Collection<int, OutboundMail> $outboundMails
+ * @property-read int|null $outbound_mails_count
  */
 #[Fillable([
     'email', 'name', 'user_id', 'home_mailbox_id', 'receives_mail', 'first_seen_at', 'last_mail_at',
@@ -98,6 +100,16 @@ class Colleague extends Model
     public function emails(): HasMany
     {
         return $this->hasMany(Email::class);
+    }
+
+    /**
+     * What Howy sent them, or meant to.
+     *
+     * @return HasMany<OutboundMail, $this>
+     */
+    public function outboundMails(): HasMany
+    {
+        return $this->hasMany(OutboundMail::class);
     }
 
     /**

@@ -13,6 +13,7 @@ use App\Models\Colleague;
 use App\Models\Email;
 use App\Models\Mailbox;
 use App\Models\MailboxRule;
+use App\Models\OutboundMail;
 use App\Services\Colleagues\Colleagues;
 use App\Services\Mail\Interpretation\InterpretationPresenter;
 use App\Services\Mailboxes\MailboxRuleEditor;
@@ -95,6 +96,14 @@ class ColleagueController extends Controller
                     'receivedAt' => $email->received_at?->toIso8601String(),
                     'interpretation' => $email->interpretation !== null ? $presenter->brief($email->interpretation) : null,
                 ])
+                ->all(),
+            // What Howy sent them, newest first.
+            'sent' => $colleague->outboundMails()
+                ->with(['colleague:id,name,email', 'mailbox:id,email_address', 'replies:id,outbound_mail_id'])
+                ->latest('id')
+                ->limit(25)
+                ->get()
+                ->map(fn (OutboundMail $mail): array => SentMailController::present($mail))
                 ->all(),
             'mailboxes' => $this->mailboxOptions($mailboxes),
         ]);

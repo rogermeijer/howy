@@ -12,3 +12,4 @@ Schedule::command('mailboxes:renew-watches')->daily()->withoutOverlapping();
 Schedule::command('mailboxes:poll')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('knowledge:poll-batches')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('knowledge:prune-ai-payloads')->daily()->withoutOverlapping();
+Schedule::command('adoption:send')->hourly()->withoutOverlapping();

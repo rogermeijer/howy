@@ -87,7 +87,9 @@ export function CcReply({
                             kind={
                                 sent
                                     ? 'decision'
-                                    : interpretation.replyStatus === 'blocked'
+                                    : interpretation.replyStatus ===
+                                            'blocked' ||
+                                        interpretation.replyStatus === 'waiting'
                                       ? 'pending'
                                       : 'action'
                             }
@@ -109,6 +111,13 @@ export function CcReply({
                         <p className="cc-caption">
                             {t(
                                 'Not sent: the rules of the mailbox do not allow this reply.',
+                            )}
+                        </p>
+                    )}
+                    {interpretation.replyStatus === 'waiting' && (
+                        <p className="cc-caption">
+                            {t(
+                                'Not sent yet: the mailbox needs reconnecting. The reply goes out once it is.',
                             )}
                         </p>
                     )}

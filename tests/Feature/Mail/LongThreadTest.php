@@ -16,13 +16,12 @@ use App\Models\Email;
 use App\Models\EmailFingerprint;
 use App\Models\EmailInterpretation;
 use App\Models\Mailbox;
-use App\Services\Gmail\GmailClient;
 use App\Services\Knowledge\Ai\Agents\EmailClassifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Prompts\AgentPrompt;
+use Tests\Concerns\FakesGmailSending;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\TestCase;
 
@@ -33,6 +32,7 @@ use Tests\TestCase;
  */
 class LongThreadTest extends TestCase
 {
+    use FakesGmailSending;
     use FakesKnowledgeAi, RefreshDatabase;
 
     private const string DECISION = 'We hebben besloten dat de servicebus vanaf maart op dinsdag en donderdag rijdt, niet meer op vrijdag.';
@@ -46,7 +46,7 @@ class LongThreadTest extends TestCase
         parent::setUp();
 
         Storage::fake('knowledge');
-        Http::fake([GmailClient::BASE_URL.'/messages/send' => Http::response(['id' => 'reply-1', 'threadId' => 't'])]);
+        $this->fakeGmailSend(threadId: 't');
         Process::fake(['*pandoc*' => Process::result((string) json_encode(['blocks' => [
             ['t' => 'Header', 'c' => [1, ['', [], []], [['t' => 'Str', 'c' => 'Servicebus']]]],
             ['t' => 'Header', 'c' => [2, ['', [], []], [['t' => 'Str', 'c' => 'Anna']]]],

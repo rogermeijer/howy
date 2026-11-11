@@ -36,12 +36,14 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Ai\Prompts\AgentPrompt;
 use RuntimeException;
+use Tests\Concerns\FakesGmailSending;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\Fixtures\GmailFixtures;
 use Tests\TestCase;
 
 class InterpretEmailTest extends TestCase
 {
+    use FakesGmailSending;
     use FakesKnowledgeAi, RefreshDatabase;
 
     private const string LEAVE = 'Medewerkers hebben recht op 25 vakantiedagen per jaar.';
@@ -61,7 +63,7 @@ class InterpretEmailTest extends TestCase
             'extern.nl' => SenderAccess::LearnAndAnswer,
         ])->create(['email_address' => 'kennis@noordkade.nl']));
 
-        Http::fake([GmailClient::BASE_URL.'/messages/send' => Http::response(['id' => 'reply-1', 'threadId' => 'thread-1'])]);
+        $this->fakeGmailSend();
     }
 
     public function test_new_mail_addressed_to_the_mailbox_is_queued_for_interpretation(): void
@@ -310,7 +312,8 @@ class InterpretEmailTest extends TestCase
 
         // Howy learns from Lisa, but never writes to her.
         $this->assertSame(['tom@haarlem.nl', 'anna@noordkade.nl'], $interpretation->reply_recipients);
-        Http::assertSent(fn (Request $request): bool => ! str_contains($this->decodedRaw($request), 'piet@extern.nl')
+        Http::assertSent(fn (Request $request): bool => $request->url() === GmailClient::BASE_URL.'/messages/send'
+            && ! str_contains($this->decodedRaw($request), 'piet@extern.nl')
             && ! str_contains($this->decodedRaw($request), 'lisa@klant.nl'));
 
         // The sender ignored: nothing goes out, not even to those copied in.
@@ -318,7 +321,7 @@ class InterpretEmailTest extends TestCase
         $blocked = $this->interpret($this->email(['cc' => [['name' => null, 'email' => 'anna@noordkade.nl']]]));
 
         $this->assertSame(ReplyStatus::Blocked, $blocked->reply_status);
-        Http::assertSentCount(1);
+        $this->assertSame(1, $this->gmailSendCount());
     }
 
     public function test_a_request_to_the_mailbox_alone_is_answered_like_a_question(): void
@@ -611,7 +614,7 @@ class InterpretEmailTest extends TestCase
         // A redelivered job leaves a finished interpretation alone.
         $this->interpret($email);
 
-        Http::assertSentCount(1);
+        $this->assertSame(1, $this->gmailSendCount());
         EmailClassifier::assertPromptedTimes(2);
     }
 
@@ -748,6 +751,7 @@ class InterpretEmailTest extends TestCase
 
     private function decodedRaw(Request $request): string
     {
-        return (string) base64_decode(strtr((string) $request['raw'], '-_', '+/'));
+        // Only a send carries a message; a lookup of its Message-ID does not.
+        return isset($request['raw']) ? (string) base64_decode(strtr((string) $request['raw'], '-_', '+/')) : '';
     }
 }

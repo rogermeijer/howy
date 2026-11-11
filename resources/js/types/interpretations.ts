@@ -21,7 +21,7 @@ export type InterpretationOutcome =
 
 export type InterpretationMode = 'addressed' | 'copied';
 
-export type ReplyStatus = 'none' | 'sent' | 'blocked' | 'failed';
+export type ReplyStatus = 'none' | 'sent' | 'waiting' | 'blocked' | 'failed';
 
 export type InterpretationBrief = {
     status: InterpretationStatus;

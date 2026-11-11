@@ -326,8 +326,10 @@ mail is kept, never interpreted. A mailbox that never imported anything offers t
 opens the dialog, and the import ends the offer; No need sets `import_offer_answered_at`
 (`MailboxController::dismissImportOffer`).
 
-A blocked or failed reply is kept with its text (`reply_status` `blocked` / `failed`). A reply that went out
-is never sent again, also not when the mail is interpreted again.
+Replies go through `HowyMailer`, which logs every mail Howy sends (see "Sending and the mail log" in
+[`adoption-mails.md`](adoption-mails.md)). A blocked or failed reply is kept with its text (`reply_status`
+`blocked` / `failed`); one that waits for its mailbox to be reconnected is `waiting`, and goes once it is. A
+reply that went out, or waits, is never sent again, also not when the mail is interpreted again.
 
 `php artisan mail:interpret {account} {email}` interprets a mail on demand (again, or one that was never
 queued, such as an import); `--queue` queues it instead.

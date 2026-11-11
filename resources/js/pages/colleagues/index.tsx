@@ -5,6 +5,7 @@ import { WithHowy } from '@/components/brand/howy-name';
 import { Pager } from '@/components/admin/pager';
 import { PageHeader } from '@/components/cc/page-header';
 import { AddColleagueDialog } from '@/components/colleagues/add-colleague-dialog';
+import { ColleagueTabs } from '@/components/colleagues/colleague-tabs';
 import {
     ColleagueStatusTag,
     useActivityLine,
@@ -117,6 +118,8 @@ export default function Colleagues({
                         </Button>
                     }
                 />
+
+                <ColleagueTabs current="colleagues" />
 
                 <div className="flex flex-wrap items-center gap-2.5">
                     <form

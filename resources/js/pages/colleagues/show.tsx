@@ -7,6 +7,7 @@ import {
     ColleagueStatusTag,
     useActivityLine,
 } from '@/components/colleagues/colleague-status';
+import { SentMailList } from '@/components/colleagues/sent-mail-list';
 import InputError from '@/components/input-error';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
 import { shownEntry } from '@/components/mailboxes/sender-badge';
@@ -36,12 +37,14 @@ import type {
     ColleagueEmail,
     ColleagueMailboxAccess,
     MailboxOption,
+    SentMail,
 } from '@/types';
 
 type Props = {
     colleague: ColleagueDetail;
     access: ColleagueMailboxAccess[];
     emails: ColleagueEmail[];
+    sent: SentMail[];
     mailboxes: MailboxOption[];
 };
 
@@ -49,6 +52,7 @@ export default function Colleague({
     colleague,
     access,
     emails,
+    sent,
     mailboxes,
 }: Props) {
     const t = useTranslations();
@@ -168,6 +172,35 @@ export default function Colleague({
                                         </li>
                                     ))}
                                 </ul>
+                            )}
+                        </Section>
+
+                        <Section
+                            title={t('Mails from Howy')}
+                            description={
+                                <WithHowy
+                                    text={t(
+                                        'What Howy sent them, or held back, newest first.',
+                                    )}
+                                />
+                            }
+                            className="pb-2 lg:pb-3"
+                        >
+                            {sent.length === 0 ? (
+                                <p className="cc-caption pb-4">
+                                    <WithHowy
+                                        text={t(
+                                            'Howy has not sent them anything yet.',
+                                        )}
+                                    />
+                                </p>
+                            ) : (
+                                <div className="-mx-6 lg:-mx-8">
+                                    <SentMailList
+                                        mails={sent}
+                                        showRecipient={false}
+                                    />
+                                </div>
                             )}
                         </Section>
                     </div>

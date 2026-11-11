@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountSwitcherController;
 use App\Http\Controllers\Auth\RegistrationCodeController;
 use App\Http\Controllers\BetaAccessRequestController;
 use App\Http\Controllers\Colleagues\ColleagueController;
+use App\Http\Controllers\Colleagues\SentMailController;
 use App\Http\Controllers\CurrentAccountController;
 use App\Http\Controllers\EmailAttachmentController;
 use App\Http\Controllers\EmailController;
@@ -100,9 +101,11 @@ Route::middleware(['auth', 'verified', 'tenant', 'set-up'])->group(function () {
     Route::middleware('account.admin')->prefix('colleagues')->name('colleagues.')->group(function () {
         Route::get('/', [ColleagueController::class, 'index'])->name('index');
         Route::post('/', [ColleagueController::class, 'store'])->name('store');
-        Route::get('{colleague}', [ColleagueController::class, 'show'])->name('show');
-        Route::patch('{colleague}', [ColleagueController::class, 'update'])->name('update');
-        Route::put('{colleague}/mailboxes/{mailbox}', [ColleagueController::class, 'updateAccess'])->name('access.update');
+        // Every mail Howy sent from the account's mailboxes: the mail log.
+        Route::get('sent', [SentMailController::class, 'index'])->name('sent');
+        Route::get('{colleague}', [ColleagueController::class, 'show'])->whereNumber('colleague')->name('show');
+        Route::patch('{colleague}', [ColleagueController::class, 'update'])->whereNumber('colleague')->name('update');
+        Route::put('{colleague}/mailboxes/{mailbox}', [ColleagueController::class, 'updateAccess'])->whereNumber('colleague')->name('access.update');
     });
 
     Route::get('knowledge', [KnowledgeController::class, 'index'])->name('knowledge');

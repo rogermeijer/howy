@@ -12,6 +12,7 @@ use App\Services\Colleagues\Colleagues;
 use App\Services\Mail\EmailContentExtractor;
 use App\Services\Mail\Interpretation\EmailEligibility;
 use App\Services\Mail\MailFingerprints;
+use App\Services\Mail\ReplyRecognizer;
 
 /**
  * Stores one Gmail message as an Email, idempotently.
@@ -19,7 +20,8 @@ use App\Services\Mail\MailFingerprints;
  * Push, poll and import all funnel through here, so a message that arrives twice
  * (Pub/Sub redelivers, a poll overlaps a push, someone imports what already came
  * in) updates the same row instead of duplicating it. A new message is queued
- * for interpretation, and its sender is kept up with as a colleague.
+ * for interpretation, its sender is kept up with as a colleague, and a reply
+ * to one of Howy's own mails is linked to it.
  *
  * @phpstan-import-type Forwarded from GmailMessageParser
  * @phpstan-import-type Quote from Email
@@ -32,6 +34,7 @@ class StoreGmailMessage
         private readonly EmailContentExtractor $extractor,
         private readonly EmailEligibility $eligibility,
         private readonly Colleagues $colleagues,
+        private readonly ReplyRecognizer $replies,
     ) {}
 
     /**
@@ -73,8 +76,10 @@ class StoreGmailMessage
 
         $email->save();
 
-        // Before it is read: what follows from the mail may depend on who sent it.
+        // Before it is read: what follows from the mail may depend on who sent
+        // it, and on whether it replies to Howy.
         $this->colleagues->record($email, $mailbox);
+        $this->replies->recognise($email, $mailbox);
 
         // New mail gets read and acted on, once: answered when written to the
         // mailbox, listened to when the mailbox is only copied.
