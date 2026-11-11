@@ -30,7 +30,12 @@ export type InterpretationBrief = {
     intentLabel: string | null;
     outcome: InterpretationOutcome | null;
     outcomeLabel: string | null;
+    /** How whoever asked rated the answer. Mirrors App\Enums\AnswerRating. */
+    rating: AnswerRating | null;
+    ratingLabel: string | null;
 };
+
+export type AnswerRating = 'valuable' | 'partly' | 'outdated';
 
 export type InterpretationSource = {
     type: 'document' | 'email';
@@ -80,6 +85,8 @@ export type Interpretation = InterpretationBrief & {
     replyText: string | null;
     replyRecipients: string[];
     repliedAt: string | null;
+    ratingNote: string | null;
+    ratedAt: string | null;
     error: string | null;
     processedAt: string | null;
 };

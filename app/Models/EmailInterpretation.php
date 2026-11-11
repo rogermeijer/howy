@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToAccount;
+use App\Enums\AnswerRating;
 use App\Enums\EmailIntent;
 use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
@@ -25,6 +26,7 @@ use Illuminate\Support\Carbon;
  *
  * @phpstan-type Citation array{type: 'document'|'email', id: int, title: string, section_id: int|null, heading_path: string|null, page: int|null}
  * @phpstan-type Statement array{statement: string, subject: string|null, valid_from: string|null, verdict: 'new'|'duplicate'|'conflict', fact_id: int|null, existing_fact_id: int|null, existing_statement: string|null, explanation: string|null, flag: string|null, from_history?: bool, review: 'pending'|'approved'|'rejected'|null, reviewed_by: int|null, reviewed_at: string|null}
+ * @phpstan-type SenderFeedback array{statement: int, choice: 'withdraw'|'correct', correction: string|null, at: string, handled_at?: string|null}
  *
  * @property int $id
  * @property int $account_id
@@ -49,6 +51,10 @@ use Illuminate\Support\Carbon;
  * @property list<string>|null $reply_recipients
  * @property string|null $reply_provider_message_id
  * @property Carbon|null $replied_at
+ * @property AnswerRating|null $rating how whoever asked rated the answer
+ * @property string|null $rating_note
+ * @property Carbon|null $rated_at
+ * @property list<SenderFeedback>|null $sender_feedback what the sender asked to change about what Howy took from their mail
  * @property string|null $error
  * @property Carbon|null $processed_at
  * @property Carbon|null $created_at
@@ -109,6 +115,9 @@ class EmailInterpretation extends Model
             'statements' => 'array',
             'reply_status' => ReplyStatus::class,
             'replied_at' => 'datetime',
+            'rating' => AnswerRating::class,
+            'rated_at' => 'datetime',
+            'sender_feedback' => 'array',
             'processed_at' => 'datetime',
         ];
     }

@@ -21,7 +21,7 @@ class InterpretationPresenter
     /**
      * The short form for a list row.
      *
-     * @return array{status: string, statusLabel: string, intent: string|null, intentLabel: string|null, outcome: string|null, outcomeLabel: string|null}
+     * @return array{status: string, statusLabel: string, intent: string|null, intentLabel: string|null, outcome: string|null, outcomeLabel: string|null, rating: string|null, ratingLabel: string|null}
      */
     public function brief(EmailInterpretation $interpretation): array
     {
@@ -32,6 +32,9 @@ class InterpretationPresenter
             'intentLabel' => $interpretation->intent?->label(),
             'outcome' => $interpretation->outcome?->value,
             'outcomeLabel' => $interpretation->outcome?->label(),
+            // How whoever asked rated the answer, from the links under it.
+            'rating' => $interpretation->rating?->value,
+            'ratingLabel' => $interpretation->rating?->label(),
         ];
     }
 
@@ -62,6 +65,8 @@ class InterpretationPresenter
             'replyText' => $interpretation->reply_text,
             'replyRecipients' => $interpretation->reply_recipients ?? [],
             'repliedAt' => $interpretation->replied_at?->toIso8601String(),
+            'ratingNote' => $interpretation->rating_note,
+            'ratedAt' => $interpretation->rated_at?->toIso8601String(),
             'error' => $interpretation->error,
             'processedAt' => $interpretation->processed_at?->toIso8601String(),
         ];

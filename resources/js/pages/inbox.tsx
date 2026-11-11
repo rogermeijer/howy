@@ -4,6 +4,7 @@ import { WithHowy } from '@/components/brand/howy-name';
 import { Pager } from '@/components/admin/pager';
 import { PageHeader } from '@/components/cc/page-header';
 import { InterpretationTag } from '@/components/mail/interpretation-tag';
+import { RatingTag } from '@/components/mail/rating-tag';
 import { MailboxBanner } from '@/components/mailboxes/mailbox-banner';
 import { useFormatDate } from '@/hooks/use-format-date';
 import { useTranslations } from '@/hooks/use-translations';
@@ -143,10 +144,22 @@ export default function Inbox({
                                     </div>
                                 </div>
 
-                                <div className="[grid-area:tag]">
+                                <div className="flex flex-wrap items-center gap-1.5 [grid-area:tag]">
                                     <InterpretationTag
                                         interpretation={thread.interpretation}
                                     />
+                                    {thread.interpretation?.rating &&
+                                        thread.interpretation.ratingLabel && (
+                                            <RatingTag
+                                                rating={
+                                                    thread.interpretation.rating
+                                                }
+                                                label={
+                                                    thread.interpretation
+                                                        .ratingLabel
+                                                }
+                                            />
+                                        )}
                                 </div>
 
                                 <div className="cc-caption text-right [grid-area:time]">

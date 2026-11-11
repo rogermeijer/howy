@@ -21,6 +21,7 @@ use App\Http\Controllers\Knowledge\KnowledgeSearchController;
 use App\Http\Controllers\Knowledge\KnowledgeTopicController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\MailLinks\MailLinkController;
+use App\Http\Controllers\MailLinks\RateAnswerController;
 use App\Http\Controllers\MailLinks\UnsubscribeController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\Webhooks\GmailWebhookController;
@@ -184,6 +185,11 @@ Route::prefix('m')->name('mail-links.')->middleware('throttle:60,1')->group(func
         Route::post('unsubscribe/{token}', [UnsubscribeController::class, 'store'])
             ->withoutMiddleware([PreventRequestForgery::class])
             ->name('unsubscribe.store');
+    });
+
+    Route::middleware('mail-link:rate')->group(function () {
+        Route::get('rate/{token}', [RateAnswerController::class, 'show'])->name('rate.show');
+        Route::post('rate/{token}', [RateAnswerController::class, 'store'])->name('rate.store');
     });
 
     Route::post('renew/{token}', [MailLinkController::class, 'renew'])->middleware('mail-link')->name('renew');

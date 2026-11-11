@@ -228,6 +228,9 @@ class InterpretEmailTest extends TestCase
         $this->assertSame($fact->document_id, $interpretation->citations[0]['id'] ?? null);
         $this->assertSame(ReplyStatus::Sent, $interpretation->reply_status);
         $this->assertSame('reply-1', $interpretation->reply_provider_message_id);
+        // Under the answer, the links to rate it.
+        $this->assertStringContainsString('/m/rate/', (string) $interpretation->reply_text);
+        $this->assertStringContainsString('choice=outdated', (string) $interpretation->reply_text);
 
         EmailClassifier::assertPrompted(fn (AgentPrompt $prompt) => str_contains($prompt->prompt, '[email]')
             && ! str_contains($prompt->prompt, 'tom@haarlem.nl'));

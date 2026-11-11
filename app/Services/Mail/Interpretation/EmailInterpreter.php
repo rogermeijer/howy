@@ -2,6 +2,7 @@
 
 namespace App\Services\Mail\Interpretation;
 
+use App\Enums\AnswerRating;
 use App\Enums\AttachmentDecision;
 use App\Enums\EmailIntent;
 use App\Enums\FactStatus;
@@ -10,6 +11,7 @@ use App\Enums\InterpretationMode;
 use App\Enums\InterpretationOutcome;
 use App\Enums\InterpretationStatus;
 use App\Enums\Locale;
+use App\Enums\MailLinkPurpose;
 use App\Enums\OutboundMailKind;
 use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
@@ -30,6 +32,7 @@ use App\Services\Knowledge\Search\Passage;
 use App\Services\Knowledge\Search\SearchQuery;
 use App\Services\Mail\MailAttachments;
 use App\Services\Mail\MailFingerprints;
+use App\Services\Mail\MailLinks;
 use App\Services\Mail\MailNovelty;
 use App\Services\Mail\MailReading;
 use App\Services\Mail\PreparedAttachments;
@@ -85,6 +88,7 @@ class EmailInterpreter
         private readonly FactReconciler $reconciler,
         private readonly ThreadDocumentWriter $threads,
         private readonly FactSources $sources,
+        private readonly MailLinks $links,
     ) {}
 
     public function interpret(Email $email): EmailInterpretation
@@ -387,8 +391,31 @@ class EmailInterpreter
         ])->save();
 
         if ($sure) {
-            $this->replier->reply($interpretation, $email, $this->composer->answer($question, $answer, $citations, $gaps, $locale));
+            $this->replier->reply($interpretation, $email, $this->composer->answer($question, $answer, $citations, $gaps, $locale, $this->ratingLinks($interpretation, $email, $locale)));
         }
+    }
+
+    /**
+     * The links under an answer to rate it, for whom it goes to: each opens
+     * the page with that choice made, and saves nothing until it is sent.
+     *
+     * @return array{valuable: string, partly: string, outdated: string}|null
+     */
+    private function ratingLinks(EmailInterpretation $interpretation, Email $email, string $locale): ?array
+    {
+        $recipient = $this->replier->recipient($email);
+
+        if ($recipient === null) {
+            return null;
+        }
+
+        $url = fn (AnswerRating $choice): string => $this->links->url(MailLinkPurpose::Rate, $interpretation->id, $recipient, $locale, ['choice' => $choice->value]);
+
+        return [
+            'valuable' => $url(AnswerRating::Valuable),
+            'partly' => $url(AnswerRating::Partly),
+            'outdated' => $url(AnswerRating::Outdated),
+        ];
     }
 
     /**

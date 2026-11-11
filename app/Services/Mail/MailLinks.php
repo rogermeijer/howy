@@ -31,9 +31,12 @@ class MailLinks
     /**
      * A link for the current account.
      */
-    public function url(MailLinkPurpose $purpose, int $recordId, string $recipient, string $locale): string
+    /**
+     * @param  array<string, string>  $query  what the page opens with, a choice already made say
+     */
+    public function url(MailLinkPurpose $purpose, int $recordId, string $recipient, string $locale, array $query = []): string
     {
-        return MailUrl::route('mail-links.'.$purpose->value.'.show', $this->token($purpose, $recordId, $recipient, $locale));
+        return MailUrl::route('mail-links.'.$purpose->value.'.show', ['token' => $this->token($purpose, $recordId, $recipient, $locale), ...$query]);
     }
 
     public function token(MailLinkPurpose $purpose, int $recordId, string $recipient, string $locale, ?int $accountId = null): string
