@@ -105,16 +105,31 @@ export function MailboxRulesPanel({
 }: Props) {
     const t = useTranslations();
     const [sheet, setSheet] = useState<SenderAccess | 'all' | null>(null);
-    const [welcomeNew, setWelcomeNew] = useState(true);
+    const [welcomeChoice, setWelcomeChoice] = useState<{
+        for: string;
+        on: boolean;
+    } | null>(null);
 
     // Addresses not saved before: whoever is new among them becomes a colleague.
-    const newcomers = draft.senders.filter(
-        (rule) =>
-            rule.entry.includes('@') &&
-            !rulesOf(mailbox).senders.some(
-                (saved) => saved.entry === rule.entry,
-            ),
-    ).length;
+    const newcomers = draft.senders
+        .filter(
+            (rule) =>
+                rule.entry.includes('@') &&
+                !rulesOf(mailbox).senders.some(
+                    (saved) => saved.entry === rule.entry,
+                ),
+        )
+        .map((rule) => rule.entry);
+
+    // Ticked, they all get Howy mails, so it starts ticked only when they are
+    // all at the company's own domain: a customer is left out unless chosen.
+    // A choice holds for the addresses it was made for.
+    const newcomersKey = newcomers.join(',');
+    const welcomeNew =
+        welcomeChoice?.for === newcomersKey
+            ? welcomeChoice.on
+            : !mailbox.publicDomain &&
+              newcomers.every((entry) => entry.endsWith(`@${mailbox.domain}`));
 
     const set = (rules: Partial<MailboxRules>) =>
         setDraft({ ...draft, ...rules });
@@ -234,7 +249,7 @@ export function MailboxRulesPanel({
                 />
             </Group>
 
-            {canManage && changes > 0 && isLive && newcomers > 0 && (
+            {canManage && changes > 0 && isLive && newcomers.length > 0 && (
                 <label className="flex items-start gap-3 rounded-xl border border-cc-border px-3.5 py-3">
                     <input
                         type="hidden"
@@ -243,17 +258,29 @@ export function MailboxRulesPanel({
                     />
                     <Checkbox
                         checked={welcomeNew}
-                        onCheckedChange={(on) => setWelcomeNew(on === true)}
+                        onCheckedChange={(on) =>
+                            setWelcomeChoice({
+                                for: newcomersKey,
+                                on: on === true,
+                            })
+                        }
                         className="mt-0.5 size-[18px] border-[1.5px] border-cc-border-strong bg-cc-panel"
                     />
-                    <span className="flex flex-col gap-0.5">
-                        <span className="text-[14px] font-semibold">
-                            {t('Send the welcome mail to new colleagues')}
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                        <span className="text-[14px] font-semibold break-words">
+                            {newcomers.length === 1
+                                ? t('Send the welcome mail to :address', {
+                                      address: newcomers[0],
+                                  })
+                                : t(
+                                      'Send the welcome mail to the :count new addresses',
+                                      { count: newcomers.length },
+                                  )}
                         </span>
                         <span className="cc-caption">
                             <WithHowy
                                 text={t(
-                                    'Only to those who get Howy mails: people at your company, not a customer you list.',
+                                    'From then on they get Howy mails too. Leave this off for a customer you list.',
                                 )}
                             />
                         </span>

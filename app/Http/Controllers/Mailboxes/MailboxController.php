@@ -35,12 +35,17 @@ class MailboxController extends Controller
         /** @var string $domainAccess */
         $domainAccess = $request->validated('domain_access');
 
-        $made = $rules->apply($mailbox, $domainAccess, $request->senders(), $request->removed());
+        $listed = $rules->apply($mailbox, $domainAccess, $request->senders(), $request->removed());
 
-        // Welcomes::send() leaves alone whoever may not get it, a customer say.
+        // Ticked, the admin says those new on the list are colleagues who get
+        // Howy mails, whatever their domain: a gmail.com address included.
+        // Welcomes::send() still leaves alone whoever unsubscribed.
         if ($request->boolean('welcome_new')) {
-            foreach ($made as $colleague) {
-                $welcomes->send($colleague);
+            foreach ($listed as $colleague) {
+                if ($colleague->welcomed_at === null) {
+                    $colleague->forceFill(['receives_mail' => true])->save();
+                    $welcomes->send($colleague);
+                }
             }
         }
 

@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\Adoption\Welcomes;
 use App\Services\Gmail\StoreGmailMessage;
 use App\Services\Mail\HowyMailer;
+use App\Services\Mailboxes\MailboxRuleEditor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -147,7 +148,41 @@ class WelcomeMailTest extends TestCase
         $this->assertSame(['eva@noordkade.nl'], Tenancy::for($this->account, fn () => OutboundMail::query()->pluck('recipient')->all()));
     }
 
-    public function test_new_addresses_on_the_list_can_get_the_welcome(): void
+    public function test_ticked_whoever_is_new_on_the_list_gets_howy_mails_and_the_welcome(): void
+    {
+        Tenancy::for($this->account, function (): void {
+            // Known already, with Howy mails off: not at the company's domain.
+            Colleague::factory()->create(['email' => 'kees@gmail.com', 'home_mailbox_id' => $this->mailbox->id, 'receives_mail' => false]);
+            app(MailboxRuleEditor::class)->apply($this->mailbox, 'learn_answer', [['entry' => 'eva@gmail.com', 'access' => 'learn_answer']]);
+        });
+
+        $this->actingAs($this->admin)
+            ->patch(route('mailboxes.rules.update', $this->mailbox), [
+                'domain_access' => 'learn_answer',
+                'sender_rules' => [
+                    ['entry' => 'eva@gmail.com', 'access' => 'learn_answer'],
+                    ['entry' => 'jan@noordkade.nl', 'access' => 'learn_answer'],
+                    ['entry' => 'roger@gmail.com', 'access' => 'learn_answer'],
+                    ['entry' => 'kees@gmail.com', 'access' => 'learn'],
+                ],
+                'welcome_new' => '1',
+            ])
+            ->assertSessionHasNoErrors();
+
+        // A colleague at gmail.com too, but not Eva: she was on the list already.
+        Tenancy::for($this->account, function (): void {
+            $this->assertEqualsCanonicalizing(
+                ['jan@noordkade.nl', 'roger@gmail.com', 'kees@gmail.com'],
+                OutboundMail::query()->where('kind', OutboundMailKind::Welcome)->pluck('recipient')->all(),
+            );
+            $this->assertSame(
+                ['eva@gmail.com' => false, 'jan@noordkade.nl' => true, 'kees@gmail.com' => true, 'roger@gmail.com' => true],
+                Colleague::query()->orderBy('email')->pluck('receives_mail', 'email')->all(),
+            );
+        });
+    }
+
+    public function test_unticked_a_customer_on_the_list_gets_no_howy_mails(): void
     {
         $this->actingAs($this->admin)
             ->patch(route('mailboxes.rules.update', $this->mailbox), [
@@ -156,12 +191,17 @@ class WelcomeMailTest extends TestCase
                     ['entry' => 'jan@noordkade.nl', 'access' => 'learn_answer'],
                     ['entry' => 'piet@klant.nl', 'access' => 'answer'],
                 ],
-                'welcome_new' => '1',
+                'welcome_new' => '0',
             ])
             ->assertSessionHasNoErrors();
 
-        // A customer on the list gets no Howy mails, so no welcome.
-        $this->assertSame(['jan@noordkade.nl'], Tenancy::for($this->account, fn () => OutboundMail::query()->pluck('recipient')->all()));
+        Tenancy::for($this->account, function (): void {
+            $this->assertSame(0, OutboundMail::query()->count());
+            $this->assertSame(
+                ['jan@noordkade.nl' => true, 'piet@klant.nl' => false],
+                Colleague::query()->orderBy('email')->pluck('receives_mail', 'email')->all(),
+            );
+        });
     }
 
     public function test_the_welcome_can_be_sent_by_hand_once(): void

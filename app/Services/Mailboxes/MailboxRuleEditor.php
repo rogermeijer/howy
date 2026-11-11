@@ -27,15 +27,15 @@ class MailboxRuleEditor
      *
      * @param  list<array{entry: string, access: SenderAccess|string, creates_colleagues?: bool|null}>  $rules
      * @param  list<string>  $removed
-     * @return list<Colleague> the colleagues this made
+     * @return list<Colleague> the colleagues new on this mailbox's list, made now or known already
      */
     public function apply(Mailbox $mailbox, SenderAccess|string $domainAccess, array $rules, array $removed = []): array
     {
         $own = $mailbox->isOnPublicDomain() ? null : $mailbox->domain();
         $domainAccess = self::access($domainAccess);
-        $made = [];
+        $listed = [];
 
-        DB::transaction(function () use ($mailbox, $own, $domainAccess, $rules, $removed, &$made): void {
+        DB::transaction(function () use ($mailbox, $own, $domainAccess, $rules, $removed, &$listed): void {
             $existing = $mailbox->rules()->with('colleague')->get();
 
             foreach ($removed as $entry) {
@@ -51,11 +51,12 @@ class MailboxRuleEditor
                     $domainAccess = $access;
                 } elseif (str_contains($rule['entry'], '@')) {
                     $colleague = $this->colleagues->findOrCreate($rule['entry'], $mailbox);
-                    $this->setFor($mailbox, $colleague, $access);
 
-                    if ($colleague->wasRecentlyCreated) {
-                        $made[] = $colleague;
+                    if (! $existing->contains('colleague_id', $colleague->id)) {
+                        $listed[] = $colleague;
                     }
+
+                    $this->setFor($mailbox, $colleague, $access);
                 } else {
                     $this->setForDomain($mailbox, $rule['entry'], $access, $rule['creates_colleagues'] ?? null);
                 }
@@ -68,7 +69,7 @@ class MailboxRuleEditor
 
         $mailbox->unsetRelation('rules');
 
-        return $made;
+        return $listed;
     }
 
     /**
