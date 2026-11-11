@@ -97,7 +97,7 @@ export default function MailPreviews({
                                 href={href({ locale: locale.value })}
                                 preserveScroll
                                 className={cn(
-                                    'cc-pill',
+                                    'cc-pill inline-flex items-center',
                                     selected.locale === locale.value &&
                                         'cc-pill-active',
                                 )}
@@ -119,7 +119,7 @@ export default function MailPreviews({
                                         href={href({ access })}
                                         preserveScroll
                                         className={cn(
-                                            'cc-pill',
+                                            'cc-pill inline-flex items-center',
                                             selected.access === access &&
                                                 'cc-pill-active',
                                         )}
@@ -150,7 +150,7 @@ export default function MailPreviews({
                             onClick={() =>
                                 setView(view === 'html' ? 'text' : 'html')
                             }
-                            className="cc-pill"
+                            className="cc-pill inline-flex items-center"
                         >
                             {view === 'html'
                                 ? t('Show plain text')
