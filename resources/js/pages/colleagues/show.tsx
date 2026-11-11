@@ -48,6 +48,8 @@ type Props = {
     mailboxes: MailboxOption[];
     /** Live, and they may get the welcome but have not had it. */
     canWelcome: boolean;
+    /** The kinds of Howy's own mails to them that are on their way. */
+    onTheirWay: string[];
 };
 
 export default function Colleague({
@@ -57,6 +59,7 @@ export default function Colleague({
     sent,
     mailboxes,
     canWelcome,
+    onTheirWay,
 }: Props) {
     const t = useTranslations();
     const formatDate = useFormatDate();
@@ -68,13 +71,22 @@ export default function Colleague({
 
     // What their Howy mails have done so far, in order.
     const steps = [
-        { label: t('Welcome'), at: colleague.welcomedAt },
-        { label: t('How Howy works'), at: colleague.explainedAt },
+        { kind: 'welcome', label: t('Welcome'), at: colleague.welcomedAt },
         {
+            kind: 'how_it_works',
+            label: t('How Howy works'),
+            at: colleague.explainedAt,
+        },
+        {
+            kind: 'first_save',
             label: t('Thanks for the first contribution'),
             at: colleague.firstSavedAt,
         },
-        { label: t('Reminder to share'), at: colleague.nudgedAt },
+        {
+            kind: 'nudge',
+            label: t('Reminder to share'),
+            at: colleague.nudgedAt,
+        },
     ];
 
     return (
@@ -340,7 +352,10 @@ export default function Colleague({
                                             {step.label}
                                         </span>
                                         <span className="cc-caption shrink-0 whitespace-nowrap">
-                                            {date(step.at) ?? t('Not yet')}
+                                            {date(step.at) ??
+                                                (onTheirWay.includes(step.kind)
+                                                    ? t('On its way')
+                                                    : t('Not yet'))}
                                         </span>
                                     </li>
                                 ))}

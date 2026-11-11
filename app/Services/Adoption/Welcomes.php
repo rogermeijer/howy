@@ -7,7 +7,6 @@ use App\Enums\OutboundMailKind;
 use App\Enums\OutboundMailStatus;
 use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
-use App\Jobs\Adoption\SendFlowMail;
 use App\Models\Colleague;
 use App\Models\Mailbox;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,6 +19,8 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class Welcomes
 {
+    public function __construct(private readonly FlowSender $sender) {}
+
     /**
      * Whether Howy's own mails may go to this colleague at all: they want
      * them, and the rules of the mailbox they come from do not ignore them.
@@ -40,8 +41,7 @@ class Welcomes
      */
     public function awaits(Colleague $colleague): bool
     {
-        return $colleague->welcomed_at === null
-            && ! $colleague->outboundMails()->where('kind', OutboundMailKind::Welcome)->whereIn('status', self::underway())->exists();
+        return ! $this->sender->underway($colleague, OutboundMailKind::Welcome);
     }
 
     /**
@@ -60,7 +60,7 @@ class Welcomes
             ->where('receives_mail', true)
             ->whereDoesntHave('outboundMails', fn (Builder $query) => $query
                 ->where('kind', OutboundMailKind::Welcome)
-                ->whereIn('status', self::underway()))
+                ->whereIn('status', OutboundMailStatus::underway()))
             ->orderByRaw('lower(coalesce(name, email))')
             ->get()
             ->filter(fn (Colleague $colleague): bool => $this->mayReceive($colleague, $mailboxes->get((int) $colleague->home_mailbox_id)))
@@ -73,22 +73,8 @@ class Welcomes
      */
     public function send(Colleague $colleague): bool
     {
-        if (! Tenancy::account()->isLive() || ! $this->mayReceive($colleague) || ! $this->awaits($colleague)) {
-            return false;
-        }
-
-        SendFlowMail::dispatch($colleague->id, OutboundMailKind::Welcome);
-
-        return true;
-    }
-
-    /**
-     * A mail that went, or will once its mailbox is back.
-     *
-     * @return list<OutboundMailStatus>
-     */
-    public static function underway(): array
-    {
-        return [OutboundMailStatus::Pending, OutboundMailStatus::Sent];
+        return Tenancy::account()->isLive()
+            && $this->mayReceive($colleague)
+            && $this->sender->send($colleague, OutboundMailKind::Welcome);
     }
 }

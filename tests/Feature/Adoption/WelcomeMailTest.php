@@ -4,16 +4,20 @@ namespace Tests\Feature\Adoption;
 
 use App\Enums\EmailSource;
 use App\Enums\OutboundMailKind;
+use App\Enums\OutboundMailStatus;
 use App\Facades\Tenancy;
-use App\Jobs\Adoption\SendFlowMail;
+use App\Jobs\Adoption\DeliverOutboundMail;
 use App\Models\Account;
 use App\Models\Colleague;
 use App\Models\Mailbox;
 use App\Models\OutboundMail;
 use App\Models\User;
+use App\Services\Adoption\Welcomes;
 use App\Services\Gmail\StoreGmailMessage;
+use App\Services\Mail\HowyMailer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\FakesGmailSending;
 use Tests\Concerns\FakesKnowledgeAi;
 use Tests\Fixtures\GmailFixtures;
@@ -84,17 +88,50 @@ class WelcomeMailTest extends TestCase
         $this->assertSame(0, Tenancy::for($this->account, fn () => OutboundMail::query()->count()));
     }
 
-    public function test_two_jobs_for_the_same_welcome_send_it_once(): void
+    public function test_the_welcome_asked_for_twice_goes_once(): void
     {
         $anna = Tenancy::for($this->account, fn () => Colleague::factory()->create(['email' => 'anna@noordkade.nl', 'home_mailbox_id' => $this->mailbox->id]));
 
         Tenancy::for($this->account, function () use ($anna): void {
-            SendFlowMail::dispatchSync($anna->id, OutboundMailKind::Welcome);
-            SendFlowMail::dispatchSync($anna->id, OutboundMailKind::Welcome);
+            $this->assertTrue(app(Welcomes::class)->send($anna));
+            $this->assertFalse(app(Welcomes::class)->send($anna));
         });
 
         $this->assertSame(1, Tenancy::for($this->account, fn () => OutboundMail::query()->count()));
         $this->assertSame(1, $this->gmailSendCount());
+    }
+
+    public function test_a_welcome_on_its_way_shows_at_once_before_the_queue_sends_it(): void
+    {
+        Queue::fake();
+        $anna = Tenancy::for($this->account, fn () => Colleague::factory()->create(['email' => 'anna@noordkade.nl', 'home_mailbox_id' => $this->mailbox->id]));
+
+        $this->actingAs($this->admin)->post(route('colleagues.welcome', $anna))->assertRedirect();
+
+        // Not sent yet, but logged: the button is gone and the step says so.
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.show', $anna))
+            ->assertInertia(fn ($page) => $page
+                ->where('canWelcome', false)
+                ->where('onTheirWay', ['welcome'])
+                ->where('sent.0.status', 'pending')
+                ->where('sent.0.reason', null));
+
+        // A second click adds nothing.
+        $this->actingAs($this->admin)->post(route('colleagues.welcome', $anna))->assertRedirect();
+
+        Queue::assertPushed(DeliverOutboundMail::class, 1);
+        $mail = Tenancy::for($this->account, fn () => OutboundMail::query()->sole());
+        $this->assertSame(OutboundMailStatus::Pending, $mail->status);
+        $this->assertSame(0, $this->gmailSendCount());
+
+        // The queue sends it.
+        Tenancy::for($this->account, fn () => (new DeliverOutboundMail($mail->id))->handle(app(HowyMailer::class)));
+
+        $this->assertSame(OutboundMailStatus::Sent, Tenancy::for($this->account, fn () => $mail->refresh()->status));
+        $this->actingAs($this->admin)
+            ->get(route('colleagues.show', $anna))
+            ->assertInertia(fn ($page) => $page->where('onTheirWay', [])->whereNot('colleague.welcomedAt', null));
     }
 
     public function test_adding_a_colleague_can_send_the_welcome_at_once(): void

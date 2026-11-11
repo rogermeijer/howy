@@ -42,11 +42,21 @@ class HowyMailer
 
     /**
      * One of Howy's own mails to a colleague, from their home mailbox, as a
-     * message of its own.
+     * message of its own: logged and sent.
      */
     public function toColleague(Colleague $colleague, OutboundMailKind $kind, RenderedMail $mail, ?Email $about = null, ?string $unsubscribeUrl = null): OutboundMail
     {
-        $outbound = OutboundMail::query()->create([
+        return $this->deliver($this->logForColleague($colleague, $kind, $mail, $about, $unsubscribeUrl));
+    }
+
+    /**
+     * One of Howy's own mails to a colleague, logged as not sent yet, for
+     * deliver() to send later (DeliverOutboundMail): what is underway shows
+     * at once.
+     */
+    public function logForColleague(Colleague $colleague, OutboundMailKind $kind, RenderedMail $mail, ?Email $about = null, ?string $unsubscribeUrl = null): OutboundMail
+    {
+        return OutboundMail::query()->create([
             'mailbox_id' => $colleague->home_mailbox_id,
             'colleague_id' => $colleague->id,
             'email_id' => $about?->id,
@@ -62,8 +72,6 @@ class HowyMailer
                 'List-Unsubscribe-Post' => $unsubscribeUrl !== null ? 'List-Unsubscribe=One-Click' : null,
             ]),
         ]);
-
-        return $this->deliver($outbound);
     }
 
     /**

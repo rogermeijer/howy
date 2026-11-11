@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Colleagues;
 
 use App\Enums\EmailIntent;
 use App\Enums\InterpretationOutcome;
+use App\Enums\OutboundMailStatus;
 use App\Enums\SenderAccess;
 use App\Facades\Tenancy;
 use App\Http\Controllers\Controller;
@@ -101,9 +102,17 @@ class ColleagueController extends Controller
                     'interpretation' => $email->interpretation !== null ? $presenter->brief($email->interpretation) : null,
                 ])
                 ->all(),
+            // Howy's own mails to them that are on their way, not sent yet.
+            'onTheirWay' => $colleague->outboundMails()
+                ->where('status', OutboundMailStatus::Pending)
+                ->get(['id', 'kind'])
+                ->map(fn (OutboundMail $mail): string => $mail->kind->value)
+                ->unique()
+                ->values()
+                ->all(),
             // What Howy sent them, newest first.
             'sent' => $colleague->outboundMails()
-                ->with(['colleague:id,name,email', 'mailbox:id,email_address', 'replies:id,outbound_mail_id'])
+                ->with(['colleague:id,name,email', 'mailbox:id,email_address,status', 'replies:id,outbound_mail_id'])
                 ->latest('id')
                 ->limit(25)
                 ->get()

@@ -38,7 +38,7 @@ class SentMailController extends Controller
             ->when($status !== null, fn (Builder $query) => $query->where('status', $status))
             ->when($from !== null, fn (Builder $query) => $query->where('created_at', '>=', $from?->copy()->startOfDay()->utc()))
             ->when($until !== null, fn (Builder $query) => $query->where('created_at', '<=', $until?->copy()->endOfDay()->utc()))
-            ->with(['colleague:id,name,email', 'mailbox:id,email_address', 'replies:id,outbound_mail_id'])
+            ->with(['colleague:id,name,email', 'mailbox:id,email_address,status', 'replies:id,outbound_mail_id'])
             ->latest('id')
             ->paginate(50)
             ->withQueryString()
@@ -76,7 +76,7 @@ class SentMailController extends Controller
             'kindLabel' => $mail->kind->label(),
             'status' => $mail->status->value,
             'statusLabel' => $mail->status->label(),
-            'reason' => $mail->skip_reason?->label() ?? $mail->error,
+            'reason' => $mail->skip_reason?->label() ?? $mail->error ?? self::waitingFor($mail),
             'subject' => $mail->subject,
             'text' => $mail->text,
             'emailId' => $mail->email_id,
@@ -84,6 +84,23 @@ class SentMailController extends Controller
             'createdAt' => $mail->created_at?->toIso8601String(),
             'sentAt' => $mail->sent_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * What a mail not sent yet waits for, if anything: about to go, it waits
+     * for nothing.
+     */
+    private static function waitingFor(OutboundMail $mail): ?string
+    {
+        if ($mail->status !== OutboundMailStatus::Pending) {
+            return null;
+        }
+
+        return match (true) {
+            $mail->mailbox !== null && ! $mail->mailbox->isActive() => (string) __('The mailbox needs reconnecting.'),
+            $mail->kind->isFlow() && ! Tenancy::account()->isLive() => (string) __('Howy is paused.'),
+            default => null,
+        };
     }
 
     /**

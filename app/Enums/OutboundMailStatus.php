@@ -8,7 +8,10 @@ namespace App\Enums;
  */
 enum OutboundMailStatus: string
 {
-    /** Not sent yet: waiting for its mailbox to be connected again. */
+    /**
+     * Not sent yet: about to go, or waiting for its mailbox to be connected
+     * again, or for the account to be live again.
+     */
     case Pending = 'pending';
 
     case Sent = 'sent';
@@ -17,10 +20,20 @@ enum OutboundMailStatus: string
 
     case Failed = 'failed';
 
+    /**
+     * A mail that went, or will: one more of the same kind is not needed.
+     *
+     * @return list<self>
+     */
+    public static function underway(): array
+    {
+        return [self::Pending, self::Sent];
+    }
+
     public function label(): string
     {
         return match ($this) {
-            self::Pending => __('Waiting for the mailbox'),
+            self::Pending => __('Not sent yet'),
             self::Sent => __('Sent'),
             self::Skipped => __('Not sent'),
             self::Failed => __('Failed'),

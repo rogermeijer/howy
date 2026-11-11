@@ -2018,7 +2018,6 @@
     "The mail it answers": "De mail waarop het antwoordt",
     "The reply": "De reactie",
     "Reply :number": "Reactie :number",
-    "Waiting for the mailbox": "Wacht op de mailbox",
     "Not sent": "Niet verstuurd",
     "Reply waits for the mailbox": "Antwoord wacht op de mailbox",
     "They unsubscribed": "Ze hebben zich afgemeld",
@@ -2054,5 +2053,9 @@
     "Howy is paused: its own mails wait until it is live again. Answers still go out.": "Howy staat op pauze: zijn eigen mails wachten tot het weer live is. Antwoorden gaan gewoon uit.",
     ":name is a colleague now. The welcome mail is on its way.": ":name is nu collega. De welkomstmail is onderweg.",
     "The welcome mail is on its way.": "De welkomstmail is onderweg.",
-    "Howy cannot send them the welcome now.": "Howy kan hun het welkom nu niet sturen."
+    "Howy cannot send them the welcome now.": "Howy kan hun het welkom nu niet sturen.",
+    "Not sent yet": "Nog niet verstuurd",
+    "On its way": "Onderweg",
+    "The mailbox needs reconnecting.": "De mailbox moet opnieuw gekoppeld worden.",
+    "Howy is paused.": "Howy staat op pauze."
 }

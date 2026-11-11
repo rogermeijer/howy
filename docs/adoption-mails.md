@@ -133,7 +133,7 @@ their home mailbox, and have not had it), all ticked; the welcome goes to those 
 any hour. Pausing (`live_at` null) holds Howy's own mails, also those already waiting for a mailbox, until it
 is live again. Answers never wait for it.
 
-After going live a colleague gets the welcome once (`Welcomes::send()`, then the `SendFlowMail` job):
+After going live a colleague gets the welcome once (`Welcomes::send()`, through `FlowSender`):
 
 - with their first mail to Howy (`AdoptionTriggers::afterInterpretation()`, from `InterpretEmail`; never from
   an import). That mail is their day 0;
@@ -142,7 +142,9 @@ After going live a colleague gets the welcome once (`Welcomes::send()`, then the
   only those who get Howy mails, so a customer listed one by one gets nothing;
 - by hand, from their page, while they have not had it.
 
-`SendFlowMail` locks the colleague's row while it decides, so two first mails read at once send it once. The
+`FlowSender` writes the mail and logs it at once, as not sent yet, and the `DeliverOutboundMail` job sends it:
+what is underway shows straight away, on the colleague's page ("On its way") and in the log. It locks the
+colleague's row while it decides, so two first mails read at once, or a button clicked twice, log it once. The
 mail is written for them (`FlowMailComposer`): their first name, the access of their home mailbox, in a
 member's own language or the account's.
 
@@ -153,12 +155,12 @@ member's own language or the account's.
 (`reply()`, which `ThreadReplier` uses for answers, not-found and conflict replies). Every mail is first logged
 as an `OutboundMail` (`outbound_mails`), with everything needed to send it later, and then:
 
-| Status    | When                                                                                                    |
-| --------- | ------------------------------------------------------------------------------------------------------- |
-| `sent`    | Gmail took it. A flow mail sets the colleague's step (`welcomed_at`, `explained_at`, …).                |
-| `pending` | The mailbox needs reconnecting. `adoption:send` (hourly) sends it once the mailbox is back.             |
-| `skipped` | It may not go: unsubscribed, Howy mails off, ignored by the rules, not allowed to write to, no mailbox. |
-| `failed`  | Gmail refused it; the error is kept.                                                                    |
+| Status    | When                                                                                                                                                |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sent`    | Gmail took it. A flow mail sets the colleague's step (`welcomed_at`, `explained_at`, …).                                                            |
+| `pending` | Not sent yet: about to go, or held while the mailbox needs reconnecting or Howy is paused. `adoption:send` (hourly) sends it once nothing holds it. |
+| `skipped` | It may not go: unsubscribed, Howy mails off, ignored by the rules, not allowed to write to, no mailbox.                                             |
+| `failed`  | Gmail refused it; the error is kept.                                                                                                                |
 
 A waiting flow mail goes only in working time; a waiting reply goes at once, and its interpretation moves from
 `reply_status` `waiting` to `sent`. Whether a flow mail may go is checked again when it goes, so someone who
